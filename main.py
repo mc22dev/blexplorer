@@ -42,11 +42,16 @@ class App(customtkinter.CTk):
         self.read_button = customtkinter.CTkButton(self, text="Read", command=self.read_characteristic, state="disabled")
         self.read_button.grid(row=3, column=1, padx=10, pady=10, sticky="sw")
 
-        self.write_entry = customtkinter.CTkEntry(self)
-        self.write_entry.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
+        # Frame for write entry and button
+        self.write_frame = customtkinter.CTkFrame(self)
+        self.write_frame.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
+        self.write_frame.grid_columnconfigure(0, weight=1)
 
-        self.write_button = customtkinter.CTkButton(self, text="Write", command=self.write_characteristic, state="disabled")
-        self.write_button.grid(row=4, column=1, padx=(120, 10), pady=10, sticky="e")
+        self.write_entry = customtkinter.CTkEntry(self.write_frame)
+        self.write_entry.grid(row=0, column=0, padx=(0,5), pady=0, sticky="ew")
+
+        self.write_button = customtkinter.CTkButton(self.write_frame, text="Write", command=self.write_characteristic, state="disabled")
+        self.write_button.grid(row=0, column=1, padx=(5,0), pady=0)
 
         self.devices = []
         self.client = None
@@ -165,7 +170,7 @@ class App(customtkinter.CTk):
                 write_value = value.encode("utf-8")
 
             await self.client.write_gatt_char(characteristic.uuid, write_value)
-            self.after(0, lambda v=value: self.attributes_textbox.insert("end", f"Value written: {v}\n"))
+            self.after(0, lambda wv=write_value: self.attributes_textbox.insert("end", f"Value written: {wv.hex()}\n"))
         except Exception as e:
              self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"Write Error: {err}\n"))
 
