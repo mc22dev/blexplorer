@@ -11,17 +11,16 @@ class App(customtkinter.CTk):
         self.geometry("800x600")
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(3, weight=1)
-        self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(1, weight=1)
+        self.grid_columnconfigure(1, weight=2)
+        self.grid_rowconfigure(3, weight=1)
 
         self.scan_button = customtkinter.CTkButton(self, text="Scan for devices", command=self.scan_for_devices)
         self.scan_button.grid(row=0, column=0, padx=10, pady=10)
 
-        self.devices_listbox = customtkinter.CTkListbox(self, command=self.device_selected)
-        self.devices_listbox.grid(row=1, column=0, rowspan=3, padx=10, pady=10, sticky="nsew")
+        self.devices_frame = customtkinter.CTkScrollableFrame(self, label_text="Nearby Devices")
+        self.devices_frame.grid(row=1, column=0, rowspan=3, padx=10, pady=10, sticky="nsew")
 
-        # Frame for connect/disconnect buttons
         self.connection_frame = customtkinter.CTkFrame(self)
         self.connection_frame.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
         self.connection_frame.grid_columnconfigure(0, weight=1)
@@ -36,13 +35,12 @@ class App(customtkinter.CTk):
         self.attributes_textbox = customtkinter.CTkTextbox(self)
         self.attributes_textbox.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
 
-        self.characteristics_listbox = customtkinter.CTkListbox(self, command=self.characteristic_selected)
-        self.characteristics_listbox.grid(row=2, column=1, rowspan=1, padx=10, pady=10, sticky="nsew")
+        self.characteristics_frame = customtkinter.CTkScrollableFrame(self, label_text="Characteristics")
+        self.characteristics_frame.grid(row=2, column=1, rowspan=1, padx=10, pady=10, sticky="nsew")
 
         self.read_button = customtkinter.CTkButton(self, text="Read", command=self.read_characteristic, state="disabled")
         self.read_button.grid(row=3, column=1, padx=10, pady=10, sticky="sw")
 
-        # Frame for write entry and button
         self.write_frame = customtkinter.CTkFrame(self)
         self.write_frame.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
         self.write_frame.grid_columnconfigure(0, weight=1)
@@ -53,9 +51,10 @@ class App(customtkinter.CTk):
         self.write_button = customtkinter.CTkButton(self.write_frame, text="Write", command=self.write_characteristic, state="disabled")
         self.write_button.grid(row=0, column=1, padx=(5,0), pady=0)
 
-        self.devices = []
         self.client = None
-        self.characteristics = []
+        self.selected_device = None
+        self.selected_characteristic = None
+        self.device_buttons = {}
 
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.run_async_loop, daemon=True)
@@ -64,7 +63,7 @@ class App(customtkinter.CTk):
     def on_closing(self):
         if self.client and self.client.is_connected:
             future = asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
-            future.result() # Wait for disconnect to complete
+            future.result()
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.thread.join()
         self.destroy()
@@ -73,11 +72,17 @@ class App(customtkinter.CTk):
         asyncio.set_event_loop(self.loop)
         self.loop.run_forever()
 
-    def device_selected(self, selection):
+    def device_selected(self, device, button):
+        self.selected_device = device
+        for btn in self.device_buttons.values():
+            btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
+        button.configure(fg_color="green")
+
         if not self.client or not self.client.is_connected:
             self.connect_button.configure(state="normal")
 
-    def characteristic_selected(self, selection):
+    def characteristic_selected(self, characteristic):
+        self.selected_characteristic = characteristic
         self.read_button.configure(state="normal")
         self.write_button.configure(state="normal")
 
@@ -85,26 +90,33 @@ class App(customtkinter.CTk):
         self.scan_button.configure(state="disabled", text="Scanning...")
         asyncio.run_coroutine_threadsafe(self.discover_devices(), self.loop)
 
+    def clear_frame(self, frame):
+        for widget in frame.winfo_children():
+            widget.destroy()
+
     async def discover_devices(self):
-        self.after(0, lambda: self.devices_listbox.delete(0, "end"))
-        self.devices = []
+        self.after(0, lambda: self.clear_frame(self.devices_frame))
+        self.device_buttons = {}
 
         discovered_devices = await bleak.BleakScanner.discover()
         for device in discovered_devices:
-            self.devices.append(device)
-            self.after(0, lambda d=device: self.devices_listbox.insert("end", f"{d.name} ({d.address})"))
+            def create_command(dev, btn_ref):
+                return lambda: self.device_selected(dev, btn_ref)
+
+            button = customtkinter.CTkButton(self.devices_frame, text=f"{device.name} ({device.address})")
+            button.configure(command=create_command(device, button))
+            button.pack(padx=5, pady=2, fill="x")
+            self.device_buttons[device.address] = button
 
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
 
     def connect_to_device(self):
-        selected_indices = self.devices_listbox.curselection()
-        if selected_indices:
+        if self.selected_device:
             self.connect_button.configure(state="disabled")
             self.attributes_textbox.delete("1.0", "end")
-            self.attributes_textbox.insert("end", "Connecting...")
+            self.attributes_textbox.insert("end", f"Connecting to {self.selected_device.name}...")
 
-            device = self.devices[selected_indices[0]]
-            self.client = bleak.BleakClient(device)
+            self.client = bleak.BleakClient(self.selected_device)
             asyncio.run_coroutine_threadsafe(self.discover_attributes(), self.loop)
 
     def disconnect_from_device(self):
@@ -113,66 +125,67 @@ class App(customtkinter.CTk):
 
     async def disconnect(self):
         await self.client.disconnect()
-        self.after(0, lambda: self.disconnect_button.configure(state="disabled"))
-        self.after(0, lambda: self.connect_button.configure(state="disabled"))
-        self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
-        self.after(0, lambda: self.characteristics_listbox.delete(0, "end"))
-        self.after(0, lambda: self.devices_listbox.configure(state="normal"))
-        self.after(0, lambda: self.scan_button.configure(state="normal"))
+        self.after(0, self.on_disconnect_ui_update)
+
+    def on_disconnect_ui_update(self):
+        self.disconnect_button.configure(state="disabled")
+        if self.selected_device:
+            self.connect_button.configure(state="normal")
+        else:
+            self.connect_button.configure(state="disabled")
+        self.attributes_textbox.delete("1.0", "end")
+        self.clear_frame(self.characteristics_frame)
+        self.scan_button.configure(state="normal")
+        for btn in self.device_buttons.values():
+            btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
 
     async def discover_attributes(self):
         self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
-        self.after(0, lambda: self.characteristics_listbox.delete(0, "end"))
-        self.characteristics = []
+        self.after(0, lambda: self.clear_frame(self.characteristics_frame))
 
         try:
             await self.client.connect()
             self.after(0, lambda: self.disconnect_button.configure(state="normal"))
-            self.after(0, lambda: self.devices_listbox.configure(state="disabled"))
             self.after(0, lambda: self.scan_button.configure(state="disabled"))
 
             for service in self.client.services:
                 self.after(0, lambda s=service: self.attributes_textbox.insert("end", f"Service: {s.uuid}\n"))
                 for characteristic in service.characteristics:
-                    self.characteristics.append(characteristic)
                     self.after(0, lambda c=characteristic: self.attributes_textbox.insert("end", f"  Characteristic: {c.uuid} ({', '.join(c.properties)})\n"))
-                    self.after(0, lambda c=characteristic: self.characteristics_listbox.insert("end", f"{c.uuid}"))
+                    char_button = customtkinter.CTkButton(self.characteristics_frame, text=f"{characteristic.uuid}",
+                                                         command=lambda char=characteristic: self.characteristic_selected(char))
+                    char_button.pack(padx=5, pady=2, fill="x")
         except Exception as e:
             self.after(0, lambda: self.connect_button.configure(state="normal"))
             self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"Connection Error: {err}\n"))
 
     def read_characteristic(self):
-        selected_indices = self.characteristics_listbox.curselection()
-        if selected_indices and self.client:
-            characteristic = self.characteristics[selected_indices[0]]
-            asyncio.run_coroutine_threadsafe(self.read_char(characteristic), self.loop)
+        if self.selected_characteristic and self.client:
+            asyncio.run_coroutine_threadsafe(self.read_char(self.selected_characteristic), self.loop)
 
     async def read_char(self, characteristic):
         try:
             value = await self.client.read_gatt_char(characteristic.uuid)
-            self.after(0, lambda v=value: self.attributes_textbox.insert("end", f"Value read: {v.hex()}\n"))
+            self.after(0, lambda v=value: self.attributes_textbox.insert("end", f"\nValue read: {v.hex()}\n"))
         except Exception as e:
-            self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"Read Error: {err}\n"))
+            self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"\nRead Error: {err}\n"))
 
     def write_characteristic(self):
-        selected_indices = self.characteristics_listbox.curselection()
-        if selected_indices and self.client:
-            characteristic = self.characteristics[selected_indices[0]]
+        if self.selected_characteristic and self.client:
             value = self.write_entry.get()
-            asyncio.run_coroutine_threadsafe(self.write_char(characteristic, value), self.loop)
+            asyncio.run_coroutine_threadsafe(self.write_char(self.selected_characteristic, value), self.loop)
 
     async def write_char(self, characteristic, value):
         try:
-            # Try to convert from hex to bytes, otherwise encode as utf-8
             try:
                 write_value = bytes.fromhex(value)
             except ValueError:
                 write_value = value.encode("utf-8")
 
             await self.client.write_gatt_char(characteristic.uuid, write_value)
-            self.after(0, lambda wv=write_value: self.attributes_textbox.insert("end", f"Value written: {wv.hex()}\n"))
+            self.after(0, lambda wv=write_value: self.attributes_textbox.insert("end", f"\nValue written: {wv.hex()}\n"))
         except Exception as e:
-             self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"Write Error: {err}\n"))
+             self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"\nWrite Error: {err}\n"))
 
 if __name__ == "__main__":
     app = App()
