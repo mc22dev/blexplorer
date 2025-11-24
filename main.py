@@ -31,16 +31,16 @@ class App(customtkinter.CTk):
         self.adapter_combobox.set("Default")
 
         self.refresh_adapters_button = customtkinter.CTkButton(self.adapter_frame, text="Refresh", command=self.discover_adapters)
-        self.refresh_adapters_button.grid(row=0, column=2, padx=10, pady=10)
+        self.refresh_adapters_button.grid(row=0, column=2, padx=(0,5), pady=10)
 
-        self.scan_button = customtkinter.CTkButton(self, text="Scan for devices", command=self.scan_for_devices)
-        self.scan_button.grid(row=1, column=0, padx=10, pady=10)
+        self.scan_button = customtkinter.CTkButton(self.adapter_frame, text="Scan for devices", command=self.scan_for_devices)
+        self.scan_button.grid(row=0, column=3, padx=(5,10), pady=10)
 
         self.devices_frame = customtkinter.CTkScrollableFrame(self, label_text="Nearby Devices")
-        self.devices_frame.grid(row=2, column=0, rowspan=3, padx=10, pady=10, sticky="nsew")
+        self.devices_frame.grid(row=1, column=0, rowspan=1, padx=10, pady=(0,10), sticky="nsew")
 
         self.connection_frame = customtkinter.CTkFrame(self)
-        self.connection_frame.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
+        self.connection_frame.grid(row=2, column=0, padx=10, pady=(0,10), sticky="ew")
         self.connection_frame.grid_columnconfigure(0, weight=1)
         self.connection_frame.grid_columnconfigure(1, weight=1)
 
