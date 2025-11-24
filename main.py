@@ -7,7 +7,7 @@ import subprocess
 import re
 
 class CharacteristicFrame(customtkinter.CTkFrame):
-    def __init__(self, master, characteristic, read_callback, write_callback):
+    def __init__(self, master, characteristic, description, read_callback, write_callback):
         super().__init__(master)
         self.characteristic = characteristic
         self.read_callback = read_callback
@@ -18,6 +18,9 @@ class CharacteristicFrame(customtkinter.CTkFrame):
 
         self.uuid_label = customtkinter.CTkLabel(self, text=str(characteristic.uuid), wraplength=200, justify="left")
         self.uuid_label.grid(row=0, column=0, rowspan=2, padx=5, pady=5, sticky="w")
+
+        self.description_label = customtkinter.CTkLabel(self, text=description, wraplength=200, justify="left", font=("Arial", 10))
+        self.description_label.grid(row=2, column=0, columnspan=4, padx=5, pady=(0,5), sticky="w")
 
         self.read_button = customtkinter.CTkButton(self, text="Read", command=self.read_pressed, width=50)
         if "read" not in self.characteristic.properties:
@@ -204,7 +207,7 @@ class App(customtkinter.CTk):
             for service in self.client.services:
                 self.after(0, lambda s=service: self.log_message(f"Service: {s.uuid}"))
                 for characteristic in service.characteristics:
-                    char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, self.read_characteristic, self.write_characteristic)
+                    char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
                     char_frame.pack(padx=5, pady=2, fill="x")
 
         except Exception as e:
