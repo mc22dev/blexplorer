@@ -204,11 +204,17 @@ class App(customtkinter.CTk):
             self.after(0, lambda: self.disconnect_button.configure(state="normal"))
             self.after(0, lambda: self.scan_button.configure(state="disabled"))
 
+            all_characteristics = []
             for service in self.client.services:
                 self.after(0, lambda s=service: self.log_message(f"Service: {s.uuid}"))
-                for characteristic in service.characteristics:
-                    char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
-                    char_frame.pack(padx=5, pady=2, fill="x")
+                all_characteristics.extend(service.characteristics)
+
+            # Sort characteristics by description
+            all_characteristics.sort(key=lambda char: char.description)
+
+            for characteristic in all_characteristics:
+                char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
+                char_frame.pack(padx=5, pady=2, fill="x")
 
         except Exception as e:
             self.after(0, lambda err=e: self.log_message(f"Connection Error: {err}"))
