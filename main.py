@@ -2,6 +2,9 @@ import customtkinter
 import bleak
 import asyncio
 import threading
+import platform
+import subprocess
+import re
 
 class App(customtkinter.CTk):
     def __init__(self):
@@ -23,8 +26,12 @@ class App(customtkinter.CTk):
         self.adapter_label = customtkinter.CTkLabel(self.adapter_frame, text="Bluetooth Adapter:")
         self.adapter_label.grid(row=0, column=0, padx=10, pady=10)
 
-        self.adapter_entry = customtkinter.CTkEntry(self.adapter_frame, placeholder_text="Default (e.g., hci0)")
-        self.adapter_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        self.adapter_combobox = customtkinter.CTkComboBox(self.adapter_frame, values=["Default"])
+        self.adapter_combobox.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        self.adapter_combobox.set("Default")
+
+        self.refresh_adapters_button = customtkinter.CTkButton(self.adapter_frame, text="Refresh", command=self.discover_adapters)
+        self.refresh_adapters_button.grid(row=0, column=2, padx=10, pady=10)
 
         self.scan_button = customtkinter.CTkButton(self, text="Scan for devices", command=self.scan_for_devices)
         self.scan_button.grid(row=1, column=0, padx=10, pady=10)
@@ -71,6 +78,8 @@ class App(customtkinter.CTk):
         self.thread = threading.Thread(target=self.run_async_loop, daemon=True)
         self.thread.start()
 
+        self.after(100, self.discover_adapters) # Discover adapters on startup
+
     def on_closing(self):
         if self.client and self.client.is_connected:
             future = asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
@@ -109,7 +118,9 @@ class App(customtkinter.CTk):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
         self.device_buttons = {}
 
-        adapter = self.adapter_entry.get()
+        adapter = self.adapter_combobox.get()
+        if adapter == "Default":
+            adapter = None
         scanner_kwargs = {"adapter": adapter} if adapter else {}
 
         try:
@@ -135,7 +146,9 @@ class App(customtkinter.CTk):
             self.attributes_textbox.delete("1.0", "end")
             self.attributes_textbox.insert("end", f"Connecting to {self.selected_device.name}...")
 
-            adapter = self.adapter_entry.get()
+            adapter = self.adapter_combobox.get()
+            if adapter == "Default":
+                adapter = None
             client_kwargs = {"adapter": adapter} if adapter else {}
 
             self.client = bleak.BleakClient(self.selected_device, **client_kwargs)
@@ -158,8 +171,9 @@ class App(customtkinter.CTk):
         self.attributes_textbox.delete("1.0", "end")
         self.clear_frame(self.characteristics_frame)
         self.scan_button.configure(state="normal")
+        # Reset device button colors, but don't clear the selected device
         for btn in self.device_buttons.values():
-            btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
+             btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
 
     async def discover_attributes(self):
         self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
@@ -208,6 +222,18 @@ class App(customtkinter.CTk):
             self.after(0, lambda wv=write_value: self.attributes_textbox.insert("end", f"\nValue written: {wv.hex()}\n"))
         except Exception as e:
              self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"\nWrite Error: {err}\n"))
+
+    def discover_adapters(self):
+        adapters = ["Default"]
+        if platform.system() == "Linux":
+            try:
+                result = subprocess.run(['hciconfig'], capture_output=True, text=True, check=True)
+                adapters.extend(re.findall(r'^(hci\d+)', result.stdout, re.MULTILINE))
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                # hciconfig not found or failed
+                pass
+        self.adapter_combobox.configure(values=adapters)
+        self.adapter_combobox.set("Default")
 
 if __name__ == "__main__":
     app = App()

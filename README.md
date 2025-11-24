@@ -21,12 +21,11 @@ This will create a virtual environment (if it doesn't exist), install the depend
 
 ## Choosing a Bluetooth Adapter
 
-If you have multiple Bluetooth adapters (dongles) connected to your system, you can specify which one to use by entering its identifier in the "Bluetooth Adapter" field at the top of the window. If you leave this field empty, the system's default adapter will be used.
+You can choose a specific Bluetooth adapter (dongle) using the dropdown menu at the top of the application.
 
-Here's how to find your adapter's identifier on different operating systems:
+*   On **Linux**, the application will automatically populate this dropdown with a list of available `hciX` devices. You can click the "Refresh" button to rescan for adapters.
+*   On **Windows and macOS**, automatic discovery is not supported. The dropdown will show "Default", but you can type in the identifier of your adapter if you know it (e.g., the MAC address on Windows).
 
-*   **Linux:** Run the command `hciconfig` in your terminal. The identifier will be listed as `hciX` (e.g., `hci0`).
-*   **Windows:** The adapter identifier is typically the MAC address of the Bluetooth radio. You can find this in Device Manager under your Bluetooth adapter's properties.
-*   **macOS:** On macOS, you cannot choose the adapter; the system default is always used.
+If "Default" is selected, the system's default Bluetooth adapter will be used.
 
 Click the "Scan for devices" button to discover nearby BLE devices. Select a device from the list and click "Connect" to view its services and characteristics. You can then select a characteristic to read its value or write a new value to it.
