@@ -6,6 +6,45 @@ import platform
 import subprocess
 import re
 
+class CharacteristicFrame(customtkinter.CTkFrame):
+    def __init__(self, master, characteristic, read_callback, write_callback):
+        super().__init__(master)
+        self.characteristic = characteristic
+        self.read_callback = read_callback
+        self.write_callback = write_callback
+
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(3, weight=1)
+
+        self.uuid_label = customtkinter.CTkLabel(self, text=str(characteristic.uuid), wraplength=200, justify="left")
+        self.uuid_label.grid(row=0, column=0, rowspan=2, padx=5, pady=5, sticky="w")
+
+        self.read_button = customtkinter.CTkButton(self, text="Read", command=self.read_pressed, width=50)
+        if "read" not in self.characteristic.properties:
+            self.read_button.configure(state="disabled")
+        self.read_button.grid(row=0, column=2, padx=5, pady=5, sticky="e")
+
+        self.read_value_entry = customtkinter.CTkEntry(self)
+        self.read_value_entry.grid(row=0, column=3, padx=5, pady=5, sticky="ew")
+
+        self.write_entry = customtkinter.CTkEntry(self)
+        self.write_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+
+        self.write_button = customtkinter.CTkButton(self, text="Write", command=self.write_pressed, width=50)
+        if "write" not in self.characteristic.properties and "write-without-response" not in self.characteristic.properties:
+            self.write_button.configure(state="disabled")
+        self.write_button.grid(row=1, column=2, padx=5, pady=5, sticky="e")
+
+        self.properties_label = customtkinter.CTkLabel(self, text=f"({', '.join(self.characteristic.properties)})", font=("Arial", 10))
+        self.properties_label.grid(row=1, column=3, padx=5, pady=(0,5), sticky="w")
+
+
+    def read_pressed(self):
+        self.read_callback(self.characteristic, self)
+
+    def write_pressed(self):
+        self.write_callback(self.characteristic, self)
+
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
@@ -43,27 +82,9 @@ class App(customtkinter.CTk):
         self.devices_frame = customtkinter.CTkScrollableFrame(self, label_text="Nearby Devices")
         self.devices_frame.grid(row=1, column=0, rowspan=1, padx=10, pady=(0,10), sticky="nsew")
 
-        # Right column for characteristics and controls
-        self.right_frame = customtkinter.CTkFrame(self)
-        self.right_frame.grid(row=1, column=1, padx=10, pady=(0,10), sticky="nsew")
-        self.right_frame.grid_columnconfigure(0, weight=1)
-        self.right_frame.grid_rowconfigure(0, weight=1)
-
-        self.characteristics_frame = customtkinter.CTkScrollableFrame(self.right_frame, label_text="Characteristics")
-        self.characteristics_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=(10,0), sticky="nsew")
-
-        self.read_button = customtkinter.CTkButton(self.right_frame, text="Read", command=self.read_characteristic, state="disabled")
-        self.read_button.grid(row=1, column=0, padx=10, pady=10, sticky="sw")
-
-        self.write_frame = customtkinter.CTkFrame(self.right_frame)
-        self.write_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
-        self.write_frame.grid_columnconfigure(0, weight=1)
-
-        self.write_entry = customtkinter.CTkEntry(self.write_frame)
-        self.write_entry.grid(row=0, column=0, padx=(0,5), pady=0, sticky="ew")
-
-        self.write_button = customtkinter.CTkButton(self.write_frame, text="Write", command=self.write_characteristic, state="disabled")
-        self.write_button.grid(row=0, column=1, padx=(5,0), pady=0)
+        # Right column for characteristics
+        self.characteristics_frame = customtkinter.CTkScrollableFrame(self, label_text="Characteristics")
+        self.characteristics_frame.grid(row=1, column=1, padx=10, pady=(0,10), sticky="nsew")
 
         # Bottom debug window
         self.attributes_textbox = customtkinter.CTkTextbox(self)
@@ -71,19 +92,21 @@ class App(customtkinter.CTk):
 
         self.client = None
         self.selected_device = None
-        self.selected_characteristic = None
         self.device_buttons = {}
 
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.run_async_loop, daemon=True)
         self.thread.start()
 
-        self.after(100, self.discover_adapters) # Discover adapters on startup
+        self.after(100, self.discover_adapters)
 
     def on_closing(self):
         if self.client and self.client.is_connected:
             future = asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
-            future.result()
+            try:
+                future.result(timeout=2.0)
+            except (asyncio.TimeoutError, bleak.exc.BleakError):
+                pass
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.thread.join()
         self.destroy()
@@ -99,11 +122,6 @@ class App(customtkinter.CTk):
         button.configure(fg_color="green")
 
         self.connect_to_selected_device()
-
-    def characteristic_selected(self, characteristic):
-        self.selected_characteristic = characteristic
-        self.read_button.configure(state="normal")
-        self.write_button.configure(state="normal")
 
     def scan_for_devices(self):
         self.scan_button.configure(state="disabled", text="Scanning...")
@@ -123,7 +141,7 @@ class App(customtkinter.CTk):
         scanner_kwargs = {"adapter": adapter} if adapter else {}
 
         try:
-            discovered_devices = await bleak.BleakScanner.discover(**scanner_kwargs)
+            discovered_devices = await bleak.BleakScanner.discover(timeout=5.0, **scanner_kwargs)
         except bleak.exc.BleakError as e:
             self.after(0, lambda err=e: self.log_message(f"Scanning Error: {err}"))
             discovered_devices = []
@@ -147,18 +165,15 @@ class App(customtkinter.CTk):
         self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
         self.after(0, lambda: self.log_message(f"Connecting to {self.selected_device.name}..."))
 
-        # Disconnect from any existing client
         if self.client and self.client.is_connected:
             await self.client.disconnect()
 
-        # Create and connect the new client
         adapter = self.adapter_combobox.get()
         if adapter == "Default":
             adapter = None
         client_kwargs = {"adapter": adapter} if adapter else {}
         self.client = bleak.BleakClient(self.selected_device, **client_kwargs)
 
-        # Discover attributes, which includes the connect call
         await self.discover_attributes()
 
     def disconnect_from_device(self):
@@ -174,7 +189,6 @@ class App(customtkinter.CTk):
         self.attributes_textbox.delete("1.0", "end")
         self.clear_frame(self.characteristics_frame)
         self.scan_button.configure(state="normal")
-        # Reset device button colors, but don't clear the selected device
         for btn in self.device_buttons.values():
              btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
 
@@ -190,10 +204,9 @@ class App(customtkinter.CTk):
             for service in self.client.services:
                 self.after(0, lambda s=service: self.log_message(f"Service: {s.uuid}"))
                 for characteristic in service.characteristics:
-                    self.after(0, lambda c=characteristic: self.log_message(f"  Characteristic: {c.uuid} ({', '.join(c.properties)})"))
-                    char_button = customtkinter.CTkButton(self.characteristics_frame, text=f"{characteristic.uuid}",
-                                                         command=lambda char=characteristic: self.characteristic_selected(char))
-                    char_button.pack(padx=5, pady=2, fill="x")
+                    char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, self.read_characteristic, self.write_characteristic)
+                    char_frame.pack(padx=5, pady=2, fill="x")
+
         except Exception as e:
             self.after(0, lambda err=e: self.log_message(f"Connection Error: {err}"))
             self.after(0, self.reset_device_buttons)
@@ -207,21 +220,24 @@ class App(customtkinter.CTk):
         self.attributes_textbox.insert("end", message + "\n")
         self.attributes_textbox.see("end")
 
-    def read_characteristic(self):
-        if self.selected_characteristic and self.client:
-            asyncio.run_coroutine_threadsafe(self.read_char(self.selected_characteristic), self.loop)
+    def read_characteristic(self, characteristic, char_frame):
+        if self.client:
+            asyncio.run_coroutine_threadsafe(self.read_char(characteristic, char_frame), self.loop)
 
-    async def read_char(self, characteristic):
+    async def read_char(self, characteristic, char_frame):
         try:
             value = await self.client.read_gatt_char(characteristic.uuid)
-            self.after(0, lambda v=value: self.log_message(f"\nValue read: {v.hex()}"))
+            hex_value = value.hex()
+            self.after(0, lambda: char_frame.read_value_entry.delete(0, "end"))
+            self.after(0, lambda: char_frame.read_value_entry.insert(0, hex_value))
+            self.after(0, lambda v=hex_value: self.log_message(f"Value read from {characteristic.uuid}: {v}"))
         except Exception as e:
-            self.after(0, lambda err=e: self.log_message(f"\nRead Error: {err}"))
+            self.after(0, lambda err=e: self.log_message(f"Read Error on {characteristic.uuid}: {err}"))
 
-    def write_characteristic(self):
-        if self.selected_characteristic and self.client:
-            value = self.write_entry.get()
-            asyncio.run_coroutine_threadsafe(self.write_char(self.selected_characteristic, value), self.loop)
+    def write_characteristic(self, characteristic, char_frame):
+        if self.client:
+            value = char_frame.write_entry.get()
+            asyncio.run_coroutine_threadsafe(self.write_char(characteristic, value), self.loop)
 
     async def write_char(self, characteristic, value):
         try:
@@ -231,9 +247,9 @@ class App(customtkinter.CTk):
                 write_value = value.encode("utf-8")
 
             await self.client.write_gatt_char(characteristic.uuid, write_value)
-            self.after(0, lambda wv=write_value: self.log_message(f"\nValue written: {wv.hex()}"))
+            self.after(0, lambda wv=write_value: self.log_message(f"Value written to {characteristic.uuid}: {wv.hex()}"))
         except Exception as e:
-             self.after(0, lambda err=e: self.log_message(f"\nWrite Error: {err}"))
+             self.after(0, lambda err=e: self.log_message(f"Write Error on {characteristic.uuid}: {err}"))
 
     def discover_adapters(self):
         adapters = ["Default"]
@@ -242,7 +258,6 @@ class App(customtkinter.CTk):
                 result = subprocess.run(['hciconfig'], capture_output=True, text=True, check=True)
                 adapters.extend(re.findall(r'^(hci\d+)', result.stdout, re.MULTILINE))
             except (FileNotFoundError, subprocess.CalledProcessError):
-                # hciconfig not found or failed
                 pass
         self.adapter_combobox.configure(values=adapters)
         self.adapter_combobox.set("Default")

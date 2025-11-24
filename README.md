@@ -28,4 +28,4 @@ You can choose a specific Bluetooth adapter (dongle) using the dropdown menu at 
 
 If "Default" is selected, the system's default Bluetooth adapter will be used.
 
-Click the "Scan for devices" button to discover nearby BLE devices. Click on a device name in the list to connect to it. Once connected, its services and characteristics will be displayed. You can then select a characteristic to read its value or write a new value to it.
+Click the "Scan for devices" button to discover nearby BLE devices. Click on a device name in the list to connect to it. Once connected, its services and characteristics will be displayed. You can then interact with each characteristic using the controls directly next to its UUID.
