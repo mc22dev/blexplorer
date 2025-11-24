@@ -42,13 +42,9 @@ class App(customtkinter.CTk):
         self.connection_frame = customtkinter.CTkFrame(self)
         self.connection_frame.grid(row=2, column=0, padx=10, pady=(0,10), sticky="ew")
         self.connection_frame.grid_columnconfigure(0, weight=1)
-        self.connection_frame.grid_columnconfigure(1, weight=1)
-
-        self.connect_button = customtkinter.CTkButton(self.connection_frame, text="Connect", command=self.connect_to_device, state="disabled")
-        self.connect_button.grid(row=0, column=0, padx=(0,5), pady=0, sticky="ew")
 
         self.disconnect_button = customtkinter.CTkButton(self.connection_frame, text="Disconnect", command=self.disconnect_from_device, state="disabled")
-        self.disconnect_button.grid(row=0, column=1, padx=(5,0), pady=0, sticky="ew")
+        self.disconnect_button.grid(row=0, column=0, padx=0, pady=0, sticky="ew")
 
         self.attributes_textbox = customtkinter.CTkTextbox(self)
         self.attributes_textbox.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
@@ -98,8 +94,7 @@ class App(customtkinter.CTk):
             btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
         button.configure(fg_color="green")
 
-        if not self.client or not self.client.is_connected:
-            self.connect_button.configure(state="normal")
+        self.connect_to_selected_device()
 
     def characteristic_selected(self, characteristic):
         self.selected_characteristic = characteristic
@@ -140,19 +135,27 @@ class App(customtkinter.CTk):
 
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
 
-    def connect_to_device(self):
+    def connect_to_selected_device(self):
         if self.selected_device:
-            self.connect_button.configure(state="disabled")
-            self.attributes_textbox.delete("1.0", "end")
-            self.attributes_textbox.insert("end", f"Connecting to {self.selected_device.name}...")
+            asyncio.run_coroutine_threadsafe(self._manage_connection(), self.loop)
 
-            adapter = self.adapter_combobox.get()
-            if adapter == "Default":
-                adapter = None
-            client_kwargs = {"adapter": adapter} if adapter else {}
+    async def _manage_connection(self):
+        self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
+        self.after(0, lambda: self.attributes_textbox.insert("end", f"Connecting to {self.selected_device.name}..."))
 
-            self.client = bleak.BleakClient(self.selected_device, **client_kwargs)
-            asyncio.run_coroutine_threadsafe(self.discover_attributes(), self.loop)
+        # Disconnect from any existing client
+        if self.client and self.client.is_connected:
+            await self.client.disconnect()
+
+        # Create and connect the new client
+        adapter = self.adapter_combobox.get()
+        if adapter == "Default":
+            adapter = None
+        client_kwargs = {"adapter": adapter} if adapter else {}
+        self.client = bleak.BleakClient(self.selected_device, **client_kwargs)
+
+        # Discover attributes, which includes the connect call
+        await self.discover_attributes()
 
     def disconnect_from_device(self):
         if self.client:
@@ -164,10 +167,6 @@ class App(customtkinter.CTk):
 
     def on_disconnect_ui_update(self):
         self.disconnect_button.configure(state="disabled")
-        if self.selected_device:
-            self.connect_button.configure(state="normal")
-        else:
-            self.connect_button.configure(state="disabled")
         self.attributes_textbox.delete("1.0", "end")
         self.clear_frame(self.characteristics_frame)
         self.scan_button.configure(state="normal")
@@ -192,8 +191,12 @@ class App(customtkinter.CTk):
                                                          command=lambda char=characteristic: self.characteristic_selected(char))
                     char_button.pack(padx=5, pady=2, fill="x")
         except Exception as e:
-            self.after(0, lambda: self.connect_button.configure(state="normal"))
             self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"Connection Error: {err}\n"))
+            self.after(0, self.reset_device_buttons)
+
+    def reset_device_buttons(self):
+        for btn in self.device_buttons.values():
+            btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
 
     def read_characteristic(self):
         if self.selected_characteristic and self.client:
