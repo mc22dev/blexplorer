@@ -34,17 +34,13 @@ class App(customtkinter.CTk):
         self.refresh_adapters_button.grid(row=0, column=2, padx=(0,5), pady=10)
 
         self.scan_button = customtkinter.CTkButton(self.adapter_frame, text="Scan for devices", command=self.scan_for_devices)
-        self.scan_button.grid(row=0, column=3, padx=(5,10), pady=10)
+        self.scan_button.grid(row=0, column=3, padx=(5,5), pady=10)
+
+        self.disconnect_button = customtkinter.CTkButton(self.adapter_frame, text="Disconnect", command=self.disconnect_from_device, state="disabled")
+        self.disconnect_button.grid(row=0, column=4, padx=(0,10), pady=10)
 
         self.devices_frame = customtkinter.CTkScrollableFrame(self, label_text="Nearby Devices")
         self.devices_frame.grid(row=1, column=0, rowspan=1, padx=10, pady=(0,10), sticky="nsew")
-
-        self.connection_frame = customtkinter.CTkFrame(self)
-        self.connection_frame.grid(row=2, column=0, padx=10, pady=(0,10), sticky="ew")
-        self.connection_frame.grid_columnconfigure(0, weight=1)
-
-        self.disconnect_button = customtkinter.CTkButton(self.connection_frame, text="Disconnect", command=self.disconnect_from_device, state="disabled")
-        self.disconnect_button.grid(row=0, column=0, padx=0, pady=0, sticky="ew")
 
         self.attributes_textbox = customtkinter.CTkTextbox(self)
         self.attributes_textbox.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
