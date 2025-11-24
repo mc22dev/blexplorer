@@ -14,13 +14,13 @@ class App(customtkinter.CTk):
         self.geometry("800x600")
 
         self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(1, weight=1)
-        self.grid_columnconfigure(1, weight=2)
-        self.grid_rowconfigure(4, weight=1)
+        self.grid_rowconfigure(2, weight=1)
 
-        # Frame for adapter selection
+        # Top bar for controls
         self.adapter_frame = customtkinter.CTkFrame(self)
-        self.adapter_frame.grid(row=0, column=0, padx=10, pady=(10,0), sticky="ew")
+        self.adapter_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=(10,0), sticky="ew")
         self.adapter_frame.grid_columnconfigure(1, weight=1)
 
         self.adapter_label = customtkinter.CTkLabel(self.adapter_frame, text="Bluetooth Adapter:")
@@ -39,20 +39,24 @@ class App(customtkinter.CTk):
         self.disconnect_button = customtkinter.CTkButton(self.adapter_frame, text="Disconnect", command=self.disconnect_from_device, state="disabled")
         self.disconnect_button.grid(row=0, column=4, padx=(0,10), pady=10)
 
+        # Left column for devices
         self.devices_frame = customtkinter.CTkScrollableFrame(self, label_text="Nearby Devices")
         self.devices_frame.grid(row=1, column=0, rowspan=1, padx=10, pady=(0,10), sticky="nsew")
 
-        self.attributes_textbox = customtkinter.CTkTextbox(self)
-        self.attributes_textbox.grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky="nsew")
+        # Right column for characteristics and controls
+        self.right_frame = customtkinter.CTkFrame(self)
+        self.right_frame.grid(row=1, column=1, padx=10, pady=(0,10), sticky="nsew")
+        self.right_frame.grid_columnconfigure(0, weight=1)
+        self.right_frame.grid_rowconfigure(0, weight=1)
 
-        self.characteristics_frame = customtkinter.CTkScrollableFrame(self, label_text="Characteristics")
-        self.characteristics_frame.grid(row=2, column=1, rowspan=1, padx=10, pady=10, sticky="nsew")
+        self.characteristics_frame = customtkinter.CTkScrollableFrame(self.right_frame, label_text="Characteristics")
+        self.characteristics_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=(10,0), sticky="nsew")
 
-        self.read_button = customtkinter.CTkButton(self, text="Read", command=self.read_characteristic, state="disabled")
-        self.read_button.grid(row=3, column=1, padx=10, pady=10, sticky="sw")
+        self.read_button = customtkinter.CTkButton(self.right_frame, text="Read", command=self.read_characteristic, state="disabled")
+        self.read_button.grid(row=1, column=0, padx=10, pady=10, sticky="sw")
 
-        self.write_frame = customtkinter.CTkFrame(self)
-        self.write_frame.grid(row=4, column=1, padx=10, pady=10, sticky="ew")
+        self.write_frame = customtkinter.CTkFrame(self.right_frame)
+        self.write_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
         self.write_frame.grid_columnconfigure(0, weight=1)
 
         self.write_entry = customtkinter.CTkEntry(self.write_frame)
@@ -60,6 +64,10 @@ class App(customtkinter.CTk):
 
         self.write_button = customtkinter.CTkButton(self.write_frame, text="Write", command=self.write_characteristic, state="disabled")
         self.write_button.grid(row=0, column=1, padx=(5,0), pady=0)
+
+        # Bottom debug window
+        self.attributes_textbox = customtkinter.CTkTextbox(self)
+        self.attributes_textbox.grid(row=2, column=0, columnspan=2, padx=10, pady=(0,10), sticky="nsew")
 
         self.client = None
         self.selected_device = None
