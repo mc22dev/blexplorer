@@ -13,13 +13,24 @@ class App(customtkinter.CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(1, weight=2)
-        self.grid_rowconfigure(3, weight=1)
+        self.grid_rowconfigure(4, weight=1)
+
+        # Frame for adapter selection
+        self.adapter_frame = customtkinter.CTkFrame(self)
+        self.adapter_frame.grid(row=0, column=0, padx=10, pady=(10,0), sticky="ew")
+        self.adapter_frame.grid_columnconfigure(1, weight=1)
+
+        self.adapter_label = customtkinter.CTkLabel(self.adapter_frame, text="Bluetooth Adapter:")
+        self.adapter_label.grid(row=0, column=0, padx=10, pady=10)
+
+        self.adapter_entry = customtkinter.CTkEntry(self.adapter_frame, placeholder_text="Default (e.g., hci0)")
+        self.adapter_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
 
         self.scan_button = customtkinter.CTkButton(self, text="Scan for devices", command=self.scan_for_devices)
-        self.scan_button.grid(row=0, column=0, padx=10, pady=10)
+        self.scan_button.grid(row=1, column=0, padx=10, pady=10)
 
         self.devices_frame = customtkinter.CTkScrollableFrame(self, label_text="Nearby Devices")
-        self.devices_frame.grid(row=1, column=0, rowspan=3, padx=10, pady=10, sticky="nsew")
+        self.devices_frame.grid(row=2, column=0, rowspan=3, padx=10, pady=10, sticky="nsew")
 
         self.connection_frame = customtkinter.CTkFrame(self)
         self.connection_frame.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
@@ -98,7 +109,15 @@ class App(customtkinter.CTk):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
         self.device_buttons = {}
 
-        discovered_devices = await bleak.BleakScanner.discover()
+        adapter = self.adapter_entry.get()
+        scanner_kwargs = {"adapter": adapter} if adapter else {}
+
+        try:
+            discovered_devices = await bleak.BleakScanner.discover(**scanner_kwargs)
+        except bleak.exc.BleakError as e:
+            self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"Scanning Error: {err}\n"))
+            discovered_devices = []
+
         for device in discovered_devices:
             def create_command(dev, btn_ref):
                 return lambda: self.device_selected(dev, btn_ref)
@@ -116,7 +135,10 @@ class App(customtkinter.CTk):
             self.attributes_textbox.delete("1.0", "end")
             self.attributes_textbox.insert("end", f"Connecting to {self.selected_device.name}...")
 
-            self.client = bleak.BleakClient(self.selected_device)
+            adapter = self.adapter_entry.get()
+            client_kwargs = {"adapter": adapter} if adapter else {}
+
+            self.client = bleak.BleakClient(self.selected_device, **client_kwargs)
             asyncio.run_coroutine_threadsafe(self.discover_attributes(), self.loop)
 
     def disconnect_from_device(self):
