@@ -3,7 +3,7 @@
 REM Create a virtual environment if it doesn't exist
 IF NOT EXIST venv (
     echo "Creating virtual environment..."
-    python -m venv venv
+    py -3 -m venv venv
 )
 
 REM Install dependencies
