@@ -125,7 +125,7 @@ class App(customtkinter.CTk):
         try:
             discovered_devices = await bleak.BleakScanner.discover(**scanner_kwargs)
         except bleak.exc.BleakError as e:
-            self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"Scanning Error: {err}\n"))
+            self.after(0, lambda err=e: self.log_message(f"Scanning Error: {err}"))
             discovered_devices = []
 
         for device in discovered_devices:
@@ -145,7 +145,7 @@ class App(customtkinter.CTk):
 
     async def _manage_connection(self):
         self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
-        self.after(0, lambda: self.attributes_textbox.insert("end", f"Connecting to {self.selected_device.name}..."))
+        self.after(0, lambda: self.log_message(f"Connecting to {self.selected_device.name}..."))
 
         # Disconnect from any existing client
         if self.client and self.client.is_connected:
@@ -188,19 +188,24 @@ class App(customtkinter.CTk):
             self.after(0, lambda: self.scan_button.configure(state="disabled"))
 
             for service in self.client.services:
-                self.after(0, lambda s=service: self.attributes_textbox.insert("end", f"Service: {s.uuid}\n"))
+                self.after(0, lambda s=service: self.log_message(f"Service: {s.uuid}"))
                 for characteristic in service.characteristics:
-                    self.after(0, lambda c=characteristic: self.attributes_textbox.insert("end", f"  Characteristic: {c.uuid} ({', '.join(c.properties)})\n"))
+                    self.after(0, lambda c=characteristic: self.log_message(f"  Characteristic: {c.uuid} ({', '.join(c.properties)})"))
                     char_button = customtkinter.CTkButton(self.characteristics_frame, text=f"{characteristic.uuid}",
                                                          command=lambda char=characteristic: self.characteristic_selected(char))
                     char_button.pack(padx=5, pady=2, fill="x")
         except Exception as e:
-            self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"Connection Error: {err}\n"))
+            self.after(0, lambda err=e: self.log_message(f"Connection Error: {err}"))
             self.after(0, self.reset_device_buttons)
+            self.after(0, lambda: self.scan_button.configure(state="normal"))
 
     def reset_device_buttons(self):
         for btn in self.device_buttons.values():
-            btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
+            btn.configure(fg_color=None)
+
+    def log_message(self, message):
+        self.attributes_textbox.insert("end", message + "\n")
+        self.attributes_textbox.see("end")
 
     def read_characteristic(self):
         if self.selected_characteristic and self.client:
@@ -209,9 +214,9 @@ class App(customtkinter.CTk):
     async def read_char(self, characteristic):
         try:
             value = await self.client.read_gatt_char(characteristic.uuid)
-            self.after(0, lambda v=value: self.attributes_textbox.insert("end", f"\nValue read: {v.hex()}\n"))
+            self.after(0, lambda v=value: self.log_message(f"\nValue read: {v.hex()}"))
         except Exception as e:
-            self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"\nRead Error: {err}\n"))
+            self.after(0, lambda err=e: self.log_message(f"\nRead Error: {err}"))
 
     def write_characteristic(self):
         if self.selected_characteristic and self.client:
@@ -226,9 +231,9 @@ class App(customtkinter.CTk):
                 write_value = value.encode("utf-8")
 
             await self.client.write_gatt_char(characteristic.uuid, write_value)
-            self.after(0, lambda wv=write_value: self.attributes_textbox.insert("end", f"\nValue written: {wv.hex()}\n"))
+            self.after(0, lambda wv=write_value: self.log_message(f"\nValue written: {wv.hex()}"))
         except Exception as e:
-             self.after(0, lambda err=e: self.attributes_textbox.insert("end", f"\nWrite Error: {err}\n"))
+             self.after(0, lambda err=e: self.log_message(f"\nWrite Error: {err}"))
 
     def discover_adapters(self):
         adapters = ["Default"]
