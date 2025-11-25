@@ -30,6 +30,9 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         self.read_value_entry = customtkinter.CTkEntry(self)
         self.read_value_entry.grid(row=0, column=3, padx=5, pady=5, sticky="ew")
 
+        self.read_ascii_label = customtkinter.CTkLabel(self, text="", wraplength=200, justify="left")
+        self.read_ascii_label.grid(row=0, column=4, padx=5, pady=5, sticky="w")
+
         self.write_entry = customtkinter.CTkEntry(self)
         self.write_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
 
@@ -257,8 +260,11 @@ class App(customtkinter.CTk):
         try:
             value = await self.client.read_gatt_char(characteristic.uuid)
             hex_value = value.hex()
+            ascii_value = value.decode('ascii', errors='replace')
+
             self.after(0, lambda: char_frame.read_value_entry.delete(0, "end"))
             self.after(0, lambda: char_frame.read_value_entry.insert(0, hex_value))
+            self.after(0, lambda: char_frame.read_ascii_label.configure(text=ascii_value))
             self.after(0, lambda v=hex_value: self.log_message(f"Value read from {characteristic.uuid}: {v}"))
         except Exception as e:
             self.after(0, lambda err=e: self.log_message(f"Read Error on {characteristic.uuid}: {err}"))
