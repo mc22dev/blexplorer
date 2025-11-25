@@ -192,6 +192,7 @@ class App(customtkinter.CTk):
     async def discover_devices(self):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
         self.device_frames = {}
+        self.log_message("Scan started...")
 
         adapter = self.adapter_combobox.get()
         if adapter == "Default":
@@ -201,10 +202,9 @@ class App(customtkinter.CTk):
         scanner = bleak.BleakScanner(**scanner_kwargs)
 
         def on_device_found(device, adv_data):
-            if device.address not in self.device_frames:
-                frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
-                frame.pack(padx=5, pady=2, fill="x")
-                self.device_frames[device.address] = frame
+            self.log_message(f"Found device: {device.address} ({device.name or 'Unknown'})")
+            # Schedule the UI update on the main thread
+            self.after(0, self._add_device_to_ui, device, adv_data)
 
         scanner.register_detection_callback(on_device_found)
 
@@ -215,7 +215,14 @@ class App(customtkinter.CTk):
         except bleak.exc.BleakError as e:
             self.after(0, lambda err=e: self.log_message(f"Scanning Error: {err}"))
 
+        self.log_message("Scan stopped.")
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
+
+    def _add_device_to_ui(self, device, adv_data):
+        if device.address not in self.device_frames:
+            frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
+            frame.pack(padx=5, pady=2, fill="x")
+            self.device_frames[device.address] = frame
 
     def connect_to_selected_device(self):
         if self.selected_device:
