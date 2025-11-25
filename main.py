@@ -192,7 +192,7 @@ class App(customtkinter.CTk):
     async def discover_devices(self):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
         self.device_frames = {}
-        self.log_message("Scan started...")
+        self.after(0, self.log_message, "Scan started...")
 
         adapter = self.adapter_combobox.get()
         if adapter == "Default":
@@ -214,7 +214,7 @@ class App(customtkinter.CTk):
         except bleak.exc.BleakError as e:
             self.after(0, lambda err=e: self.log_message(f"Scanning Error: {err}"))
 
-        self.log_message("Scan stopped.")
+        self.after(0, self.log_message, "Scan stopped.")
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
 
     def _handle_discovered_device(self, device, adv_data):
