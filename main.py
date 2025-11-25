@@ -209,17 +209,20 @@ class App(customtkinter.CTk):
                 self.after(0, lambda s=service: self.log_message(f"Service: {s.uuid}"))
                 all_characteristics.extend(service.characteristics)
 
-            # Sort characteristics by description
-            all_characteristics.sort(key=lambda char: char.description)
+            # Sort characteristics by description, handling None
+            all_characteristics.sort(key=lambda char: char.description or "")
 
-            for characteristic in all_characteristics:
-                char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
-                char_frame.pack(padx=5, pady=2, fill="x")
+            self.after(0, self._populate_characteristics_ui, all_characteristics)
 
         except Exception as e:
             self.after(0, lambda err=e: self.log_message(f"Connection Error: {err}"))
             self.after(0, self.reset_device_buttons)
             self.after(0, lambda: self.scan_button.configure(state="normal"))
+
+    def _populate_characteristics_ui(self, characteristics):
+        for characteristic in characteristics:
+            char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
+            char_frame.pack(padx=5, pady=2, fill="x")
 
     def reset_device_buttons(self):
         for btn in self.device_buttons.values():
