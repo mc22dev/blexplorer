@@ -183,20 +183,19 @@ class App(customtkinter.CTk):
 
     def scan_for_devices(self):
         self.scan_button.configure(state="disabled", text="Scanning...")
-        asyncio.run_coroutine_threadsafe(self.discover_devices(), self.loop)
+        adapter = self.adapter_combobox.get()
+        asyncio.run_coroutine_threadsafe(self.discover_devices(adapter), self.loop)
 
     def clear_frame(self, frame):
         for widget in frame.winfo_children():
             widget.destroy()
 
-    async def discover_devices(self):
+    async def discover_devices(self, adapter_name):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
         self.device_frames = {}
         self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scan started...")
 
-        adapter = self.adapter_combobox.get()
-        if adapter == "Default":
-            adapter = None
+        adapter = adapter_name if adapter_name != "Default" else None
         scanner_kwargs = {"adapter": adapter} if adapter else {}
 
         scanner = bleak.BleakScanner(**scanner_kwargs)
