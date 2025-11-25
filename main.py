@@ -202,9 +202,8 @@ class App(customtkinter.CTk):
         scanner = bleak.BleakScanner(**scanner_kwargs)
 
         def on_device_found(device, adv_data):
-            self.log_message(f"Found device: {device.address} ({device.name or 'Unknown'})")
-            # Schedule the UI update on the main thread
-            self.after(0, self._add_device_to_ui, device, adv_data)
+            # All UI updates must be scheduled on the main thread
+            self.after(0, self._handle_discovered_device, device, adv_data)
 
         scanner.register_detection_callback(on_device_found)
 
@@ -218,7 +217,8 @@ class App(customtkinter.CTk):
         self.log_message("Scan stopped.")
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
 
-    def _add_device_to_ui(self, device, adv_data):
+    def _handle_discovered_device(self, device, adv_data):
+        self.log_message(f"Found device: {device.address} ({device.name or 'Unknown'})")
         if device.address not in self.device_frames:
             frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
             frame.pack(padx=5, pady=2, fill="x")
@@ -274,7 +274,7 @@ class App(customtkinter.CTk):
 
             all_characteristics = []
             for service in self.client.services:
-                self.after(0, lambda s=service: self.log_message(f"Service: {s.uuid}"))
+                self.after(0, self.log_message, f"Service: {service.uuid}")
                 all_characteristics.extend(service.characteristics)
 
             # Sort characteristics by UUID
