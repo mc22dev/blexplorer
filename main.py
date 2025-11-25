@@ -193,36 +193,23 @@ class App(customtkinter.CTk):
     async def discover_devices(self, adapter_name):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
         self.device_frames = {}
-        self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scan started...")
+        self._log_on_main_thread("Scan started...")
 
         adapter = adapter_name if adapter_name != "Default" else None
         scanner_kwargs = {"adapter": adapter} if adapter else {}
 
-        scanner = bleak.BleakScanner(**scanner_kwargs)
-
-        def on_device_found(device, adv_data):
-            # This runs in a bleak background thread
-            self.after(0, self._handle_discovered_device, device, adv_data)
-
-        scanner.register_detection_callback(on_device_found)
-
         try:
-            self._log_on_main_thread(f"[Thread {threading.get_ident()}] Starting scanner...")
-            await scanner.start()
-            self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scanner started, waiting...")
-            await asyncio.sleep(5.0)
-            self._log_on_main_thread(f"[Thread {threading.get_ident()}] Stopping scanner...")
-            await scanner.stop()
-            self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scanner stopped.")
+            discovered_devices = await bleak.BleakScanner.discover(timeout=5.0, return_adv=True, **scanner_kwargs)
+            self.after(0, self._populate_devices_ui, discovered_devices)
         except bleak.exc.BleakError as e:
             self._log_on_main_thread(f"Scanning Error: {e}")
 
-        self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scan stopped.")
+        self._log_on_main_thread("Scan stopped.")
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
 
-    def _handle_discovered_device(self, device, adv_data):
-        self.log_message(f"[Thread {threading.get_ident()}] Found device: {device.address} ({device.name or 'Unknown'})")
-        if device.address not in self.device_frames:
+    def _populate_devices_ui(self, devices):
+        for address, (device, adv_data) in devices.items():
+            self._log_on_main_thread(f"Found device: {device.address} ({device.name or 'Unknown'})")
             frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
             frame.pack(padx=5, pady=2, fill="x")
             self.device_frames[device.address] = frame
