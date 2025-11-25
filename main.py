@@ -51,6 +51,46 @@ class CharacteristicFrame(customtkinter.CTkFrame):
     def write_pressed(self):
         self.write_callback(self.characteristic, self)
 
+class DeviceFrame(customtkinter.CTkFrame):
+    def __init__(self, master, device, adv_data, connect_callback):
+        super().__init__(master)
+        self.device = device
+        self.connect_callback = connect_callback
+
+        self.grid_columnconfigure(0, weight=1)
+
+        self.name_label = customtkinter.CTkLabel(self, text=f"{device.name or 'Unknown'}", font=("Arial", 12, "bold"))
+        self.name_label.grid(row=0, column=0, padx=10, pady=(5,0), sticky="w")
+
+        self.address_label = customtkinter.CTkLabel(self, text=f"{device.address}", font=("Arial", 10))
+        self.address_label.grid(row=1, column=0, padx=10, pady=0, sticky="w")
+
+        self.rssi_label = customtkinter.CTkLabel(self, text=f"RSSI: {adv_data.rssi} dBm", font=("Arial", 10))
+        self.rssi_label.grid(row=2, column=0, padx=10, pady=(0,5), sticky="w")
+
+        row = 3
+        if adv_data.manufacturer_data:
+            for company_id, data in adv_data.manufacturer_data.items():
+                self.manufacturer_data_label = customtkinter.CTkLabel(self, text=f"Manufacturer: {company_id}: {data.hex()}", font=("Arial", 10))
+                self.manufacturer_data_label.grid(row=row, column=0, padx=10, pady=0, sticky="w")
+                row += 1
+
+        if adv_data.service_uuids:
+            self.service_uuids_label = customtkinter.CTkLabel(self, text=f"Services: {', '.join(adv_data.service_uuids)}", font=("Arial", 10), wraplength=200, justify="left")
+            self.service_uuids_label.grid(row=row, column=0, padx=10, pady=0, sticky="w")
+            row += 1
+
+        if adv_data.tx_power:
+            self.tx_power_label = customtkinter.CTkLabel(self, text=f"TX Power: {adv_data.tx_power} dBm", font=("Arial", 10))
+            self.tx_power_label.grid(row=row, column=0, padx=10, pady=(0,5), sticky="w")
+            row += 1
+
+        self.connect_button = customtkinter.CTkButton(self, text="Connect", command=self.connect_pressed)
+        self.connect_button.grid(row=0, column=1, rowspan=row, padx=10, pady=5, sticky="e")
+
+    def connect_pressed(self):
+        self.connect_callback(self.device, self)
+
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
@@ -109,7 +149,7 @@ class App(customtkinter.CTk):
 
         self.client = None
         self.selected_device = None
-        self.device_buttons = {}
+        self.device_frames = {}
         self.characteristic_frames = []
 
         self.loop = asyncio.new_event_loop()
@@ -133,11 +173,11 @@ class App(customtkinter.CTk):
         asyncio.set_event_loop(self.loop)
         self.loop.run_forever()
 
-    def device_selected(self, device, button):
+    def device_selected(self, device, frame):
         self.selected_device = device
-        for btn in self.device_buttons.values():
-            btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
-        button.configure(fg_color="green")
+        for f in self.device_frames.values():
+            f.configure(fg_color=customtkinter.ThemeManager.theme["CTkFrame"]["fg_color"])
+        frame.configure(fg_color="green")
 
         self.connect_to_selected_device()
 
@@ -151,27 +191,29 @@ class App(customtkinter.CTk):
 
     async def discover_devices(self):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
-        self.device_buttons = {}
+        self.device_frames = {}
 
         adapter = self.adapter_combobox.get()
         if adapter == "Default":
             adapter = None
         scanner_kwargs = {"adapter": adapter} if adapter else {}
 
+        scanner = bleak.BleakScanner(**scanner_kwargs)
+
+        def on_device_found(device, adv_data):
+            if device.address not in self.device_frames:
+                frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
+                frame.pack(padx=5, pady=2, fill="x")
+                self.device_frames[device.address] = frame
+
+        scanner.register_detection_callback(on_device_found)
+
         try:
-            discovered_devices = await bleak.BleakScanner.discover(timeout=5.0, **scanner_kwargs)
+            await scanner.start()
+            await asyncio.sleep(5.0)
+            await scanner.stop()
         except bleak.exc.BleakError as e:
             self.after(0, lambda err=e: self.log_message(f"Scanning Error: {err}"))
-            discovered_devices = []
-
-        for device in discovered_devices:
-            def create_command(dev, btn_ref):
-                return lambda: self.device_selected(dev, btn_ref)
-
-            button = customtkinter.CTkButton(self.devices_frame, text=f"{device.name} ({device.address})")
-            button.configure(command=create_command(device, button))
-            button.pack(padx=5, pady=2, fill="x")
-            self.device_buttons[device.address] = button
 
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
 
@@ -209,8 +251,8 @@ class App(customtkinter.CTk):
         self.clear_frame(self.characteristics_frame)
         self.characteristic_frames.clear()
         self.scan_button.configure(state="normal")
-        for btn in self.device_buttons.values():
-             btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
+        for frame in self.device_frames.values():
+             frame.configure(fg_color=customtkinter.ThemeManager.theme["CTkFrame"]["fg_color"])
 
     async def discover_attributes(self):
         self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
@@ -245,8 +287,8 @@ class App(customtkinter.CTk):
             self.characteristic_frames.append(char_frame)
 
     def reset_device_buttons(self):
-        for btn in self.device_buttons.values():
-            btn.configure(fg_color=None)
+        for frame in self.device_frames.values():
+            frame.configure(fg_color=None)
 
     def log_message(self, message):
         self.attributes_textbox.insert("end", message + "\n")
