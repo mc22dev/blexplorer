@@ -228,8 +228,8 @@ class App(customtkinter.CTk):
                 self.after(0, lambda s=service: self.log_message(f"Service: {s.uuid}"))
                 all_characteristics.extend(service.characteristics)
 
-            # Sort characteristics by description, handling None
-            all_characteristics.sort(key=lambda char: char.description or "")
+            # Sort characteristics by UUID
+            all_characteristics.sort(key=lambda char: str(char.uuid))
 
             self.after(0, self._populate_characteristics_ui, all_characteristics)
 
