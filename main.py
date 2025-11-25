@@ -275,8 +275,7 @@ class App(customtkinter.CTk):
         self.log_message(f"Adapter selected: {choice}")
         if platform.system() == "Linux" and choice != "Default":
             try:
-                result = subprocess.run(['hciconfig', choice, 'up'], capture_output=True, text=True, check=True)
-                result = subprocess.run(['hciconfig', choice], capture_output=True, text=True, check=True)
+                result = subprocess.run(['hciconfig', '-a', choice], capture_output=True, text=True, check=True)
                 self.log_message(f"--- Adapter Info for {choice} ---\n{result.stdout.strip()}\n--------------------")
             except (FileNotFoundError, subprocess.CalledProcessError) as e:
                 self.log_message(f"Could not get info for adapter {choice}: {e}")
