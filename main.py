@@ -192,7 +192,7 @@ class App(customtkinter.CTk):
     async def discover_devices(self):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
         self.device_frames = {}
-        self.after(0, self.log_message, "Scan started...")
+        self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scan started...")
 
         adapter = self.adapter_combobox.get()
         if adapter == "Default":
@@ -202,23 +202,27 @@ class App(customtkinter.CTk):
         scanner = bleak.BleakScanner(**scanner_kwargs)
 
         def on_device_found(device, adv_data):
-            # All UI updates must be scheduled on the main thread
+            # This runs in a bleak background thread
             self.after(0, self._handle_discovered_device, device, adv_data)
 
         scanner.register_detection_callback(on_device_found)
 
         try:
+            self._log_on_main_thread(f"[Thread {threading.get_ident()}] Starting scanner...")
             await scanner.start()
+            self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scanner started, waiting...")
             await asyncio.sleep(5.0)
+            self._log_on_main_thread(f"[Thread {threading.get_ident()}] Stopping scanner...")
             await scanner.stop()
+            self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scanner stopped.")
         except bleak.exc.BleakError as e:
-            self.after(0, lambda err=e: self.log_message(f"Scanning Error: {err}"))
+            self._log_on_main_thread(f"Scanning Error: {e}")
 
-        self.after(0, self.log_message, "Scan stopped.")
+        self._log_on_main_thread(f"[Thread {threading.get_ident()}] Scan stopped.")
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
 
     def _handle_discovered_device(self, device, adv_data):
-        self.log_message(f"Found device: {device.address} ({device.name or 'Unknown'})")
+        self.log_message(f"[Thread {threading.get_ident()}] Found device: {device.address} ({device.name or 'Unknown'})")
         if device.address not in self.device_frames:
             frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
             frame.pack(padx=5, pady=2, fill="x")
@@ -230,7 +234,7 @@ class App(customtkinter.CTk):
 
     async def _manage_connection(self):
         self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
-        self.after(0, lambda: self.log_message(f"Connecting to {self.selected_device.name}..."))
+        self._log_on_main_thread(f"Connecting to {self.selected_device.name}...")
 
         if self.client and self.client.is_connected:
             await self.client.disconnect()
@@ -274,7 +278,7 @@ class App(customtkinter.CTk):
 
             all_characteristics = []
             for service in self.client.services:
-                self.after(0, self.log_message, f"Service: {service.uuid}")
+                self._log_on_main_thread(f"Service: {service.uuid}")
                 all_characteristics.extend(service.characteristics)
 
             # Sort characteristics by UUID
@@ -283,7 +287,7 @@ class App(customtkinter.CTk):
             self.after(0, self._populate_characteristics_ui, all_characteristics)
 
         except Exception as e:
-            self.after(0, lambda err=e: self.log_message(f"Connection Error: {err}"))
+            self._log_on_main_thread(f"Connection Error: {e}")
             self.after(0, self.reset_device_buttons)
             self.after(0, lambda: self.scan_button.configure(state="normal"))
 
@@ -301,6 +305,9 @@ class App(customtkinter.CTk):
         self.attributes_textbox.insert("end", message + "\n")
         self.attributes_textbox.see("end")
 
+    def _log_on_main_thread(self, message):
+        self.after(0, self.log_message, message)
+
     def read_characteristic(self, characteristic, char_frame):
         if self.client:
             asyncio.run_coroutine_threadsafe(self.read_char(characteristic, char_frame), self.loop)
@@ -314,9 +321,9 @@ class App(customtkinter.CTk):
             self.after(0, lambda: char_frame.read_value_entry.delete(0, "end"))
             self.after(0, lambda: char_frame.read_value_entry.insert(0, hex_value))
             self.after(0, lambda: char_frame.read_ascii_label.configure(text=ascii_value))
-            self.after(0, lambda v=hex_value: self.log_message(f"Value read from {characteristic.uuid}: {v}"))
+            self._log_on_main_thread(f"Value read from {characteristic.uuid}: {hex_value}")
         except Exception as e:
-            self.after(0, lambda err=e: self.log_message(f"Read Error on {characteristic.uuid}: {err}"))
+            self._log_on_main_thread(f"Read Error on {characteristic.uuid}: {e}")
 
     def write_characteristic(self, characteristic, char_frame):
         if self.client:
