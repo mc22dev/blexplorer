@@ -68,7 +68,7 @@ class App(customtkinter.CTk):
         self.adapter_label = customtkinter.CTkLabel(self.adapter_frame, text="Bluetooth Adapter:")
         self.adapter_label.grid(row=0, column=0, padx=10, pady=10)
 
-        self.adapter_combobox = customtkinter.CTkComboBox(self.adapter_frame, values=["Default"])
+        self.adapter_combobox = customtkinter.CTkComboBox(self.adapter_frame, values=["Default"], command=self.on_adapter_selected)
         self.adapter_combobox.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
         self.adapter_combobox.set("Default")
 
@@ -270,6 +270,16 @@ class App(customtkinter.CTk):
                 pass
         self.adapter_combobox.configure(values=adapters)
         self.adapter_combobox.set("Default")
+
+    def on_adapter_selected(self, choice):
+        self.log_message(f"Adapter selected: {choice}")
+        if platform.system() == "Linux" and choice != "Default":
+            try:
+                result = subprocess.run(['hciconfig', choice, 'up'], capture_output=True, text=True, check=True)
+                result = subprocess.run(['hciconfig', choice], capture_output=True, text=True, check=True)
+                self.log_message(f"--- Adapter Info for {choice} ---\n{result.stdout.strip()}\n--------------------")
+            except (FileNotFoundError, subprocess.CalledProcessError) as e:
+                self.log_message(f"Could not get info for adapter {choice}: {e}")
 
 if __name__ == "__main__":
     app = App()
