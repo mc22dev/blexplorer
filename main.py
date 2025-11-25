@@ -86,8 +86,19 @@ class App(customtkinter.CTk):
         self.devices_frame.grid(row=1, column=0, rowspan=1, padx=10, pady=(0,10), sticky="nsew")
 
         # Right column for characteristics
-        self.characteristics_frame = customtkinter.CTkScrollableFrame(self, label_text="Characteristics")
-        self.characteristics_frame.grid(row=1, column=1, padx=10, pady=(0,10), sticky="nsew")
+        self.right_frame = customtkinter.CTkFrame(self)
+        self.right_frame.grid(row=1, column=1, padx=(0, 10), pady=(0, 10), sticky="nsew")
+        self.right_frame.grid_rowconfigure(1, weight=1)
+        self.right_frame.grid_columnconfigure(0, weight=1)
+
+        self.char_toolbar = customtkinter.CTkFrame(self.right_frame)
+        self.char_toolbar.grid(row=0, column=0, padx=0, pady=0, sticky="ew")
+
+        self.read_all_button = customtkinter.CTkButton(self.char_toolbar, text="Read All", command=self.read_all_characteristics, state="disabled")
+        self.read_all_button.pack(side="left", padx=5, pady=5)
+
+        self.characteristics_frame = customtkinter.CTkScrollableFrame(self.right_frame, label_text="Characteristics")
+        self.characteristics_frame.grid(row=1, column=0, padx=0, pady=0, sticky="nsew")
 
         # Bottom debug window
         self.attributes_textbox = customtkinter.CTkTextbox(self)
@@ -96,6 +107,7 @@ class App(customtkinter.CTk):
         self.client = None
         self.selected_device = None
         self.device_buttons = {}
+        self.characteristic_frames = []
 
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.run_async_loop, daemon=True)
@@ -189,8 +201,10 @@ class App(customtkinter.CTk):
 
     def on_disconnect_ui_update(self):
         self.disconnect_button.configure(state="disabled")
+        self.read_all_button.configure(state="disabled")
         self.attributes_textbox.delete("1.0", "end")
         self.clear_frame(self.characteristics_frame)
+        self.characteristic_frames.clear()
         self.scan_button.configure(state="normal")
         for btn in self.device_buttons.values():
              btn.configure(fg_color=customtkinter.ThemeManager.theme["CTkButton"]["fg_color"])
@@ -198,10 +212,12 @@ class App(customtkinter.CTk):
     async def discover_attributes(self):
         self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
         self.after(0, lambda: self.clear_frame(self.characteristics_frame))
+        self.characteristic_frames.clear()
 
         try:
             await self.client.connect()
             self.after(0, lambda: self.disconnect_button.configure(state="normal"))
+            self.after(0, lambda: self.read_all_button.configure(state="normal"))
             self.after(0, lambda: self.scan_button.configure(state="disabled"))
 
             all_characteristics = []
@@ -223,6 +239,7 @@ class App(customtkinter.CTk):
         for characteristic in characteristics:
             char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
             char_frame.pack(padx=5, pady=2, fill="x")
+            self.characteristic_frames.append(char_frame)
 
     def reset_device_buttons(self):
         for btn in self.device_buttons.values():
@@ -250,6 +267,12 @@ class App(customtkinter.CTk):
         if self.client:
             value = char_frame.write_entry.get()
             asyncio.run_coroutine_threadsafe(self.write_char(characteristic, value), self.loop)
+
+    def read_all_characteristics(self):
+        self.log_message("--- Reading all readable characteristics ---")
+        for char_frame in self.characteristic_frames:
+            if "read" in char_frame.characteristic.properties:
+                self.read_characteristic(char_frame.characteristic, char_frame)
 
     async def write_char(self, characteristic, value):
         try:
