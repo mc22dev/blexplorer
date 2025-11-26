@@ -383,7 +383,15 @@ class App(customtkinter.CTk):
             self.after(0, lambda: self.read_all_button.configure(state="normal"))
             self.after(0, lambda: self.scan_button.configure(state="disabled"))
 
-            self.after(0, self._populate_characteristics_ui, self.client.services)
+            # Instead of creating all widgets at once, gather them and process in batches
+            all_characteristics = []
+            for service in self.client.services:
+                all_characteristics.extend(service.characteristics)
+
+            # Sort all characteristics by service UUID, then characteristic UUID
+            all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
+
+            self.after(0, self._populate_characteristics_in_batches, all_characteristics)
 
             # Asynchronously read all user descriptions
             asyncio.run_coroutine_threadsafe(self._read_all_user_descriptions(), self.loop)
@@ -393,19 +401,33 @@ class App(customtkinter.CTk):
             self.after(0, self.reset_device_buttons)
             self.after(0, lambda: self.scan_button.configure(state="normal"))
 
-    def _populate_characteristics_ui(self, services):
-        for service in services:
-            self.log_with_timestamp(f"Service: {service.uuid}")
+    def _populate_characteristics_in_batches(self, characteristics, index=0, batch_size=10, service_frames=None):
+        if service_frames is None:
+            service_frames = {}
 
-            service_frame = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service.uuid}")
-            service_frame.pack(padx=5, pady=5, fill="x")
+        if index >= len(characteristics):
+            return
 
-            sorted_characteristics = sorted(service.characteristics, key=lambda char: str(char.uuid))
+        batch = characteristics[index : index + batch_size]
 
-            for characteristic in sorted_characteristics:
-                char_frame = CharacteristicFrame(service_frame.content_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
-                char_frame.pack(padx=5, pady=2, fill="x")
-                self.characteristic_frames.append(char_frame)
+        for characteristic in batch:
+            service_uuid = characteristic.service_uuid
+            if service_uuid not in service_frames:
+                self.log_with_timestamp(f"Service: {service_uuid}")
+                service_frame = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service_uuid}")
+                service_frame.pack(padx=5, pady=5, fill="x")
+                service_frames[service_uuid] = service_frame
+            else:
+                service_frame = service_frames[service_uuid]
+
+            char_frame = CharacteristicFrame(service_frame.content_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
+            char_frame.pack(padx=5, pady=2, fill="x")
+            self.characteristic_frames.append(char_frame)
+
+        # Schedule the next batch
+        next_index = index + batch_size
+        if next_index < len(characteristics):
+            self.after(50, self._populate_characteristics_in_batches, characteristics, next_index, batch_size, service_frames)
 
     async def _read_all_user_descriptions(self):
         self.log_with_timestamp("--- Reading all user descriptions ---")
