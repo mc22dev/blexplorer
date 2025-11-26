@@ -5,6 +5,26 @@ import threading
 import platform
 import subprocess
 import re
+from datetime import datetime
+
+class CollapsibleFrame(customtkinter.CTkFrame):
+    def __init__(self, master, text=""):
+        super().__init__(master)
+
+        self.grid_columnconfigure(0, weight=1)
+        self.collapsed = True
+
+        self.button = customtkinter.CTkButton(self, text=text, command=self.toggle)
+        self.button.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+
+        self.content_frame = customtkinter.CTkFrame(self, fg_color="transparent")
+
+    def toggle(self):
+        self.collapsed = not self.collapsed
+        if self.collapsed:
+            self.content_frame.grid_forget()
+        else:
+            self.content_frame.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
 
 class CharacteristicFrame(customtkinter.CTkFrame):
     def __init__(self, master, characteristic, description, read_callback, write_callback):
@@ -21,6 +41,9 @@ class CharacteristicFrame(customtkinter.CTkFrame):
 
         self.description_label = customtkinter.CTkLabel(self, text=description, wraplength=200, justify="left", font=("Arial", 10))
         self.description_label.grid(row=2, column=0, columnspan=4, padx=5, pady=(0,5), sticky="w")
+
+        self.user_description_label = customtkinter.CTkLabel(self, text="", wraplength=200, justify="left", font=("Arial", 10, "italic"))
+        self.user_description_label.grid(row=3, column=0, columnspan=4, padx=5, pady=(0,5), sticky="w")
 
         self.read_button = customtkinter.CTkButton(self, text="Read", command=self.read_pressed, width=50)
         if "read" not in self.characteristic.properties:
@@ -99,9 +122,8 @@ class App(customtkinter.CTk):
         self.geometry("800x600")
 
         self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(1, weight=2)
         self.grid_rowconfigure(1, weight=1)
-        self.grid_rowconfigure(2, weight=1)
 
         # Top bar for controls
         self.adapter_frame = customtkinter.CTkFrame(self)
@@ -126,26 +148,33 @@ class App(customtkinter.CTk):
 
         # Left column for devices
         self.devices_frame = customtkinter.CTkScrollableFrame(self, label_text="Nearby Devices")
-        self.devices_frame.grid(row=1, column=0, rowspan=1, padx=10, pady=(0,10), sticky="nsew")
+        self.devices_frame.grid(row=1, column=0, rowspan=2, padx=10, pady=(0,10), sticky="nsew")
 
-        # Right column for characteristics
-        self.right_frame = customtkinter.CTkFrame(self)
-        self.right_frame.grid(row=1, column=1, padx=(0, 10), pady=(0, 10), sticky="nsew")
-        self.right_frame.grid_rowconfigure(1, weight=1)
-        self.right_frame.grid_columnconfigure(0, weight=1)
+        # Right column for characteristics and debug
+        self.right_paned_frame = customtkinter.CTkFrame(self)
+        self.right_paned_frame.grid(row=1, column=1, rowspan=2, padx=(0, 10), pady=(0, 10), sticky="nsew")
+        self.right_paned_frame.grid_rowconfigure(0, weight=2)
+        self.right_paned_frame.grid_rowconfigure(1, weight=1)
+        self.right_paned_frame.grid_columnconfigure(0, weight=1)
 
-        self.char_toolbar = customtkinter.CTkFrame(self.right_frame)
+        # Characteristics on top
+        self.char_frame_container = customtkinter.CTkFrame(self.right_paned_frame)
+        self.char_frame_container.grid(row=0, column=0, sticky="nsew")
+        self.char_frame_container.grid_rowconfigure(1, weight=1)
+        self.char_frame_container.grid_columnconfigure(0, weight=1)
+
+        self.char_toolbar = customtkinter.CTkFrame(self.char_frame_container)
         self.char_toolbar.grid(row=0, column=0, padx=0, pady=0, sticky="ew")
 
         self.read_all_button = customtkinter.CTkButton(self.char_toolbar, text="Read All", command=self.read_all_characteristics, state="disabled")
         self.read_all_button.pack(side="left", padx=5, pady=5)
 
-        self.characteristics_frame = customtkinter.CTkScrollableFrame(self.right_frame, label_text="Characteristics")
+        self.characteristics_frame = customtkinter.CTkScrollableFrame(self.char_frame_container, label_text="Characteristics")
         self.characteristics_frame.grid(row=1, column=0, padx=0, pady=0, sticky="nsew")
 
         # Bottom debug window
-        self.attributes_textbox = customtkinter.CTkTextbox(self)
-        self.attributes_textbox.grid(row=2, column=0, columnspan=2, padx=10, pady=(0,10), sticky="nsew")
+        self.attributes_textbox = customtkinter.CTkTextbox(self.right_paned_frame)
+        self.attributes_textbox.grid(row=1, column=0, padx=0, pady=(10,0), sticky="nsew")
 
         self.client = None
         self.selected_device = None
@@ -193,7 +222,7 @@ class App(customtkinter.CTk):
     async def discover_devices(self, adapter_name):
         self.after(0, lambda: self.clear_frame(self.devices_frame))
         self.device_frames = {}
-        self._log_on_main_thread("Scan started...")
+        self.log_with_timestamp("Scan started...")
 
         adapter = adapter_name if adapter_name != "Default" else None
         scanner_kwargs = {"adapter": adapter} if adapter else {}
@@ -202,14 +231,14 @@ class App(customtkinter.CTk):
             discovered_devices = await bleak.BleakScanner.discover(timeout=5.0, return_adv=True, **scanner_kwargs)
             self.after(0, self._populate_devices_ui, discovered_devices)
         except bleak.exc.BleakError as e:
-            self._log_on_main_thread(f"Scanning Error: {e}")
+            self.log_with_timestamp(f"Scanning Error: {e}")
 
-        self._log_on_main_thread("Scan stopped.")
+        self.log_with_timestamp("Scan stopped.")
         self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
 
     def _populate_devices_ui(self, devices):
         for address, (device, adv_data) in devices.items():
-            self._log_on_main_thread(f"Found device: {device.address} ({device.name or 'Unknown'})")
+            self.log_with_timestamp(f"Found device: {device.address} ({device.name or 'Unknown'})")
             frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
             frame.pack(padx=5, pady=2, fill="x")
             self.device_frames[device.address] = frame
@@ -220,7 +249,7 @@ class App(customtkinter.CTk):
 
     async def _manage_connection(self):
         self.after(0, lambda: self.attributes_textbox.delete("1.0", "end"))
-        self._log_on_main_thread(f"Connecting to {self.selected_device.name}...")
+        self.log_with_timestamp(f"Connecting to {self.selected_device.name}...")
 
         if self.client and self.client.is_connected:
             await self.client.disconnect()
@@ -262,26 +291,26 @@ class App(customtkinter.CTk):
             self.after(0, lambda: self.read_all_button.configure(state="normal"))
             self.after(0, lambda: self.scan_button.configure(state="disabled"))
 
-            all_characteristics = []
-            for service in self.client.services:
-                self._log_on_main_thread(f"Service: {service.uuid}")
-                all_characteristics.extend(service.characteristics)
-
-            # Sort characteristics by UUID
-            all_characteristics.sort(key=lambda char: str(char.uuid))
-
-            self.after(0, self._populate_characteristics_ui, all_characteristics)
+            self.after(0, self._populate_characteristics_ui, self.client.services)
 
         except Exception as e:
-            self._log_on_main_thread(f"Connection Error: {e}")
+            self.log_with_timestamp(f"Connection Error: {e}")
             self.after(0, self.reset_device_buttons)
             self.after(0, lambda: self.scan_button.configure(state="normal"))
 
-    def _populate_characteristics_ui(self, characteristics):
-        for characteristic in characteristics:
-            char_frame = CharacteristicFrame(self.characteristics_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
-            char_frame.pack(padx=5, pady=2, fill="x")
-            self.characteristic_frames.append(char_frame)
+    def _populate_characteristics_ui(self, services):
+        for service in services:
+            self.log_with_timestamp(f"Service: {service.uuid}")
+
+            service_frame = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service.uuid}")
+            service_frame.pack(padx=5, pady=5, fill="x")
+
+            sorted_characteristics = sorted(service.characteristics, key=lambda char: str(char.uuid))
+
+            for characteristic in sorted_characteristics:
+                char_frame = CharacteristicFrame(service_frame.content_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
+                char_frame.pack(padx=5, pady=2, fill="x")
+                self.characteristic_frames.append(char_frame)
 
     def reset_device_buttons(self):
         for frame in self.device_frames.values():
@@ -293,6 +322,10 @@ class App(customtkinter.CTk):
 
     def _log_on_main_thread(self, message):
         self.after(0, self.log_message, message)
+
+    def log_with_timestamp(self, message):
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        self._log_on_main_thread(f"[{timestamp}] {message}")
 
     def read_characteristic(self, characteristic, char_frame):
         if self.client:
@@ -307,9 +340,19 @@ class App(customtkinter.CTk):
             self.after(0, lambda: char_frame.read_value_entry.delete(0, "end"))
             self.after(0, lambda: char_frame.read_value_entry.insert(0, hex_value))
             self.after(0, lambda: char_frame.read_ascii_label.configure(text=ascii_value))
-            self._log_on_main_thread(f"Value read from {characteristic.uuid}: {hex_value}")
+            self.log_with_timestamp(f"Value read from {characteristic.uuid}: {hex_value}")
+
+            # Try to read the User Description descriptor
+            try:
+                descriptor_value = await self.client.read_gatt_descriptor(characteristic.get_descriptor("00002901-0000-1000-8000-00805f9b34fb").handle)
+                user_description = descriptor_value.decode('utf-8')
+                self.after(0, lambda: char_frame.user_description_label.configure(text=f"User Description: {user_description}"))
+                self.log_with_timestamp(f"Read User Description for {characteristic.uuid}: {user_description}")
+            except Exception:
+                pass # Descriptor not found or other error
+
         except Exception as e:
-            self._log_on_main_thread(f"Read Error on {characteristic.uuid}: {e}")
+            self.log_with_timestamp(f"Read Error on {characteristic.uuid}: {e}")
 
     def write_characteristic(self, characteristic, char_frame):
         if self.client:
@@ -317,7 +360,7 @@ class App(customtkinter.CTk):
             asyncio.run_coroutine_threadsafe(self.write_char(characteristic, value), self.loop)
 
     def read_all_characteristics(self):
-        self.log_message("--- Reading all readable characteristics ---")
+        self.log_with_timestamp("--- Reading all readable characteristics ---")
         for char_frame in self.characteristic_frames:
             if "read" in char_frame.characteristic.properties:
                 self.read_characteristic(char_frame.characteristic, char_frame)
@@ -330,9 +373,9 @@ class App(customtkinter.CTk):
                 write_value = value.encode("utf-8")
 
             await self.client.write_gatt_char(characteristic.uuid, write_value)
-            self.after(0, lambda wv=write_value: self.log_message(f"Value written to {characteristic.uuid}: {wv.hex()}"))
+            self.log_with_timestamp(f"Value written to {characteristic.uuid}: {write_value.hex()}")
         except Exception as e:
-             self.after(0, lambda err=e: self.log_message(f"Write Error on {characteristic.uuid}: {err}"))
+            self.log_with_timestamp(f"Write Error on {characteristic.uuid}: {e}")
 
     def discover_adapters(self):
         adapters = ["Default"]
@@ -346,13 +389,13 @@ class App(customtkinter.CTk):
         self.adapter_combobox.set("Default")
 
     def on_adapter_selected(self, choice):
-        self.log_message(f"Adapter selected: {choice}")
+        self.log_with_timestamp(f"Adapter selected: {choice}")
         if platform.system() == "Linux" and choice != "Default":
             try:
                 result = subprocess.run(['hciconfig', '-a', choice], capture_output=True, text=True, check=True)
-                self.log_message(f"--- Adapter Info for {choice} ---\n{result.stdout.strip()}\n--------------------")
+                self.log_with_timestamp(f"--- Adapter Info for {choice} ---\n{result.stdout.strip()}\n--------------------")
             except (FileNotFoundError, subprocess.CalledProcessError) as e:
-                self.log_message(f"Could not get info for adapter {choice}: {e}")
+                self.log_with_timestamp(f"Could not get info for adapter {choice}: {e}")
 
 if __name__ == "__main__":
     app = App()
