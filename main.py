@@ -37,7 +37,6 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         self.write_display_mode = "ascii"  # "hex" or "ascii"
 
         self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure(3, weight=1)
 
         self.uuid_label = customtkinter.CTkLabel(self, text=str(characteristic.uuid), wraplength=200, justify="left")
         self.uuid_label.grid(row=0, column=0, rowspan=2, padx=5, pady=5, sticky="w")
@@ -48,34 +47,46 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         self.user_description_label = customtkinter.CTkLabel(self, text="", wraplength=200, justify="left", font=("Arial", 10, "italic"))
         self.user_description_label.grid(row=3, column=0, columnspan=5, padx=5, pady=(0,5), sticky="w")
 
-        self.read_button = customtkinter.CTkButton(self, text="Read", command=self.read_pressed, width=50)
+        # Read widgets
+        self.read_frame = customtkinter.CTkFrame(self, fg_color="transparent")
+        self.read_frame.grid(row=0, column=1, padx=0, pady=0, sticky="ew")
+        self.read_frame.grid_columnconfigure(1, weight=1)
+
+        self.read_button = customtkinter.CTkButton(self.read_frame, text="Read", command=self.read_pressed, width=50)
+        self.read_button.grid(row=0, column=0, padx=5, pady=5, sticky="e")
+
+        self.read_value_entry = customtkinter.CTkEntry(self.read_frame)
+        self.read_value_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+
+        self.format_toggle_button = customtkinter.CTkButton(self.read_frame, text="Hex", width=40, command=self.toggle_display_mode)
+        self.format_toggle_button.grid(row=0, column=2, padx=5, pady=5)
+
         if "read" not in self.characteristic.properties:
             self.read_button.configure(state="disabled")
-        self.read_button.grid(row=0, column=2, padx=5, pady=5, sticky="e")
+            self.read_value_entry.configure(state="disabled")
+            self.format_toggle_button.configure(state="disabled")
 
-        self.read_value_entry = customtkinter.CTkEntry(self)
-        self.read_value_entry.grid(row=0, column=3, padx=5, pady=5, sticky="ew")
-
-        self.format_toggle_button = customtkinter.CTkButton(self, text="Hex", width=40, command=self.toggle_display_mode)
-        self.format_toggle_button.grid(row=0, column=4, padx=5, pady=5)
-
+        # Write widgets
         self.write_frame = customtkinter.CTkFrame(self, fg_color="transparent")
         self.write_frame.grid(row=1, column=1, padx=0, pady=0, sticky="ew")
-        self.write_frame.grid_columnconfigure(0, weight=1)
+        self.write_frame.grid_columnconfigure(1, weight=1)
+
+        self.write_button = customtkinter.CTkButton(self.write_frame, text="Write", command=self.write_pressed, width=50)
+        self.write_button.grid(row=0, column=0, padx=5, pady=5, sticky="e")
 
         self.write_entry = customtkinter.CTkEntry(self.write_frame)
-        self.write_entry.grid(row=0, column=0, padx=(5,0), pady=5, sticky="ew")
+        self.write_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
         self.write_format_toggle_button = customtkinter.CTkButton(self.write_frame, text="ASCII", width=40, command=self.toggle_write_display_mode)
-        self.write_format_toggle_button.grid(row=0, column=1, padx=5, pady=5)
+        self.write_format_toggle_button.grid(row=0, column=2, padx=5, pady=5)
 
-        self.write_button = customtkinter.CTkButton(self, text="Write", command=self.write_pressed, width=50)
         if "write" not in self.characteristic.properties and "write-without-response" not in self.characteristic.properties:
             self.write_button.configure(state="disabled")
-        self.write_button.grid(row=1, column=2, padx=5, pady=5, sticky="e")
+            self.write_entry.configure(state="disabled")
+            self.write_format_toggle_button.configure(state="disabled")
 
-        self.properties_label = customtkinter.CTkLabel(self, text=f"({', '.join(self.characteristic.properties)})", font=("Arial", 10))
-        self.properties_label.grid(row=1, column=3, padx=5, pady=(0,5), sticky="w")
+        self.properties_label = customtkinter.CTkLabel(self.write_frame, text=f"({', '.join(self.characteristic.properties)})", font=("Arial", 10))
+        self.properties_label.grid(row=1, column=1, padx=5, pady=(0,5), sticky="w")
 
     def read_pressed(self):
         self.read_callback(self.characteristic, self)
@@ -257,6 +268,18 @@ class App(customtkinter.CTk):
 
         self.after(100, self.discover_adapters)
 
+        self.bind_all("<MouseWheel>", self._on_mouse_wheel)
+
+    def _on_mouse_wheel(self, event):
+        # This is a bit of a hack to scroll the scrollable frame under the mouse pointer
+        # It works by finding the widget under the pointer and then finding its scrollable parent
+        widget = self.winfo_containing(event.x_root, event.y_root)
+        while widget is not None:
+            if isinstance(widget, customtkinter.CTkScrollableFrame):
+                widget._parent_canvas.yview_scroll(-1 * int(event.delta/120), "units")
+                break
+            widget = widget.master
+
     def on_closing(self):
         if self.client and self.client.is_connected:
             future = asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
@@ -362,6 +385,9 @@ class App(customtkinter.CTk):
 
             self.after(0, self._populate_characteristics_ui, self.client.services)
 
+            # Asynchronously read all user descriptions
+            asyncio.run_coroutine_threadsafe(self._read_all_user_descriptions(), self.loop)
+
         except Exception as e:
             self.log_with_timestamp(f"Connection Error: {e}")
             self.after(0, self.reset_device_buttons)
@@ -380,6 +406,21 @@ class App(customtkinter.CTk):
                 char_frame = CharacteristicFrame(service_frame.content_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
                 char_frame.pack(padx=5, pady=2, fill="x")
                 self.characteristic_frames.append(char_frame)
+
+    async def _read_all_user_descriptions(self):
+        self.log_with_timestamp("--- Reading all user descriptions ---")
+        for char_frame in self.characteristic_frames:
+            characteristic = char_frame.characteristic
+            try:
+                for descriptor in characteristic.descriptors:
+                    if descriptor.uuid == "00002901-0000-1000-8000-00805f9b34fb":
+                        descriptor_value = await self.client.read_gatt_descriptor(descriptor.handle)
+                        user_description = descriptor_value.decode('utf-8')
+                        self.after(0, lambda cf=char_frame, desc=user_description: cf.user_description_label.configure(text=f"User Description: {desc}"))
+                        self.log_with_timestamp(f"Read User Description for {characteristic.uuid}: {user_description}")
+                        break
+            except Exception as e:
+                self.log_with_timestamp(f"Error reading user description for {characteristic.uuid}: {e}")
 
     def reset_device_buttons(self):
         for frame in self.device_frames.values():
@@ -408,18 +449,6 @@ class App(customtkinter.CTk):
             value = await self.client.read_gatt_char(characteristic.uuid)
             self.after(0, lambda: char_frame.update_value(value))
             self.log_with_timestamp(f"Value read from {characteristic.uuid}: {value.hex()}")
-
-            # Try to read the User Description descriptor
-            try:
-                for descriptor in characteristic.descriptors:
-                    if descriptor.uuid == "00002901-0000-1000-8000-00805f9b34fb":
-                        descriptor_value = await self.client.read_gatt_descriptor(descriptor.handle)
-                        user_description = descriptor_value.decode('utf-8')
-                        self.after(0, lambda: char_frame.user_description_label.configure(text=f"User Description: {user_description}"))
-                        self.log_with_timestamp(f"Read User Description for {characteristic.uuid}: {user_description}")
-                        break
-            except Exception:
-                pass # Descriptor not found or other error
 
         except Exception as e:
             self.log_with_timestamp(f"Read Error on {characteristic.uuid}: {e}")
