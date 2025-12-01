@@ -27,11 +27,13 @@ class CollapsibleFrame(customtkinter.CTkFrame):
             self.content_frame.grid(row=1, column=0, padx=5, pady=5, sticky="nsew")
 
 class CharacteristicFrame(customtkinter.CTkFrame):
-    def __init__(self, master, characteristic, description, read_callback, write_callback):
+    def __init__(self, master, characteristic, description, read_callback, write_callback, subscribe_callback, unsubscribe_callback):
         super().__init__(master)
         self.characteristic = characteristic
         self.read_callback = read_callback
         self.write_callback = write_callback
+        self.subscribe_callback = subscribe_callback
+        self.unsubscribe_callback = unsubscribe_callback
         self.raw_value = None
         self.display_mode = "hex"  # "hex" or "ascii"
         self.write_display_mode = "ascii"  # "hex" or "ascii"
@@ -40,6 +42,9 @@ class CharacteristicFrame(customtkinter.CTkFrame):
 
         self.uuid_label = customtkinter.CTkLabel(self, text=str(characteristic.uuid), wraplength=200, justify="left")
         self.uuid_label.grid(row=0, column=0, rowspan=2, padx=5, pady=5, sticky="w")
+
+        self.copy_uuid_button = customtkinter.CTkButton(self, text="Copy", command=self.copy_uuid, width=40, height=20)
+        self.copy_uuid_button.grid(row=0, column=1, padx=0, pady=0, sticky="w")
 
         self.description_label = customtkinter.CTkLabel(self, text=description, wraplength=200, justify="left", font=("Arial", 10))
         self.description_label.grid(row=2, column=0, columnspan=5, padx=5, pady=(0,5), sticky="w")
@@ -58,13 +63,24 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         self.read_value_entry = customtkinter.CTkEntry(self.read_frame)
         self.read_value_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
+        self.copy_read_button = customtkinter.CTkButton(self.read_frame, text="Copy", command=self.copy_read_value, width=40, height=20)
+        self.copy_read_button.grid(row=0, column=5, padx=5, pady=5)
+
         self.format_toggle_button = customtkinter.CTkButton(self.read_frame, text="Hex", width=40, command=self.toggle_display_mode)
         self.format_toggle_button.grid(row=0, column=2, padx=5, pady=5)
+
+        self.subscribe_button = customtkinter.CTkButton(self.read_frame, text="Subscribe", command=self.subscribe_pressed, width=80)
+        self.subscribe_button.grid(row=0, column=3, padx=5, pady=5)
+        self.unsubscribe_button = customtkinter.CTkButton(self.read_frame, text="Unsubscribe", command=self.unsubscribe_pressed, width=90, state="disabled")
+        self.unsubscribe_button.grid(row=0, column=4, padx=5, pady=5)
 
         if "read" not in self.characteristic.properties:
             self.read_button.configure(state="disabled")
             self.read_value_entry.configure(state="disabled")
             self.format_toggle_button.configure(state="disabled")
+
+        if "notify" not in self.characteristic.properties and "indicate" not in self.characteristic.properties:
+            self.subscribe_button.configure(state="disabled")
 
         # Write widgets
         self.write_frame = customtkinter.CTkFrame(self, fg_color="transparent")
@@ -76,6 +92,7 @@ class CharacteristicFrame(customtkinter.CTkFrame):
 
         self.write_entry = customtkinter.CTkEntry(self.write_frame)
         self.write_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        self.write_entry.bind("<Key>", self._reset_write_status_color)
 
         self.write_format_toggle_button = customtkinter.CTkButton(self.write_frame, text="ASCII", width=40, command=self.toggle_write_display_mode)
         self.write_format_toggle_button.grid(row=0, column=2, padx=5, pady=5)
@@ -93,6 +110,33 @@ class CharacteristicFrame(customtkinter.CTkFrame):
 
     def write_pressed(self):
         self.write_callback(self.characteristic, self)
+
+    def subscribe_pressed(self):
+        self.subscribe_callback(self.characteristic, self)
+        self.subscribe_button.configure(state="disabled")
+        self.unsubscribe_button.configure(state="normal")
+
+    def unsubscribe_pressed(self):
+        self.unsubscribe_callback(self.characteristic, self)
+        self.subscribe_button.configure(state="normal")
+        self.unsubscribe_button.configure(state="disabled")
+
+    def copy_uuid(self):
+        root_window = self.winfo_toplevel()
+        root_window.clipboard_clear()
+        root_window.clipboard_append(str(self.characteristic.uuid))
+
+    def copy_read_value(self):
+        root_window = self.winfo_toplevel()
+        root_window.clipboard_clear()
+        root_window.clipboard_append(self.read_value_entry.get())
+
+    def _reset_write_status_color(self, event=None):
+        default_color = customtkinter.ThemeManager.theme["CTkEntry"]["fg_color"]
+        self.write_entry.configure(fg_color=default_color)
+
+    def set_write_status_color(self, color):
+        self.write_entry.configure(fg_color=color)
 
     def _is_printable_ascii(self, data):
         if not data:
@@ -166,6 +210,9 @@ class DeviceFrame(customtkinter.CTkFrame):
         self.address_label = customtkinter.CTkLabel(self, text=f"{device.address}", font=("Arial", 10))
         self.address_label.grid(row=1, column=0, padx=10, pady=0, sticky="w")
 
+        self.copy_address_button = customtkinter.CTkButton(self, text="Copy", command=self.copy_address, width=40, height=20)
+        self.copy_address_button.grid(row=1, column=1, padx=0, pady=0, sticky="w")
+
         self.rssi_label = customtkinter.CTkLabel(self, text=f"RSSI: {adv_data.rssi} dBm", font=("Arial", 10))
         self.rssi_label.grid(row=2, column=0, padx=10, pady=(0,5), sticky="w")
 
@@ -191,6 +238,11 @@ class DeviceFrame(customtkinter.CTkFrame):
 
     def connect_pressed(self):
         self.connect_callback(self.device, self)
+
+    def copy_address(self):
+        root_window = self.winfo_toplevel()
+        root_window.clipboard_clear()
+        root_window.clipboard_append(self.device.address)
 
 class App(customtkinter.CTk):
     def __init__(self):
@@ -225,8 +277,17 @@ class App(customtkinter.CTk):
         self.disconnect_button.grid(row=0, column=4, padx=(0,10), pady=10)
 
         # Left column for devices
-        self.devices_frame = customtkinter.CTkScrollableFrame(self, label_text="Nearby Devices")
-        self.devices_frame.grid(row=1, column=0, rowspan=2, padx=10, pady=(0,10), sticky="nsew")
+        self.devices_frame_container = customtkinter.CTkFrame(self)
+        self.devices_frame_container.grid(row=1, column=0, rowspan=2, padx=10, pady=(0,10), sticky="nsew")
+        self.devices_frame_container.grid_rowconfigure(1, weight=1)
+
+        self.search_entry = customtkinter.CTkEntry(self.devices_frame_container, placeholder_text="Filter devices")
+        self.search_entry.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+        self.search_entry.bind("<KeyRelease>", self.filter_devices)
+
+        self.devices_frame = customtkinter.CTkScrollableFrame(self.devices_frame_container, label_text="Nearby Devices")
+        self.devices_frame.grid(row=1, column=0, padx=0, pady=0, sticky="nsew")
+
 
         # Right column for characteristics and debug
         self.right_paned_frame = customtkinter.CTkFrame(self)
@@ -260,7 +321,7 @@ class App(customtkinter.CTk):
         self.client = None
         self.selected_device = None
         self.device_frames = {}
-        self.characteristic_frames = []
+        self.characteristic_frames = {}
 
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.run_async_loop, daemon=True)
@@ -368,14 +429,14 @@ class App(customtkinter.CTk):
         self.disconnect_button.configure(state="disabled")
         self.read_all_button.configure(state="disabled")
         self.clear_frame(self.characteristics_frame)
-        self.characteristic_frames.clear()
+        self.characteristic_frames = {}
         self.scan_button.configure(state="normal")
         for frame in self.device_frames.values():
              frame.configure(fg_color=customtkinter.ThemeManager.theme["CTkFrame"]["fg_color"])
 
     async def discover_attributes(self):
         self.after(0, lambda: self.clear_frame(self.characteristics_frame))
-        self.characteristic_frames.clear()
+        self.characteristic_frames = {}
 
         try:
             await self.client.connect()
@@ -383,7 +444,15 @@ class App(customtkinter.CTk):
             self.after(0, lambda: self.read_all_button.configure(state="normal"))
             self.after(0, lambda: self.scan_button.configure(state="disabled"))
 
-            self.after(0, self._populate_characteristics_ui, self.client.services)
+            # Instead of creating all widgets at once, gather them and process in batches
+            all_characteristics = []
+            for service in self.client.services:
+                all_characteristics.extend(service.characteristics)
+
+            # Sort all characteristics by service UUID, then characteristic UUID
+            all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
+
+            self.after(0, self._populate_characteristics_in_batches, all_characteristics)
 
             # Asynchronously read all user descriptions
             asyncio.run_coroutine_threadsafe(self._read_all_user_descriptions(), self.loop)
@@ -393,23 +462,37 @@ class App(customtkinter.CTk):
             self.after(0, self.reset_device_buttons)
             self.after(0, lambda: self.scan_button.configure(state="normal"))
 
-    def _populate_characteristics_ui(self, services):
-        for service in services:
-            self.log_with_timestamp(f"Service: {service.uuid}")
+    def _populate_characteristics_in_batches(self, characteristics, index=0, batch_size=10, service_frames=None):
+        if service_frames is None:
+            service_frames = {}
 
-            service_frame = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service.uuid}")
-            service_frame.pack(padx=5, pady=5, fill="x")
+        if index >= len(characteristics):
+            return
 
-            sorted_characteristics = sorted(service.characteristics, key=lambda char: str(char.uuid))
+        batch = characteristics[index : index + batch_size]
 
-            for characteristic in sorted_characteristics:
-                char_frame = CharacteristicFrame(service_frame.content_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic)
-                char_frame.pack(padx=5, pady=2, fill="x")
-                self.characteristic_frames.append(char_frame)
+        for characteristic in batch:
+            service_uuid = characteristic.service_uuid
+            if service_uuid not in service_frames:
+                self.log_with_timestamp(f"Service: {service_uuid}")
+                service_frame = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service_uuid}")
+                service_frame.pack(padx=5, pady=5, fill="x")
+                service_frames[service_uuid] = service_frame
+            else:
+                service_frame = service_frames[service_uuid]
+
+            char_frame = CharacteristicFrame(service_frame.content_frame, characteristic, characteristic.description, self.read_characteristic, self.write_characteristic, self.subscribe_to_characteristic, self.unsubscribe_from_characteristic)
+            char_frame.pack(padx=5, pady=2, fill="x")
+            self.characteristic_frames[characteristic.handle] = char_frame
+
+        # Schedule the next batch
+        next_index = index + batch_size
+        if next_index < len(characteristics):
+            self.after(50, self._populate_characteristics_in_batches, characteristics, next_index, batch_size, service_frames)
 
     async def _read_all_user_descriptions(self):
         self.log_with_timestamp("--- Reading all user descriptions ---")
-        for char_frame in self.characteristic_frames:
+        for char_frame in self.characteristic_frames.values():
             characteristic = char_frame.characteristic
             try:
                 for descriptor in characteristic.descriptors:
@@ -449,6 +532,9 @@ class App(customtkinter.CTk):
             value = await self.client.read_gatt_char(characteristic.uuid)
             self.after(0, lambda: char_frame.update_value(value))
             self.log_with_timestamp(f"Value read from {characteristic.uuid}: {value.hex()}")
+            # Brief highlight on successful read
+            self.after(0, lambda: char_frame.read_value_entry.configure(fg_color="green"))
+            self.after(500, lambda: char_frame.read_value_entry.configure(fg_color=customtkinter.ThemeManager.theme["CTkEntry"]["fg_color"]))
 
         except Exception as e:
             self.log_with_timestamp(f"Read Error on {characteristic.uuid}: {e}")
@@ -461,7 +547,7 @@ class App(customtkinter.CTk):
 
     def read_all_characteristics(self):
         self.log_with_timestamp("--- Reading all readable characteristics ---")
-        for char_frame in self.characteristic_frames:
+        for char_frame in self.characteristic_frames.values():
             if "read" in char_frame.characteristic.properties:
                 self.read_characteristic(char_frame.characteristic, char_frame)
 
@@ -474,12 +560,32 @@ class App(customtkinter.CTk):
 
             await self.client.write_gatt_char(characteristic.uuid, write_value)
             self.log_with_timestamp(f"Value written to {characteristic.uuid}: {write_value.hex()}")
+            self.after(0, char_frame._reset_write_status_color)
 
             if "read" in characteristic.properties:
                 self.log_with_timestamp(f"Automatically reading back from {characteristic.uuid}")
                 await self.read_char(characteristic, char_frame)
         except Exception as e:
             self.log_with_timestamp(f"Write Error on {characteristic.uuid}: {e}")
+            self.after(0, lambda: char_frame.set_write_status_color("light coral"))
+
+    def notification_handler(self, characteristic, data):
+        self.log_with_timestamp(f"Notification from {characteristic.uuid}: {data.hex()}")
+
+        # Find the corresponding frame and update its value
+        if characteristic.handle in self.characteristic_frames:
+            frame = self.characteristic_frames[characteristic.handle]
+            self.after(0, lambda: frame.update_value(data))
+
+    def subscribe_to_characteristic(self, characteristic, char_frame):
+        if self.client:
+            asyncio.run_coroutine_threadsafe(self.client.start_notify(characteristic.uuid, self.notification_handler), self.loop)
+            self.log_with_timestamp(f"Subscribed to {characteristic.uuid}")
+
+    def unsubscribe_from_characteristic(self, characteristic, char_frame):
+        if self.client:
+            asyncio.run_coroutine_threadsafe(self.client.stop_notify(characteristic.uuid), self.loop)
+            self.log_with_timestamp(f"Unsubscribed from {characteristic.uuid}")
 
     def discover_adapters(self):
         adapters = ["Default"]
@@ -501,7 +607,20 @@ class App(customtkinter.CTk):
             except (FileNotFoundError, subprocess.CalledProcessError) as e:
                 self.log_with_timestamp(f"Could not get info for adapter {choice}: {e}")
 
+    def filter_devices(self, event=None):
+        search_term = self.search_entry.get().lower()
+        for device_frame in self.device_frames.values():
+            device = device_frame.device
+            device_name = (device.name or "Unknown").lower()
+            device_address = device.address.lower()
+            if search_term in device_name or search_term in device_address:
+                device_frame.pack(padx=5, pady=2, fill="x")
+            else:
+                device_frame.pack_forget()
+
 if __name__ == "__main__":
+    customtkinter.set_appearance_mode("dark")
+    customtkinter.set_default_color_theme("dark-blue")
     app = App()
     app.protocol("WM_DELETE_WINDOW", app.on_closing)
     app.mainloop()
