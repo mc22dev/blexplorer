@@ -20,6 +20,7 @@ from descriptor_frame import DescriptorFrame
 from characteristic_frame import CharacteristicFrame
 from device_frame import DeviceFrame
 from collapsible_frame import CollapsibleFrame
+from gatt import GATT_SERVICES
 
 
 class App(customtkinter.CTk):
@@ -121,21 +122,35 @@ class App(customtkinter.CTk):
 
         self.after(100, self.discover_adapters)
 
-        self.bind_all("<MouseWheel>", self._on_mouse_wheel)
+        # Bind mouse wheel events for cross-platform scrolling
+        self.bind_all("<MouseWheel>", self._on_mouse_wheel)  # Windows
+        self.bind_all("<Button-4>", self._on_mouse_wheel)    # Linux scroll up
+        self.bind_all("<Button-5>", self._on_mouse_wheel)    # Linux scroll down
 
     def _on_mouse_wheel(self, event: tkinter.Event) -> None:
         """
         Handles mouse wheel scrolling for any CTkScrollableFrame under the cursor.
+        This method is designed to be cross-platform.
 
         Args:
             event: The mouse wheel event.
         """
         widget = self.winfo_containing(event.x_root, event.y_root)
+        scrollable_widget = None
+
         while widget is not None:
             if isinstance(widget, customtkinter.CTkScrollableFrame):
-                widget._parent_canvas.yview_scroll(-1 * int(event.delta/120), "units")
+                scrollable_widget = widget
                 break
             widget = widget.master
+
+        if scrollable_widget:
+            if event.num == 4:  # Linux scroll up
+                scrollable_widget._parent_canvas.yview_scroll(-1, "units")
+            elif event.num == 5:  # Linux scroll down
+                scrollable_widget._parent_canvas.yview_scroll(1, "units")
+            else:  # Windows and macOS
+                scrollable_widget._parent_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def on_closing(self) -> None:
         """Handles the window closing event."""
@@ -332,8 +347,9 @@ class App(customtkinter.CTk):
         for char in batch:
             service_uuid = str(char.service_uuid)
             if service_uuid not in service_frames:
-                self.log_with_timestamp(f"Service: {service_uuid}")
-                sf = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service_uuid}")
+                service_name = GATT_SERVICES.get(service_uuid.split("-")[0].lstrip("0").lower(), "Unknown Service")
+                self.log_with_timestamp(f"Service: {service_name} ({service_uuid})")
+                sf = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service_name} ({service_uuid})")
                 sf.pack(padx=5, pady=5, fill="x")
                 service_frames[service_uuid] = sf
 
