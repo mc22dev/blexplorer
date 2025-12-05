@@ -7,6 +7,7 @@ import tkinter
 
 from descriptor_frame import DescriptorFrame
 from collapsible_frame import CollapsibleFrame
+from gatt import GATT_CHARACTERISTICS
 
 
 class CharacteristicFrame(customtkinter.CTkFrame):
@@ -49,11 +50,17 @@ class CharacteristicFrame(customtkinter.CTkFrame):
 
         self.grid_columnconfigure(1, weight=1)
 
+        short_uuid = characteristic.uuid.split("-")[0].lstrip("0").lower()
+        char_name = GATT_CHARACTERISTICS.get(short_uuid, "Unknown Characteristic")
+
+        self.name_label = customtkinter.CTkLabel(self, text=char_name, wraplength=200, justify="left", font=("Arial", 12, "bold"))
+        self.name_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
         self.uuid_label = customtkinter.CTkLabel(self, text=str(characteristic.uuid), wraplength=200, justify="left")
-        self.uuid_label.grid(row=0, column=0, rowspan=2, padx=5, pady=5, sticky="w")
+        self.uuid_label.grid(row=1, column=0, padx=5, pady=5, sticky="w")
 
         self.copy_uuid_button = customtkinter.CTkButton(self, text="Copy", command=self.copy_uuid, width=40, height=20)
-        self.copy_uuid_button.grid(row=0, column=1, padx=0, pady=0, sticky="w")
+        self.copy_uuid_button.grid(row=1, column=1, padx=0, pady=0, sticky="w")
 
         self.description_label = customtkinter.CTkLabel(self, text=description, wraplength=200, justify="left", font=("Arial", 10))
         self.description_label.grid(row=2, column=0, columnspan=5, padx=5, pady=(0,5), sticky="w")
@@ -104,6 +111,7 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         self.write_entry = customtkinter.CTkEntry(self.write_frame)
         self.write_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         self.write_entry.bind("<Key>", self._reset_write_status_color)
+        self.write_entry.bind("<Return>", self.write_pressed)
 
         self.write_format_toggle_button = customtkinter.CTkButton(self.write_frame, text="ASCII", width=40, command=self.toggle_write_display_mode)
         self.write_format_toggle_button.grid(row=0, column=2, padx=5, pady=5)
@@ -127,7 +135,7 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         """Handles the read button press event."""
         self.read_callback(self.characteristic, self)
 
-    def write_pressed(self) -> None:
+    def write_pressed(self, event: Optional[tkinter.Event] = None) -> None:
         """Handles the write button press event."""
         self.write_callback(self.characteristic, self)
 
