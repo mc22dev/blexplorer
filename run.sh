@@ -13,6 +13,10 @@ fi
 echo "Installing dependencies..."
 "$VENV_DIR/bin/pip" install -r requirements.txt
 
+# Run tests using the venv's pytest
+echo "Running tests..."
+"$VENV_DIR/bin/pytest"
+
 # Run the application using the venv's python
 echo "Launching BLE Scanner..."
 "$VENV_DIR/bin/python" main.py
