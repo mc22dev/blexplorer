@@ -20,6 +20,7 @@ from descriptor_frame import DescriptorFrame
 from characteristic_frame import CharacteristicFrame
 from device_frame import DeviceFrame
 from collapsible_frame import CollapsibleFrame
+from gatt import GATT_SERVICES
 
 
 class App(customtkinter.CTk):
@@ -332,8 +333,9 @@ class App(customtkinter.CTk):
         for char in batch:
             service_uuid = str(char.service_uuid)
             if service_uuid not in service_frames:
-                self.log_with_timestamp(f"Service: {service_uuid}")
-                sf = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service_uuid}")
+                service_name = GATT_SERVICES.get(service_uuid.split("-")[0].lstrip("0").lower(), "Unknown Service")
+                self.log_with_timestamp(f"Service: {service_name} ({service_uuid})")
+                sf = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service_name} ({service_uuid})")
                 sf.pack(padx=5, pady=5, fill="x")
                 service_frames[service_uuid] = sf
 
