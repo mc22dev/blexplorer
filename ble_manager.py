@@ -2,7 +2,7 @@ import asyncio
 import threading
 from typing import Optional, List, Tuple, Callable, Any
 
-import bleak
+from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -25,7 +25,7 @@ class BLEManager:
             connection_status_callback: Callback for connection status changes.
             notification_callback: Callback for characteristic notifications.
         """
-        self.client: Optional[bleak.BleakClient] = None
+        self.client: Optional[BleakClient] = None
         self.selected_device: Optional[BLEDevice] = None
         self.adapter: Optional[str] = None
         self.loop = asyncio.new_event_loop()
@@ -93,7 +93,7 @@ class BLEManager:
             await self.client.disconnect()
 
         client_kwargs = {"adapter": self.adapter} if self.adapter else {}
-        self.client = bleak.BleakClient(self.selected_device, disconnected_callback=self._on_disconnect, **client_kwargs)
+        self.client = BleakClient(self.selected_device, disconnected_callback=self._on_disconnect, **client_kwargs)
 
         try:
             await self.client.connect()
@@ -102,7 +102,7 @@ class BLEManager:
             print(f"Connection Error: {e}")
             self.connection_status_callback(False)
 
-    def _on_disconnect(self, client: bleak.BleakClient) -> None:
+    def _on_disconnect(self, client: BleakClient) -> None:
         """Handles the device disconnection event."""
         self.connection_status_callback(False)
         if self.selected_device:
