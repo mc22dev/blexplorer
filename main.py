@@ -1,14 +1,11 @@
 import customtkinter
-import bleak
-import asyncio
-import threading
 import platform
 import subprocess
 import re
 import tkinter
 from datetime import datetime
 from tkinter import filedialog
-from typing import Dict, Optional, List, Tuple, Any, Coroutine
+from typing import Dict, Optional, List, Tuple, Any, Union
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -16,11 +13,15 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.descriptor import BleakGATTDescriptor
 from bleak.exc import BleakError
 
+from ble_manager import BLEManager
+from device_cache import DeviceCache, service_to_dict
+from models import CachedService
 from descriptor_frame import DescriptorFrame
 from characteristic_frame import CharacteristicFrame
 from device_frame import DeviceFrame
 from collapsible_frame import CollapsibleFrame
 from gatt import GATT_SERVICES
+from models import CachedCharacteristic, CachedDescriptor
 
 
 class App(customtkinter.CTk):
@@ -37,7 +38,30 @@ class App(customtkinter.CTk):
         self.grid_columnconfigure(1, weight=2)
         self.grid_rowconfigure(1, weight=1)
 
-        # Top bar for controls
+        self._create_adapter_frame()
+        self._create_devices_frame()
+        self._create_right_pane()
+
+        self.device_cache = DeviceCache()
+        self.selected_device: Optional[BLEDevice] = None
+        self.device_frames: Dict[str, DeviceFrame] = {}
+        self.characteristic_frames: Dict[int, CharacteristicFrame] = {}
+
+        self.ble_manager = BLEManager(
+            device_discovered_callback=self._on_device_discovered,
+            connection_status_callback=self._on_connection_status_changed,
+            notification_callback=self.notification_handler
+        )
+
+        self.after(100, self.discover_adapters)
+
+        # Bind mouse wheel events for cross-platform scrolling
+        self.bind_all("<MouseWheel>", self._on_mouse_wheel)  # Windows
+        self.bind_all("<Button-4>", self._on_mouse_wheel)    # Linux scroll up
+        self.bind_all("<Button-5>", self._on_mouse_wheel)    # Linux scroll down
+
+    def _create_adapter_frame(self) -> None:
+        """Creates the top bar for controls."""
         self.adapter_frame = customtkinter.CTkFrame(self)
         self.adapter_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=(10,0), sticky="ew")
         self.adapter_frame.grid_columnconfigure(1, weight=1)
@@ -67,7 +91,8 @@ class App(customtkinter.CTk):
         self.connection_status_label = customtkinter.CTkLabel(self.adapter_frame, text="Status: Disconnected", text_color="red")
         self.connection_status_label.grid(row=0, column=7, padx=10, pady=10)
 
-        # Left column for devices
+    def _create_devices_frame(self) -> None:
+        """Creates the left column for devices."""
         self.devices_frame_container = customtkinter.CTkFrame(self)
         self.devices_frame_container.grid(row=1, column=0, rowspan=2, padx=10, pady=(0,10), sticky="nsew")
         self.devices_frame_container.grid_rowconfigure(1, weight=1)
@@ -79,7 +104,8 @@ class App(customtkinter.CTk):
         self.devices_frame = customtkinter.CTkScrollableFrame(self.devices_frame_container, label_text="Nearby Devices")
         self.devices_frame.grid(row=1, column=0, padx=0, pady=0, sticky="nsew")
 
-        # Right column for characteristics and debug
+    def _create_right_pane(self) -> None:
+        """Creates the right column for characteristics and debug."""
         self.right_paned_frame = customtkinter.CTkFrame(self)
         self.right_paned_frame.grid(row=1, column=1, rowspan=2, padx=(0, 10), pady=(0, 10), sticky="nsew")
         self.right_paned_frame.grid_rowconfigure(0, weight=2)
@@ -111,22 +137,6 @@ class App(customtkinter.CTk):
         self.attributes_textbox = customtkinter.CTkTextbox(self.right_paned_frame)
         self.attributes_textbox.grid(row=1, column=0, padx=0, pady=(10,0), sticky="nsew")
 
-        self.client: Optional[bleak.BleakClient] = None
-        self.selected_device: Optional[BLEDevice] = None
-        self.device_frames: Dict[str, DeviceFrame] = {}
-        self.characteristic_frames: Dict[int, CharacteristicFrame] = {}
-
-        self.loop = asyncio.new_event_loop()
-        self.thread = threading.Thread(target=self.run_async_loop, daemon=True)
-        self.thread.start()
-
-        self.after(100, self.discover_adapters)
-
-        # Bind mouse wheel events for cross-platform scrolling
-        self.bind_all("<MouseWheel>", self._on_mouse_wheel)  # Windows
-        self.bind_all("<Button-4>", self._on_mouse_wheel)    # Linux scroll up
-        self.bind_all("<Button-5>", self._on_mouse_wheel)    # Linux scroll down
-
     def _on_mouse_wheel(self, event: tkinter.Event) -> None:
         """
         Handles mouse wheel scrolling for any CTkScrollableFrame under the cursor.
@@ -154,20 +164,8 @@ class App(customtkinter.CTk):
 
     def on_closing(self) -> None:
         """Handles the window closing event."""
-        if self.client and self.client.is_connected:
-            future = asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
-            try:
-                future.result(timeout=2.0)
-            except (asyncio.TimeoutError, BleakError):
-                pass
-        self.loop.call_soon_threadsafe(self.loop.stop)
-        self.thread.join()
+        self.ble_manager.shutdown()
         self.destroy()
-
-    def run_async_loop(self) -> None:
-        """Runs the asyncio event loop in a separate thread."""
-        asyncio.set_event_loop(self.loop)
-        self.loop.run_forever()
 
     def device_selected(self, frame: DeviceFrame, device: BLEDevice) -> None:
         """
@@ -186,14 +184,19 @@ class App(customtkinter.CTk):
     def scan_for_devices(self) -> None:
         """Initiates a scan for nearby BLE devices."""
         self.scan_button.configure(state="disabled", text="Scanning...")
+        self.clear_frame(self.devices_frame)
+        self.device_frames = {}
+        self.log_with_timestamp("Scan started...")
         adapter = self.adapter_combobox.get()
+        adapter = adapter if adapter != "Default" else None
         try:
             timeout = float(self.scan_timeout_entry.get())
         except ValueError:
             self.log_with_timestamp("Invalid scan timeout. Please enter a number.")
             self.scan_button.configure(state="normal", text="Scan for devices")
             return
-        asyncio.run_coroutine_threadsafe(self.discover_devices(adapter, timeout), self.loop)
+        self.ble_manager.scan_for_devices(adapter, timeout)
+        self.after(int(timeout * 1000) + 500, self.on_scan_finished)
 
     def clear_frame(self, frame: tkinter.Frame) -> None:
         """
@@ -205,86 +208,51 @@ class App(customtkinter.CTk):
         for widget in frame.winfo_children():
             widget.destroy()
 
-    async def discover_devices(self, adapter_name: str, timeout: float) -> None:
-        """
-        Scans for BLE devices and populates the UI with the results.
-
-        Args:
-            adapter_name: The name of the Bluetooth adapter to use.
-            timeout: The duration of the scan in seconds.
-        """
-        self.after(0, lambda: self.clear_frame(self.devices_frame))
-        self.device_frames = {}
-        self.log_with_timestamp("Scan started...")
-
-        adapter = adapter_name if adapter_name != "Default" else None
-        scanner_kwargs = {"adapter": adapter} if adapter else {}
-
-        try:
-            discovered_devices_dict = await bleak.BleakScanner.discover(timeout=timeout, return_adv=True, **scanner_kwargs)
-            sorted_devices = sorted(discovered_devices_dict.values(), key=lambda item: item[1].rssi, reverse=True)
-            self.after(0, self._populate_devices_ui, sorted_devices)
-        except BleakError as e:
-            self.log_with_timestamp(f"Scanning Error: {e}")
-
+    def on_scan_finished(self):
         self.log_with_timestamp("Scan stopped.")
-        self.after(0, lambda: self.scan_button.configure(state="normal", text="Scan for devices"))
+        self.scan_button.configure(state="normal", text="Scan for devices")
 
-    def _populate_devices_ui(self, devices: List[Tuple[BLEDevice, AdvertisementData]]) -> None:
+    def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData) -> None:
+        """Callback for when a device is discovered."""
+        self.after(0, self._populate_device_ui, device, adv_data)
+
+    def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData) -> None:
         """
-        Populates the UI with the discovered BLE devices.
+        Populates the UI with a discovered BLE device.
 
         Args:
-            devices: A list of tuples containing BLEDevice and AdvertisementData.
+            device: A BLEDevice object.
+            adv_data: AdvertisementData for the device.
         """
-        for device, adv_data in devices:
-            self.log_with_timestamp(f"Found device: {device.address} ({device.name or 'Unknown'}) RSSI: {adv_data.rssi}")
-            frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
-            frame.pack(padx=5, pady=2, fill="x")
-            self.device_frames[device.address] = frame
+        self.log_with_timestamp(f"Found device: {device.address} ({device.name or 'Unknown'}) RSSI: {adv_data.rssi}")
+        frame = DeviceFrame(self.devices_frame, device, adv_data, self.device_selected)
+        frame.pack(padx=5, pady=2, fill="x")
+        self.device_frames[device.address] = frame
 
     def connect_to_selected_device(self) -> None:
         """Connects to the currently selected device."""
         if self.selected_device:
-            asyncio.run_coroutine_threadsafe(self._manage_connection(), self.loop)
+            self.log_with_timestamp(f"Connecting to {self.selected_device.name}...")
+            adapter = self.adapter_combobox.get()
+            adapter = adapter if adapter != "Default" else None
+            self.ble_manager.connect_to_device(self.selected_device, adapter)
 
-    async def _manage_connection(self) -> None:
-        """Manages the connection to the selected device, including disconnection and reconnection."""
-        self.log_with_timestamp(f"Connecting to {self.selected_device.name}...")
+    def _on_connection_status_changed(self, is_connected: bool) -> None:
+        """Callback for connection status changes."""
+        self.after(0, self._update_connection_ui, is_connected)
 
-        if self.client and self.client.is_connected:
-            await self.client.disconnect()
-
-        adapter = self.adapter_combobox.get()
-        adapter = adapter if adapter != "Default" else None
-        client_kwargs = {"adapter": adapter} if adapter else {}
-        self.client = bleak.BleakClient(self.selected_device, disconnected_callback=self._on_disconnect, **client_kwargs)
-
-        await self.discover_attributes()
-
-    def _on_disconnect(self, client: bleak.BleakClient) -> None:
-        """
-        Handles the device disconnection event.
-
-        Args:
-            client: The BleakClient instance that disconnected.
-        """
-        self.log_with_timestamp("Device disconnected.")
-        self.after(0, self.on_disconnect_ui_update)
-        if self.selected_device:
-            self.log_with_timestamp("Attempting to reconnect...")
-            asyncio.run_coroutine_threadsafe(self._manage_connection(), self.loop)
+    def _update_connection_ui(self, is_connected: bool) -> None:
+        """Updates the UI based on the connection status."""
+        if is_connected:
+            self.log_with_timestamp("Device connected.")
+            self.discover_attributes()
+        else:
+            self.log_with_timestamp("Device disconnected.")
+            self.on_disconnect_ui_update()
 
     def disconnect_from_device(self) -> None:
         """Initiates a manual disconnection from the connected device."""
-        if self.client:
-            asyncio.run_coroutine_threadsafe(self.disconnect(), self.loop)
-
-    async def disconnect(self) -> None:
-        """The core disconnection logic."""
-        if self.client:
-            await self.client.disconnect()
-        self.after(0, self.on_disconnect_ui_update)
+        self.ble_manager.disconnect_from_device()
 
     def on_disconnect_ui_update(self) -> None:
         """Updates the UI to reflect the disconnected state."""
@@ -297,38 +265,40 @@ class App(customtkinter.CTk):
         for frame in self.device_frames.values():
              frame.configure(fg_color=customtkinter.ThemeManager.theme["CTkFrame"]["fg_color"])
 
-    async def discover_attributes(self) -> None:
+    def discover_attributes(self) -> None:
         """Discovers and displays the services and characteristics of the connected device."""
-        self.after(0, lambda: self.clear_frame(self.characteristics_frame))
+        self.clear_frame(self.characteristics_frame)
         self.characteristic_frames = {}
 
-        try:
-            if self.client:
-                await self.client.connect()
-                self.after(0, lambda: self.disconnect_button.configure(state="normal"))
-                self.after(0, lambda: self.read_all_button.configure(state="normal"))
-                self.after(0, lambda: self.connection_status_label.configure(text="Status: Connected", text_color="green"))
-                self.after(0, lambda: self.scan_button.configure(state="disabled"))
-
-                all_characteristics = [char for service in self.client.services for char in service.characteristics]
+        cached_services_data = None
+        if self.selected_device:
+            cached_services_data = self.device_cache.load_device(self.selected_device.address)
+            if cached_services_data:
+                self.log_with_timestamp("Loading services from cache...")
+                cached_services = [CachedService(s) for s in cached_services_data]
+                all_characteristics = [char for service in cached_services for char in service.characteristics]
                 all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
+                self._populate_characteristics_in_batches(all_characteristics)
+                self.log_with_timestamp("Finished loading from cache.")
+                self._read_all_user_descriptions()
 
-                self.after(0, self._populate_characteristics_in_batches, all_characteristics)
-                asyncio.run_coroutine_threadsafe(self._read_all_user_descriptions(), self.loop)
-        except BleakError as e:
-            self.log_with_timestamp(f"Connection Error: {e}")
-            self.after(0, self.reset_device_buttons)
-            self.after(0, lambda: self.scan_button.configure(state="normal"))
-        except asyncio.TimeoutError:
-            self.log_with_timestamp("Connection timed out.")
-            self.after(0, self.reset_device_buttons)
-            self.after(0, lambda: self.scan_button.configure(state="normal"))
-        except Exception as e:
-            self.log_with_timestamp(f"An unexpected error occurred: {e}")
-            self.after(0, self.reset_device_buttons)
-            self.after(0, lambda: self.scan_button.configure(state="normal"))
+        if self.ble_manager.client:
+            self.disconnect_button.configure(state="normal")
+            self.read_all_button.configure(state="normal")
+            self.connection_status_label.configure(text="Status: Connected", text_color="green")
+            self.scan_button.configure(state="disabled")
 
-    def _populate_characteristics_in_batches(self, characteristics: List[BleakGATTCharacteristic], index: int = 0, batch_size: int = 10, service_frames: Optional[Dict[str, CollapsibleFrame]] = None) -> None:
+            # Update UI from live data if no cache was found
+            if not cached_services_data:
+                all_characteristics = [char for service in self.ble_manager.client.services for char in service.characteristics]
+                all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
+                self._populate_characteristics_in_batches(all_characteristics)
+                self._read_all_user_descriptions()
+
+            # Start background task to check for differences
+            self.after(100, self._check_for_attribute_diffs, cached_services_data)
+
+    def _populate_characteristics_in_batches(self, characteristics: List[Union[BleakGATTCharacteristic, CachedCharacteristic]], index: int = 0, batch_size: int = 10, service_frames: Optional[Dict[str, CollapsibleFrame]] = None) -> None:
         """
         Populates the UI with characteristics in batches to avoid freezing the GUI.
 
@@ -361,24 +331,23 @@ class App(customtkinter.CTk):
         if next_index < len(characteristics):
             self.after(50, self._populate_characteristics_in_batches, characteristics, next_index, batch_size, service_frames)
 
-    async def _read_all_user_descriptions(self) -> None:
+    def _read_all_user_descriptions(self) -> None:
         """Reads and displays the 'User Description' for all characteristics."""
         self.log_with_timestamp("--- Reading all user descriptions ---")
         for char_frame in self.characteristic_frames.values():
-            char = char_frame.characteristic
-            try:
-                for desc in char.descriptors:
+            # For cached characteristics, the user description is already part of the characteristic's data
+            if isinstance(char_frame.characteristic, CachedCharacteristic):
+                # Find the user description from its descriptors
+                for desc in char_frame.characteristic.descriptors:
                     if desc.uuid == "00002901-0000-1000-8000-00805f9b34fb":
-                        if self.client:
-                            value = await self.client.read_gatt_descriptor(desc.handle)
-                            desc_text = value.decode('utf-8')
-                            self.after(0, lambda cf=char_frame, d=desc_text: cf.user_description_label.configure(text=f"User Description: {d}"))
-                            self.log_with_timestamp(f"Read User Description for {char.uuid}: {desc_text}")
-                            break
-            except BleakError as e:
-                self.log_with_timestamp(f"Error reading user description for {char.uuid}: {e}")
-            except Exception as e:
-                self.log_with_timestamp(f"Unexpected error reading user description for {char.uuid}: {e}")
+                        # The value is not stored in the cache, so we still need to read it
+                        self.read_descriptor(desc, char_frame.user_description_label)
+                        break
+            else:
+                for desc in char_frame.characteristic.descriptors:
+                    if desc.uuid == "00002901-0000-1000-8000-00805f9b34fb":
+                        self.read_descriptor(desc, char_frame.user_description_label)
+                        break
 
     def reset_device_buttons(self) -> None:
         """Resets the visual state of all device buttons."""
@@ -438,28 +407,14 @@ class App(customtkinter.CTk):
             characteristic: The characteristic to read from.
             char_frame: The UI frame for the characteristic.
         """
-        if self.client:
-            asyncio.run_coroutine_threadsafe(self.read_char(characteristic, char_frame), self.loop)
-
-    async def read_char(self, characteristic: BleakGATTCharacteristic, char_frame: CharacteristicFrame) -> None:
-        """
-        The core logic for reading a characteristic's value.
-
-        Args:
-            characteristic: The characteristic to read from.
-            char_frame: The UI frame for the characteristic.
-        """
-        try:
-            if self.client:
-                value = await self.client.read_gatt_char(characteristic.uuid)
+        def on_read(value: Optional[bytes]):
+            if value is not None:
                 self.after(0, lambda: char_frame.update_value(value))
                 self.log_with_timestamp(f"Value read from {characteristic.uuid}: {value.hex()}")
                 self.after(0, lambda: char_frame.read_value_entry.configure(fg_color="green"))
                 self.after(500, lambda: char_frame.read_value_entry.configure(fg_color=customtkinter.ThemeManager.theme["CTkEntry"]["fg_color"]))
-        except BleakError as e:
-            self.log_with_timestamp(f"Read Error on {characteristic.uuid}: {e}")
-        except Exception as e:
-            self.log_with_timestamp(f"Unexpected read error on {characteristic.uuid}: {e}")
+
+        self.ble_manager.read_characteristic(characteristic.uuid, on_read)
 
     def write_characteristic(self, characteristic: BleakGATTCharacteristic, char_frame: CharacteristicFrame) -> None:
         """
@@ -469,10 +424,27 @@ class App(customtkinter.CTk):
             characteristic: The characteristic to write to.
             char_frame: The UI frame for the characteristic.
         """
-        if self.client:
-            value = char_frame.write_entry.get()
-            write_mode = char_frame.write_display_mode
-            asyncio.run_coroutine_threadsafe(self.write_char(characteristic, value, write_mode, char_frame), self.loop)
+        value_str = char_frame.write_entry.get()
+        write_mode = char_frame.write_display_mode
+        try:
+            write_value = bytes.fromhex(value_str) if write_mode == "hex" else value_str.encode("utf-8")
+        except ValueError:
+            self.log_with_timestamp(f"Invalid hex value for write on {characteristic.uuid}")
+            self.after(0, lambda: char_frame.set_write_status_color("light coral"))
+            return
+
+        def on_write(success: bool):
+            if success:
+                self.log_with_timestamp(f"Value written to {characteristic.uuid}: {write_value.hex()}")
+                self.after(0, char_frame._reset_write_status_color)
+                if "read" in characteristic.properties:
+                    self.log_with_timestamp(f"Automatically reading back from {characteristic.uuid}")
+                    self.read_characteristic(characteristic, char_frame)
+            else:
+                self.log_with_timestamp(f"Write Error on {characteristic.uuid}")
+                self.after(0, lambda: char_frame.set_write_status_color("light coral"))
+
+        self.ble_manager.write_characteristic(characteristic.uuid, write_value, on_write)
 
     def read_all_characteristics(self) -> None:
         """Initiates a read operation for all readable characteristics."""
@@ -480,35 +452,6 @@ class App(customtkinter.CTk):
         for char_frame in self.characteristic_frames.values():
             if "read" in char_frame.characteristic.properties:
                 self.read_characteristic(char_frame.characteristic, char_frame)
-
-    async def write_char(self, characteristic: BleakGATTCharacteristic, value: str, mode: str, char_frame: CharacteristicFrame) -> None:
-        """
-        The core logic for writing a characteristic's value.
-
-        Args:
-            characteristic: The characteristic to write to.
-            value: The value to write, as a string.
-            mode: The format of the value ("hex" or "ascii").
-            char_frame: The UI frame for the characteristic.
-        """
-        try:
-            write_value = bytes.fromhex(value) if mode == "hex" else value.encode("utf-8")
-            if self.client:
-                await self.client.write_gatt_char(characteristic.uuid, write_value)
-                self.log_with_timestamp(f"Value written to {characteristic.uuid}: {write_value.hex()}")
-                self.after(0, char_frame._reset_write_status_color)
-                if "read" in characteristic.properties:
-                    self.log_with_timestamp(f"Automatically reading back from {characteristic.uuid}")
-                    await self.read_char(characteristic, char_frame)
-        except ValueError:
-            self.log_with_timestamp(f"Invalid hex value for write on {characteristic.uuid}")
-            self.after(0, lambda: char_frame.set_write_status_color("light coral"))
-        except BleakError as e:
-            self.log_with_timestamp(f"Write Error on {characteristic.uuid}: {e}")
-            self.after(0, lambda: char_frame.set_write_status_color("light coral"))
-        except Exception as e:
-            self.log_with_timestamp(f"Unexpected write error on {characteristic.uuid}: {e}")
-            self.after(0, lambda: char_frame.set_write_status_color("light coral"))
 
     def notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytes) -> None:
         """
@@ -531,9 +474,8 @@ class App(customtkinter.CTk):
             characteristic: The characteristic to subscribe to.
             char_frame: The UI frame for the characteristic.
         """
-        if self.client:
-            asyncio.run_coroutine_threadsafe(self.client.start_notify(characteristic.uuid, self.notification_handler), self.loop)
-            self.log_with_timestamp(f"Subscribed to {characteristic.uuid}")
+        self.ble_manager.subscribe_to_characteristic(characteristic.uuid)
+        self.log_with_timestamp(f"Subscribed to {characteristic.uuid}")
 
     def unsubscribe_from_characteristic(self, characteristic: BleakGATTCharacteristic, char_frame: CharacteristicFrame) -> None:
         """
@@ -543,11 +485,10 @@ class App(customtkinter.CTk):
             characteristic: The characteristic to unsubscribe from.
             char_frame: The UI frame for the characteristic.
         """
-        if self.client:
-            asyncio.run_coroutine_threadsafe(self.client.stop_notify(characteristic.uuid), self.loop)
-            self.log_with_timestamp(f"Unsubscribed from {characteristic.uuid}")
+        self.ble_manager.unsubscribe_from_characteristic(characteristic.uuid)
+        self.log_with_timestamp(f"Unsubscribed from {characteristic.uuid}")
 
-    def read_descriptor(self, descriptor: BleakGATTDescriptor, desc_frame: DescriptorFrame) -> None:
+    def read_descriptor(self, descriptor: BleakGATTDescriptor, desc_frame: Union['DescriptorFrame', customtkinter.CTkLabel]) -> None:
         """
         Initiates a read operation for a descriptor.
 
@@ -555,26 +496,15 @@ class App(customtkinter.CTk):
             descriptor: The descriptor to read from.
             desc_frame: The UI frame for the descriptor.
         """
-        if self.client:
-            asyncio.run_coroutine_threadsafe(self.read_desc(descriptor, desc_frame), self.loop)
-
-    async def read_desc(self, descriptor: BleakGATTDescriptor, desc_frame: DescriptorFrame) -> None:
-        """
-        The core logic for reading a descriptor's value.
-
-        Args:
-            descriptor: The descriptor to read from.
-            desc_frame: The UI frame for the descriptor.
-        """
-        try:
-            if self.client:
-                value = await self.client.read_gatt_descriptor(descriptor.handle)
-                self.after(0, lambda: desc_frame.update_value(value))
+        def on_read(value: Optional[bytes]):
+            if value is not None:
+                if isinstance(desc_frame, customtkinter.CTkLabel):
+                     self.after(0, lambda: desc_frame.configure(text=f"User Description: {value.decode('utf-8')}"))
+                else:
+                    self.after(0, lambda: desc_frame.update_value(value))
                 self.log_with_timestamp(f"Value read from {descriptor.uuid}: {value.hex()}")
-        except BleakError as e:
-            self.log_with_timestamp(f"Read Error on {descriptor.uuid}: {e}")
-        except Exception as e:
-            self.log_with_timestamp(f"Unexpected read error on {descriptor.uuid}: {e}")
+
+        self.ble_manager.read_descriptor(descriptor.handle, on_read)
 
     def write_descriptor(self, descriptor: BleakGATTDescriptor, desc_frame: DescriptorFrame) -> None:
         """
@@ -584,31 +514,40 @@ class App(customtkinter.CTk):
             descriptor: The descriptor to write to.
             desc_frame: The UI frame for the descriptor.
         """
-        if self.client:
-            value = desc_frame.write_entry.get()
-            asyncio.run_coroutine_threadsafe(self.write_desc(descriptor, value, desc_frame), self.loop)
-
-    async def write_desc(self, descriptor: BleakGATTDescriptor, value: str, desc_frame: DescriptorFrame) -> None:
-        """
-        The core logic for writing a descriptor's value.
-
-        Args:
-            descriptor: The descriptor to write to.
-            value: The value to write, as a hex string.
-            desc_frame: The UI frame for the descriptor.
-        """
+        value_str = desc_frame.write_entry.get()
         try:
-            write_value = bytes.fromhex(value)
-            if self.client:
-                await self.client.write_gatt_descriptor(descriptor.handle, write_value)
-                self.log_with_timestamp(f"Value written to {descriptor.uuid}: {write_value.hex()}")
-                await self.read_desc(descriptor, desc_frame)
+            write_value = bytes.fromhex(value_str)
         except ValueError:
             self.log_with_timestamp(f"Invalid hex value for write on {descriptor.uuid}")
-        except BleakError as e:
-            self.log_with_timestamp(f"Write Error on {descriptor.uuid}: {e}")
-        except Exception as e:
-            self.log_with_timestamp(f"Unexpected write error on {descriptor.uuid}: {e}")
+            return
+
+        def on_write(success: bool):
+            if success:
+                self.log_with_timestamp(f"Value written to {descriptor.uuid}: {write_value.hex()}")
+                self.read_descriptor(descriptor, desc_frame)
+            else:
+                self.log_with_timestamp(f"Write Error on {descriptor.uuid}")
+
+        self.ble_manager.write_descriptor(descriptor.handle, write_value, on_write)
+
+    def _check_for_attribute_diffs(self, cached_services: Optional[List[Dict[str, Any]]]) -> None:
+        """Checks for differences between cached and live attributes."""
+        if self.ble_manager.client:
+            self.log_with_timestamp("Checking for attribute differences in the background...")
+            live_services = [service_to_dict(s) for s in self.ble_manager.client.services]
+
+            if cached_services:
+                diffs = self.device_cache.compare_services(cached_services, live_services)
+                if diffs:
+                    self.log_with_timestamp("Differences found between cache and live data:")
+                    for diff in diffs:
+                        self.log_with_timestamp(f"- {diff}")
+                    self.log_with_timestamp("Refreshing UI with live data...")
+                    self.discover_attributes()
+                else:
+                    self.log_with_timestamp("No differences found.")
+
+            self.device_cache.save_device(self.ble_manager.client)
 
     def discover_adapters(self) -> None:
         """Discovers available Bluetooth adapters and populates the dropdown."""

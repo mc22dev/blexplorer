@@ -1,15 +1,16 @@
 import customtkinter
-from typing import Any, Callable
+from typing import Any, Callable, Union
 from bleak.backends.descriptor import BleakGATTDescriptor
+from models import CachedDescriptor
 
 class DescriptorFrame(customtkinter.CTkFrame):
     """A custom tkinter frame that displays information about a BLE descriptor."""
 
     def __init__(self,
                  master: Any,
-                 descriptor: BleakGATTDescriptor,
-                 read_callback: Callable[[BleakGATTDescriptor, 'DescriptorFrame'], None],
-                 write_callback: Callable[[BleakGATTDescriptor, 'DescriptorFrame'], None]) -> None:
+                 descriptor: Union[BleakGATTDescriptor, CachedDescriptor],
+                 read_callback: Callable[[Union[BleakGATTDescriptor, CachedDescriptor], 'DescriptorFrame'], None],
+                 write_callback: Callable[[Union[BleakGATTDescriptor, CachedDescriptor], 'DescriptorFrame'], None]) -> None:
         """
         Initializes the DescriptorFrame.
 
