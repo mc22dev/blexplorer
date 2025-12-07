@@ -26,8 +26,9 @@ class BLEManager:
             notification_callback: Callback for characteristic notifications.
         """
         self.client: Optional[BleakClient] = None
-        self.selected_device: Optional[BLEDevice] = None
+        self.selected_device_address: Optional[str] = None
         self.adapter: Optional[str] = None
+        self._manual_disconnect: bool = False
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self.run_async_loop, daemon=True)
         self.thread.start()
@@ -73,27 +74,34 @@ class BLEManager:
         except BleakError as e:
             print(f"Scanning Error: {e}")
 
-    def connect_to_device(self, device: BLEDevice, adapter: Optional[str]) -> None:
-        """Connects to a specified device."""
-        self.selected_device = device
+    def connect_to_device(self, device_address: str, adapter: Optional[str]) -> None:
+        """Connects to a specified device by its address."""
+        if self.client and self.client.is_connected and self.selected_device_address == device_address:
+            print(f"Already connected to {device_address}. Ignoring.")
+            return
+
+        self.selected_device_address = device_address
         self.adapter = adapter
+        self._manual_disconnect = False
         asyncio.run_coroutine_threadsafe(self._manage_connection(), self.loop)
 
     def disconnect_from_device(self) -> None:
         """Disconnects from the currently connected device."""
-        if self.client:
+        self._manual_disconnect = True
+        if self.client and self.client.is_connected:
             asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
 
     async def _manage_connection(self) -> None:
         """Manages the connection to the selected device."""
-        if not self.selected_device:
+        if not self.selected_device_address:
             return
 
+        # Disconnect from any existing connection
         if self.client and self.client.is_connected:
             await self.client.disconnect()
 
         client_kwargs = {"adapter": self.adapter} if self.adapter else {}
-        self.client = BleakClient(self.selected_device, disconnected_callback=self._on_disconnect, **client_kwargs)
+        self.client = BleakClient(self.selected_device_address, disconnected_callback=self._on_disconnect, **client_kwargs)
 
         try:
             await self.client.connect()
@@ -105,8 +113,12 @@ class BLEManager:
     def _on_disconnect(self, client: BleakClient) -> None:
         """Handles the device disconnection event."""
         self.connection_status_callback(False)
-        if self.selected_device:
+        # Reconnect automatically only if the disconnection was not manual
+        if not self._manual_disconnect and self.selected_device_address:
+            print("Connection lost, attempting to reconnect...")
             asyncio.run_coroutine_threadsafe(self._manage_connection(), self.loop)
+        else:
+            self.selected_device_address = None
 
     def read_characteristic(self, characteristic_uuid: str, callback: Callable[[Optional[bytes]], Any]) -> None:
         """Reads the value of a characteristic."""
