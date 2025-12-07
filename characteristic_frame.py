@@ -213,14 +213,41 @@ class CharacteristicFrame(customtkinter.CTkFrame):
 
         self.read_value_entry.insert(0, value_to_display)
 
+    @staticmethod
+    def _is_printable_ascii(data: bytes) -> bool:
+        """
+        Checks if a bytes object contains only printable ASCII characters.
+        Printable characters include letters, digits, punctuation, and whitespace.
+        Empty strings are considered printable.
+        """
+        if data is None:
+            return False
+        try:
+            decoded = data.decode('ascii')
+            # The isprintable() method returns False for strings that are empty or contain only whitespace.
+            # We want to consider these as printable for our use case.
+            return all(c.isprintable() or c.isspace() for c in decoded) if decoded else True
+        except UnicodeDecodeError:
+            return False
+
     def update_value(self, raw_bytes: bytes) -> None:
         """
         Updates the characteristic's raw value and re-interprets it.
+        Defaults to ASCII if the value is printable, otherwise defaults to Hex,
+        without overriding a user's selection of a specific data type.
 
         Args:
             raw_bytes: The new raw value of the characteristic.
         """
         self.raw_value = raw_bytes
+
+        current_format = self.interpreter_combobox.get()
+        if current_format in ("Hex", "ASCII"):
+            if self._is_printable_ascii(raw_bytes):
+                self.interpreter_combobox.set("ASCII")
+            else:
+                self.interpreter_combobox.set("Hex")
+
         self.interpret_data(self.interpreter_combobox.get())
 
     def toggle_write_display_mode(self) -> None:
