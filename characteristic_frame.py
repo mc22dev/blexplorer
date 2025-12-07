@@ -1,6 +1,6 @@
 import customtkinter
 import struct
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.descriptor import BleakGATTDescriptor
 import tkinter
@@ -8,6 +8,7 @@ import tkinter
 from descriptor_frame import DescriptorFrame
 from collapsible_frame import CollapsibleFrame
 from gatt import GATT_CHARACTERISTICS
+from models import CachedCharacteristic, CachedDescriptor
 
 
 class CharacteristicFrame(customtkinter.CTkFrame):
@@ -15,14 +16,14 @@ class CharacteristicFrame(customtkinter.CTkFrame):
 
     def __init__(self,
                  master: Any,
-                 characteristic: BleakGATTCharacteristic,
+                 characteristic: Union[BleakGATTCharacteristic, CachedCharacteristic],
                  description: str,
-                 read_callback: Callable[[BleakGATTCharacteristic, 'CharacteristicFrame'], None],
-                 write_callback: Callable[[BleakGATTCharacteristic, 'CharacteristicFrame'], None],
-                 subscribe_callback: Callable[[BleakGATTCharacteristic, 'CharacteristicFrame'], None],
-                 unsubscribe_callback: Callable[[BleakGATTCharacteristic, 'CharacteristicFrame'], None],
-                 read_desc_callback: Callable[[BleakGATTDescriptor, Any], None],
-                 write_desc_callback: Callable[[BleakGATTDescriptor, Any], None]) -> None:
+                 read_callback: Callable[[Union[BleakGATTCharacteristic, CachedCharacteristic], 'CharacteristicFrame'], None],
+                 write_callback: Callable[[Union[BleakGATTCharacteristic, CachedCharacteristic], 'CharacteristicFrame'], None],
+                 subscribe_callback: Callable[[Union[BleakGATTCharacteristic, CachedCharacteristic], 'CharacteristicFrame'], None],
+                 unsubscribe_callback: Callable[[Union[BleakGATTCharacteristic, CachedCharacteristic], 'CharacteristicFrame'], None],
+                 read_desc_callback: Callable[[Union[BleakGATTDescriptor, CachedDescriptor], Any], None],
+                 write_desc_callback: Callable[[Union[BleakGATTDescriptor, CachedDescriptor], Any], None]) -> None:
         """
         Initializes the CharacteristicFrame.
 
