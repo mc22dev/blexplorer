@@ -2,7 +2,7 @@ import json
 import os
 from typing import Dict, Any, Optional, List
 
-from bleak.backends.client import BleakClient
+from bleak import BleakClient
 from bleak.backends.service import BleakGATTService
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.descriptor import BleakGATTDescriptor
