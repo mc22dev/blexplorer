@@ -232,10 +232,10 @@ class App(customtkinter.CTk):
     def connect_to_selected_device(self) -> None:
         """Connects to the currently selected device."""
         if self.selected_device:
-            self.log_with_timestamp(f"Connecting to {self.selected_device.name}...")
+            self.log_with_timestamp(f"Connecting to {self.selected_device.address} ({self.selected_device.name})...")
             adapter = self.adapter_combobox.get()
             adapter = adapter if adapter != "Default" else None
-            self.ble_manager.connect_to_device(self.selected_device, adapter)
+            self.ble_manager.connect_to_device(self.selected_device.address, adapter)
 
     def _on_connection_status_changed(self, is_connected: bool) -> None:
         """Callback for connection status changes."""
