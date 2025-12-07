@@ -2,7 +2,7 @@ import asyncio
 import threading
 from typing import Optional, List, Tuple, Callable, Any
 
-from bleak import BleakClient
+from bleak import BleakClient, BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from bleak.backends.characteristic import BleakGATTCharacteristic
@@ -66,7 +66,7 @@ class BLEManager:
         """
         scanner_kwargs = {"adapter": adapter_name} if adapter_name else {}
         try:
-            discovered_devices_dict = await bleak.BleakScanner.discover(timeout=timeout, return_adv=True, **scanner_kwargs)
+            discovered_devices_dict = await BleakScanner.discover(timeout=timeout, return_adv=True, **scanner_kwargs)
             sorted_devices = sorted(discovered_devices_dict.values(), key=lambda item: item[1].rssi, reverse=True)
             for device, adv_data in sorted_devices:
                 self.device_discovered_callback(device, adv_data)
