@@ -1,5 +1,6 @@
 import customtkinter
 import struct
+import json
 from typing import Any, Callable, Optional, Union
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.descriptor import BleakGATTDescriptor
@@ -77,13 +78,13 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         self.read_button = customtkinter.CTkButton(self.read_frame, text="Read", command=self.read_pressed, width=50)
         self.read_button.grid(row=0, column=0, padx=5, pady=5, sticky="e")
 
-        self.read_value_entry = customtkinter.CTkEntry(self.read_frame)
+        self.read_value_entry = customtkinter.CTkTextbox(self.read_frame, height=28)
         self.read_value_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
         self.copy_read_button = customtkinter.CTkButton(self.read_frame, text="Copy", command=self.copy_read_value, width=40, height=20)
         self.copy_read_button.grid(row=0, column=5, padx=5, pady=5)
 
-        self.interpreter_combobox = customtkinter.CTkComboBox(self.read_frame, values=["Hex", "ASCII", "Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Float32", "Float64"], command=self.interpret_data)
+        self.interpreter_combobox = customtkinter.CTkComboBox(self.read_frame, values=["Hex", "ASCII", "JSON", "Int8", "UInt8", "Int16", "UInt16", "Int32", "UInt32", "Float32", "Float64"], command=self.interpret_data)
         self.interpreter_combobox.grid(row=0, column=6, padx=5, pady=5)
         self.interpreter_combobox.set("Hex")
 
@@ -162,7 +163,7 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         """Copies the read value to the clipboard."""
         root_window = self.winfo_toplevel()
         root_window.clipboard_clear()
-        root_window.clipboard_append(self.read_value_entry.get())
+        root_window.clipboard_append(self.read_value_entry.get("1.0", "end-1c"))
 
     def _reset_write_status_color(self, event: Optional[tkinter.Event] = None) -> None:
         """Resets the background color of the write entry field."""
@@ -181,17 +182,30 @@ class CharacteristicFrame(customtkinter.CTkFrame):
             interpretation: The desired format (e.g., "Hex", "ASCII", "Int32").
         """
         if self.raw_value is None:
-            self.read_value_entry.delete(0, "end")
-            self.read_value_entry.insert(0, "")
+            self.read_value_entry.delete("1.0", "end")
+            self.read_value_entry.insert("1.0", "")
             return
 
-        self.read_value_entry.delete(0, "end")
+        self.read_value_entry.delete("1.0", "end")
+        self.read_value_entry.configure(height=28)  # Reset to default height
         value_to_display = "N/A"
         try:
             if interpretation == "Hex":
                 value_to_display = self.raw_value.hex()
             elif interpretation == "ASCII":
                 value_to_display = self.raw_value.decode('ascii', errors='replace')
+            elif interpretation == "JSON":
+                try:
+                    decoded_string = self.raw_value.decode('utf-8')
+                    parsed_json = json.loads(decoded_string)
+                    value_to_display = json.dumps(parsed_json, indent=4)
+                    # Dynamically adjust height
+                    lines = value_to_display.count('\n') + 1
+                    # Approximate line height of 15, plus some padding
+                    new_height = lines * 15 + 13
+                    self.read_value_entry.configure(height=new_height)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    value_to_display = "Invalid JSON"
             elif interpretation == "Int8":
                 if len(self.raw_value) >= 1: value_to_display = str(struct.unpack('<b', self.raw_value[:1])[0])
             elif interpretation == "UInt8":
@@ -211,7 +225,7 @@ class CharacteristicFrame(customtkinter.CTkFrame):
         except (struct.error, UnicodeDecodeError):
             value_to_display = "Interpretation Error"
 
-        self.read_value_entry.insert(0, value_to_display)
+        self.read_value_entry.insert("1.0", value_to_display)
 
     @staticmethod
     def _is_printable_ascii(data: bytes) -> bool:
