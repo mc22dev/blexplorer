@@ -47,6 +47,7 @@ class App(customtkinter.CTk):
         self.device_frames: Dict[str, DeviceFrame] = {}
         self.characteristic_frames: Dict[int, CharacteristicFrame] = {}
         self.diff_checker_id: Optional[str] = None
+        self.char_populator_id: Optional[str] = None
 
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
@@ -260,6 +261,9 @@ class App(customtkinter.CTk):
         if self.diff_checker_id:
             self.after_cancel(self.diff_checker_id)
             self.diff_checker_id = None
+        if self.char_populator_id:
+            self.after_cancel(self.char_populator_id)
+            self.char_populator_id = None
         self.disconnect_button.configure(state="disabled")
         self.read_all_button.configure(state="disabled")
         self.clear_frame(self.characteristics_frame)
@@ -271,6 +275,10 @@ class App(customtkinter.CTk):
 
     def discover_attributes(self) -> None:
         """Discovers and displays the services and characteristics of the connected device."""
+        if self.char_populator_id:
+            self.after_cancel(self.char_populator_id)
+            self.char_populator_id = None
+
         self.clear_frame(self.characteristics_frame)
         self.characteristic_frames = {}
 
@@ -341,7 +349,7 @@ class App(customtkinter.CTk):
         self.characteristic_frames[char.handle] = char_frame
 
         # Schedule the creation of the next characteristic frame
-        self.after(1, self._populate_characteristic_frame, characteristics, service_frames, index + 1)
+        self.char_populator_id = self.after(1, self._populate_characteristic_frame, characteristics, service_frames, index + 1)
 
     def _read_all_user_descriptions(self) -> None:
         """Reads and displays the 'User Description' for all characteristics."""
