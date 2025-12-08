@@ -46,6 +46,7 @@ class App(customtkinter.CTk):
         self.selected_device: Optional[BLEDevice] = None
         self.device_frames: Dict[str, DeviceFrame] = {}
         self.characteristic_frames: Dict[int, CharacteristicFrame] = {}
+        self.diff_checker_id: Optional[str] = None
 
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
@@ -256,6 +257,9 @@ class App(customtkinter.CTk):
 
     def on_disconnect_ui_update(self) -> None:
         """Updates the UI to reflect the disconnected state."""
+        if self.diff_checker_id:
+            self.after_cancel(self.diff_checker_id)
+            self.diff_checker_id = None
         self.disconnect_button.configure(state="disabled")
         self.read_all_button.configure(state="disabled")
         self.clear_frame(self.characteristics_frame)
@@ -296,7 +300,7 @@ class App(customtkinter.CTk):
                 self._read_all_user_descriptions()
 
             # Start background task to check for differences
-            self.after(100, self._check_for_attribute_diffs, cached_services_data)
+            self.diff_checker_id = self.after(100, self._check_for_attribute_diffs, cached_services_data)
 
     def _populate_characteristic_frame(self, characteristics: List[Union[BleakGATTCharacteristic, CachedCharacteristic]], service_frames: Dict[str, CollapsibleFrame], index: int = 0) -> None:
         """
