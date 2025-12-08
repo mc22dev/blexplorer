@@ -278,7 +278,7 @@ class App(customtkinter.CTk):
                 cached_services = [CachedService(s) for s in cached_services_data]
                 all_characteristics = [char for service in cached_services for char in service.characteristics]
                 all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
-                self._populate_characteristics_in_batches(all_characteristics)
+                self._populate_characteristic_frame(all_characteristics, service_frames={})
                 self.log_with_timestamp("Finished loading from cache.")
                 self._read_all_user_descriptions()
 
@@ -292,44 +292,52 @@ class App(customtkinter.CTk):
             if not cached_services_data:
                 all_characteristics = [char for service in self.ble_manager.client.services for char in service.characteristics]
                 all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
-                self._populate_characteristics_in_batches(all_characteristics)
+                self._populate_characteristic_frame(all_characteristics, service_frames={})
                 self._read_all_user_descriptions()
 
             # Start background task to check for differences
             self.after(100, self._check_for_attribute_diffs, cached_services_data)
 
-    def _populate_characteristics_in_batches(self, characteristics: List[Union[BleakGATTCharacteristic, CachedCharacteristic]], index: int = 0, batch_size: int = 10, service_frames: Optional[Dict[str, CollapsibleFrame]] = None) -> None:
+    def _populate_characteristic_frame(self, characteristics: List[Union[BleakGATTCharacteristic, CachedCharacteristic]], service_frames: Dict[str, CollapsibleFrame], index: int = 0) -> None:
         """
-        Populates the UI with characteristics in batches to avoid freezing the GUI.
+        Populates the UI with a single characteristic frame and schedules the next one.
+        This one-by-one approach with a minimal delay prevents the UI from freezing.
 
         Args:
-            characteristics: The list of characteristics to display.
-            index: The starting index for the current batch.
-            batch_size: The number of characteristics to process in each batch.
-            service_frames: A dictionary to store service frames.
+            characteristics: The list of all characteristics to display.
+            service_frames: A dictionary to store and reuse service frames.
+            index: The index of the characteristic to process now.
         """
-        if service_frames is None:
-            service_frames = {}
         if index >= len(characteristics):
             return
 
-        batch = characteristics[index : index + batch_size]
-        for char in batch:
-            service_uuid = str(char.service_uuid)
-            if service_uuid not in service_frames:
-                service_name = GATT_SERVICES.get(service_uuid.split("-")[0].lstrip("0").lower(), "Unknown Service")
-                self.log_with_timestamp(f"Service: {service_name} ({service_uuid})")
-                sf = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service_name} ({service_uuid})")
-                sf.pack(padx=5, pady=5, fill="x")
-                service_frames[service_uuid] = sf
+        char = characteristics[index]
+        service_uuid = str(char.service_uuid)
 
-            char_frame = CharacteristicFrame(service_frames[service_uuid].content_frame, char, char.description, self.read_characteristic, self.write_characteristic, self.subscribe_to_characteristic, self.unsubscribe_from_characteristic, self.read_descriptor, self.write_descriptor)
-            char_frame.pack(padx=5, pady=2, fill="x")
-            self.characteristic_frames[char.handle] = char_frame
+        if service_uuid not in service_frames:
+            service_name = GATT_SERVICES.get(service_uuid.split("-")[0].lstrip("0").lower(), "Unknown Service")
+            self.log_with_timestamp(f"Service: {service_name} ({service_uuid})")
+            sf = CollapsibleFrame(self.characteristics_frame, text=f"Service: {service_name} ({service_uuid})")
+            sf.pack(padx=5, pady=5, fill="x")
+            service_frames[service_uuid] = sf
 
-        next_index = index + batch_size
-        if next_index < len(characteristics):
-            self.after(50, self._populate_characteristics_in_batches, characteristics, next_index, batch_size, service_frames)
+        # Create and pack the frame for the current characteristic
+        char_frame = CharacteristicFrame(
+            master=service_frames[service_uuid].content_frame,
+            characteristic=char,
+            description=char.description,
+            read_callback=self.read_characteristic,
+            write_callback=self.write_characteristic,
+            subscribe_callback=self.subscribe_to_characteristic,
+            unsubscribe_callback=self.unsubscribe_from_characteristic,
+            read_descriptor_callback=self.read_descriptor,
+            write_descriptor_callback=self.write_descriptor
+        )
+        char_frame.pack(padx=5, pady=2, fill="x")
+        self.characteristic_frames[char.handle] = char_frame
+
+        # Schedule the creation of the next characteristic frame
+        self.after(1, self._populate_characteristic_frame, characteristics, service_frames, index + 1)
 
     def _read_all_user_descriptions(self) -> None:
         """Reads and displays the 'User Description' for all characteristics."""
