@@ -330,8 +330,8 @@ class App(customtkinter.CTk):
             write_callback=self.write_characteristic,
             subscribe_callback=self.subscribe_to_characteristic,
             unsubscribe_callback=self.unsubscribe_from_characteristic,
-            read_descriptor_callback=self.read_descriptor,
-            write_descriptor_callback=self.write_descriptor
+            read_desc_callback=self.read_descriptor,
+            write_desc_callback=self.write_descriptor
         )
         char_frame.pack(padx=5, pady=2, fill="x")
         self.characteristic_frames[char.handle] = char_frame
