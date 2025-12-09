@@ -79,6 +79,7 @@ class BLEScannerApp(App):
         self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
         self.root.ids.clear_log_button.bind(on_release=self.clear_log)
         self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
+        self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
 
 
     def on_stop(self):
@@ -96,6 +97,18 @@ class BLEScannerApp(App):
         else:
             self.log_with_timestamp("Adapter discovery is currently only supported on Linux.")
         self.root.ids.adapter_spinner.values = adapters
+
+    def on_adapter_selected(self, spinner, text):
+        """
+        Handles the selection of a Bluetooth adapter.
+        """
+        self.log_with_timestamp(f"Adapter selected: {text}")
+        if platform.system() == "Linux" and text != "Default":
+            try:
+                result = subprocess.run(['hciconfig', '-a', text], capture_output=True, text=True, check=True)
+                self.log_with_timestamp(f"--- Adapter Info for {text} ---\n{result.stdout.strip()}\n--------------------")
+            except (FileNotFoundError, subprocess.CalledProcessError) as e:
+                self.log_with_timestamp(f"Could not get info for adapter {text}: {e}")
 
     def scan_for_devices(self, *args):
         """Initiates a scan for nearby BLE devices."""
