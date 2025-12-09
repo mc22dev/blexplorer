@@ -2,12 +2,13 @@
 
 <MainLayout>:
     orientation: 'vertical'
+    padding: '5dp'
+    spacing: '5dp'
 
     # Top Adapter Bar
     BoxLayout:
         size_hint_y: None
         height: '48dp'
-        padding: '5dp'
         spacing: '5dp'
 
         Label:
@@ -18,35 +19,46 @@
             id: adapter_spinner
             text: 'Default'
             values: ['Default']
-            size_hint_x: 0.3
+            size_hint_x: 0.4
         Button:
             text: 'Refresh'
-            size_hint_x: 0.1
+            size_hint_x: None
+            width: '100dp'
         Button:
             id: scan_button
             text: 'Scan'
-            size_hint_x: 0.1
+            size_hint_x: None
+            width: '100dp'
         TextInput:
             id: scan_timeout_input
             text: '5.0'
-            size_hint_x: 0.1
+            size_hint_x: None
+            width: '50dp'
+            multiline: False
         Label:
             text: 's'
-            size_hint_x: 0.05
+            size_hint_x: None
+            width: '10dp'
         Button:
             id: disconnect_button
             text: 'Disconnect'
-            size_hint_x: 0.2
+            size_hint_x: None
+            width: '120dp'
             disabled: True
 
     # Main Content Area
-    BoxLayout:
-        orientation: 'horizontal'
+    Splitter:
+        sizable_from: 'right'
+        min_size: '200dp'
+        max_size: '600dp'
 
         # Left Pane: Device List
         BoxLayout:
             orientation: 'vertical'
             size_hint_x: 0.4
+            padding: '5dp'
+            spacing: '5dp'
+
 
             TextInput:
                 id: search_input
@@ -65,41 +77,54 @@
                     height: self.minimum_height
 
         # Right Pane: Characteristics and Log
-        BoxLayout:
+        Splitter:
             orientation: 'vertical'
-            size_hint_x: 0.6
+            sizable_from: 'bottom'
+            min_size: '100dp'
 
-            # Toolbar
             BoxLayout:
-                size_hint_y: None
-                height: '48dp'
-                padding: '5dp'
+                orientation: 'vertical'
+                size_hint_y: 0.6
                 spacing: '5dp'
 
-                Button:
-                    id: read_all_button
-                    text: 'Read All'
-                    disabled: True
-                Button:
-                    id: clear_log_button
-                    text: 'Clear Log'
-                Button:
-                    id: save_log_button
-                    text: 'Save Log'
-
-            ScrollView:
-                id: char_scroll_view
-                do_scroll_x: False
+                # Toolbar
                 BoxLayout:
-                    id: characteristic_list
-                    orientation: 'vertical'
                     size_hint_y: None
-                    height: self.minimum_height
-                    Label:
-                        text: 'Characteristics will appear here'
+                    height: '48dp'
+                    padding: '5dp'
+                    spacing: '5dp'
+
+                    Button:
+                        id: read_all_button
+                        text: 'Read All'
+                        size_hint_x: None
+                        width: '100dp'
+                        disabled: True
+                    Button:
+                        id: clear_log_button
+                        text: 'Clear Log'
+                        size_hint_x: None
+                        width: '100dp'
+                    Button:
+                        id: save_log_button
+                        text: 'Save Log'
+                        size_hint_x: None
+                        width: '100dp'
+
+                ScrollView:
+                    id: char_scroll_view
+                    do_scroll_x: False
+                    BoxLayout:
+                        id: characteristic_list
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        Label:
+                            text: 'Select a device to see characteristics'
 
             TextInput:
                 id: log_view
+                font_name: 'RobotoMono-Regular'  # Use a monospaced font
                 text: 'Log will appear here'
                 readonly: True
                 size_hint_y: 0.4
