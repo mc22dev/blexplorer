@@ -59,7 +59,7 @@ class TestKivyApp:
         device_frame = DeviceFrameKivy(device=device, adv_data=adv_data)
         assert device_frame.device_name == 'Test Device'
         assert device_frame.device_address == '00:11:22:33:44:55'
-        assert device_frame.device_rssi == 'RSSI: -50'
+        assert device_frame.device_rssi == '-50 dBm'
 
     def test_characteristic_frame_instantiation(self):
         """

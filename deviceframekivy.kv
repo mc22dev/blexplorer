@@ -20,8 +20,13 @@
         size_hint_y: None
         height: '30dp'
         Label:
-            text: f"{root.device_address} - {root.device_rssi}"
+            text: root.device_address
         Button:
-            text: 'Copy'
+            text: '📋'
             size_hint_x: 0.2
             on_release: root.copy_to_clipboard(root.device_address)
+        Button:
+            text: root.rssi_bars
+            size_hint_x: 0.3
+            background_color: (0,0,0,0)
+            on_release: root.show_rssi_popup()

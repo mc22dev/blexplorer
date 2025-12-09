@@ -86,6 +86,11 @@
                 Button:
                     id: save_log_button
                     text: 'Save Log'
+                CheckBox:
+                    id: auto_scroll_checkbox
+                    active: True
+                Label:
+                    text: 'Auto-scroll'
 
             ScrollView:
                 id: char_scroll_view
@@ -98,8 +103,13 @@
                     Label:
                         text: 'Characteristics will appear here'
 
-            TextInput:
-                id: log_view
-                text: 'Log will appear here'
-                readonly: True
+            ScrollView:
+                id: log_scroll_view
                 size_hint_y: 0.4
+                TextInput:
+                    id: log_view
+                    text: 'Log will appear here'
+                    readonly: True
+                    markup: True
+                    size_hint_y: None
+                    height: self.minimum_height
