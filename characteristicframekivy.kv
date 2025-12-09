@@ -83,12 +83,7 @@
             opacity: 1 if root.characteristic and ("write" in root.characteristic.properties or "write-without-response" in root.characteristic.properties) else 0
             disabled: not (root.characteristic and ("write" in root.characteristic.properties or "write-without-response" in root.characteristic.properties))
 
-            ToggleButton:
-                id: write_mode_button
+            Spinner:
+                id: write_mode_spinner
                 text: 'ASCII'
-                group: 'write_mode'
-                state: 'down'
-            ToggleButton:
-                id: write_mode_hex_button
-                text: 'Hex'
-                group: 'write_mode'
+                values: ['ASCII', 'Hex']

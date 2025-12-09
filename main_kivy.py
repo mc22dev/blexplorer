@@ -326,9 +326,9 @@ class BLEScannerApp(App):
         value_str = char_frame.ids.value_input.text
         try:
             char_frame.ids.value_input.background_color = (1, 1, 1, 1)
-            if char_frame.ids.write_mode_button.state == 'down': # ASCII mode
+            if char_frame.ids.write_mode_spinner.text == 'ASCII':
                 write_value = value_str.encode('utf-8')
-            else: # Hex mode
+            else:  # Hex mode
                 write_value = bytes.fromhex(value_str)
         except ValueError:
             self.log_with_timestamp(f"Invalid input for write on {characteristic.uuid}")
