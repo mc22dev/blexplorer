@@ -315,7 +315,8 @@ class BLEScannerApp(App):
     def on_characteristic_read(self, char_frame, value):
         if value is not None:
             char_frame.raw_value = value
-            self.log_with_timestamp(f"Value read from {char_frame.char_uuid}: {value.hex()}")
+            display_format = char_frame.ids.format_spinner.text
+            self.log_with_timestamp(f"Value read from {char_frame.char_uuid} ({display_format}): {char_frame.char_value}")
             char_frame.ids.value_input.background_color = (0, 1, 0, 1) # Green for success
             Clock.schedule_once(lambda dt: self.reset_char_color(char_frame), 0.5)
         else:
@@ -391,9 +392,11 @@ class BLEScannerApp(App):
         Clock.schedule_once(lambda dt: self.on_notification(characteristic, data))
 
     def on_notification(self, characteristic, data):
-        self.log_with_timestamp(f"Notification from {characteristic.uuid}: {data.hex()}")
         if characteristic.uuid in self.characteristic_frames:
-            self.characteristic_frames[characteristic.uuid].raw_value = data
+            char_frame = self.characteristic_frames[characteristic.uuid]
+            char_frame.raw_value = data
+            display_format = char_frame.ids.format_spinner.text
+            self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}")
 
     def log_with_timestamp(self, message: str):
         """Logs a message with a timestamp."""
