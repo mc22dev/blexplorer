@@ -13,6 +13,7 @@ from kivy.properties import ListProperty, StringProperty
 from kivy.uix.popup import Popup
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.button import Button
+from kivy.uix.label import Label
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -356,9 +357,9 @@ class BLEScannerApp(App):
                 desc_frame.text = f"User Description: {value.decode('utf-8')}"
             else:
                 desc_frame.desc_value = value.hex()
-            self.log_with_timestamp(f"Value read from {desc_frame.desc_uuid}: {value.hex()}")
+            self.log_with_timestamp(f"Value read from {desc_frame.descriptor.uuid}: {value.hex()}")
         else:
-            self.log_with_timestamp(f"Failed to read from {desc_frame.desc_uuid}")
+            self.log_with_timestamp(f"Failed to read from {desc_frame.descriptor.uuid}")
 
     def write_descriptor(self, descriptor, desc_frame, *args):
         value_str = desc_frame.ids.value_input.text
