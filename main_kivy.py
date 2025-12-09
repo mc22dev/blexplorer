@@ -40,7 +40,10 @@ class BLEScannerApp(App):
             notification_callback=self.notification_handler
         )
         self.characteristic_frames = {}
-        return Builder.load_file('blescanner.kv')
+        # Kivy automatically loads the kv file that matches the App class name
+        # (BLEScannerApp -> blescanner.kv).
+        # We just need to return the root widget.
+        return MainLayout()
 
     def on_start(self):
         self.discover_adapters()
