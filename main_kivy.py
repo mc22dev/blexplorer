@@ -9,7 +9,7 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
-from kivy.properties import ListProperty, StringProperty
+from kivy.properties import ListProperty, StringProperty, BooleanProperty
 from kivy.uix.popup import Popup
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.button import Button

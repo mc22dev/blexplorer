@@ -47,7 +47,7 @@
             text: 'Disconnect'
             size_hint_x: None
             width: '120dp'
-            disabled: True
+            disabled: not app.is_device_connected
             on_release: app.disconnect_from_device()
 
     # Main Content Area
@@ -103,7 +103,7 @@
                         text: 'Read All'
                         size_hint_x: None
                         width: '100dp'
-                        disabled: True
+                        disabled: not app.is_device_connected
                         on_release: app.read_all_characteristics()
                     Button:
                         id: clear_log_button
