@@ -1,0 +1,52 @@
+#:kivy 2.0.0
+
+<CharacteristicFrameKivy>:
+    orientation: 'vertical'
+    padding: '10dp'
+    spacing: '5dp'
+    size_hint_y: None
+    height: self.minimum_height
+
+    canvas.before:
+        Color:
+            rgba: 0.2, 0.2, 0.2, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    Label:
+        text: f"UUID: {root.char_uuid}"
+        font_size: '16sp'
+        halign: 'left'
+        text_size: self.width, None
+
+    Label:
+        text: f"Properties: {root.char_properties}"
+        font_size: '14sp'
+        halign: 'left'
+        text_size: self.width, None
+
+    BoxLayout:
+        size_hint_y: None
+        height: '30dp'
+        Label:
+            text: 'Value:'
+            size_hint_x: 0.2
+        TextInput:
+            id: value_input
+            text: root.char_value
+            size_hint_x: 0.8
+
+    BoxLayout:
+        size_hint_y: None
+        height: '30dp'
+        spacing: '5dp'
+        Button:
+            id: read_button
+            text: 'Read'
+        Button:
+            id: write_button
+            text: 'Write'
+        ToggleButton:
+            id: subscribe_button
+            text: 'Subscribe'

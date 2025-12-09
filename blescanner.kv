@@ -1,0 +1,79 @@
+#:kivy 2.0.0
+
+<MainLayout>:
+    orientation: 'vertical'
+
+    # Top Adapter Bar
+    BoxLayout:
+        size_hint_y: None
+        height: '48dp'
+        padding: '5dp'
+        spacing: '5dp'
+
+        Label:
+            text: 'Adapter:'
+            size_hint_x: None
+            width: '80dp'
+        Spinner:
+            id: adapter_spinner
+            text: 'Default'
+            values: ['Default']
+            size_hint_x: 0.4
+        Button:
+            text: 'Refresh'
+            size_hint_x: 0.15
+        Button:
+            id: scan_button
+            text: 'Scan for devices'
+            size_hint_x: 0.25
+        Button:
+            id: disconnect_button
+            text: 'Disconnect'
+            size_hint_x: 0.2
+            disabled: True
+
+    # Main Content Area
+    BoxLayout:
+        orientation: 'horizontal'
+
+        # Left Pane: Device List
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_x: 0.4
+
+            TextInput:
+                id: search_input
+                hint_text: 'Filter devices'
+                size_hint_y: None
+                height: '30dp'
+
+            ScrollView:
+                id: device_scroll_view
+                do_scroll_x: False
+                BoxLayout:
+                    id: device_list
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+
+        # Right Pane: Characteristics and Log
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_x: 0.6
+
+            ScrollView:
+                id: char_scroll_view
+                do_scroll_x: False
+                BoxLayout:
+                    id: characteristic_list
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Label:
+                        text: 'Characteristics will appear here'
+
+            TextInput:
+                id: log_view
+                text: 'Log will appear here'
+                readonly: True
+                size_hint_y: 0.4
