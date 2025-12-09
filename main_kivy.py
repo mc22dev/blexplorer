@@ -349,17 +349,18 @@ class BLEScannerApp(App):
         char_frame.ids.value_input.background_color = (1, 1, 1, 1)
 
     def read_descriptor(self, descriptor, desc_frame, *args):
-        self.ble_manager.read_descriptor(descriptor.handle, lambda value: Clock.schedule_once(lambda dt: self.on_descriptor_read(desc_frame, value)))
+        callback = partial(self.on_descriptor_read, descriptor, desc_frame)
+        self.ble_manager.read_descriptor(descriptor.handle, lambda value: Clock.schedule_once(lambda dt: callback(value)))
 
-    def on_descriptor_read(self, desc_frame, value):
+    def on_descriptor_read(self, descriptor, desc_frame, value):
         if value is not None:
             if isinstance(desc_frame, Label):
                 desc_frame.text = f"User Description: {value.decode('utf-8')}"
             else:
                 desc_frame.desc_value = value.hex()
-            self.log_with_timestamp(f"Value read from {desc_frame.descriptor.uuid}: {value.hex()}")
+            self.log_with_timestamp(f"Value read from {descriptor.uuid}: {value.hex()}")
         else:
-            self.log_with_timestamp(f"Failed to read from {desc_frame.descriptor.uuid}")
+            self.log_with_timestamp(f"Failed to read from {descriptor.uuid}")
 
     def write_descriptor(self, descriptor, desc_frame, *args):
         value_str = desc_frame.ids.value_input.text
