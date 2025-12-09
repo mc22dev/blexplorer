@@ -14,11 +14,27 @@
             pos: self.pos
             size: self.size
 
+    BoxLayout:
+        size_hint_y: None
+        height: '30dp'
+        Label:
+            text: f"UUID: {root.char_uuid}"
+            font_size: '16sp'
+            halign: 'left'
+            text_size: self.width, None
+        Button:
+            text: 'Copy'
+            size_hint_x: 0.2
+            on_release: root.copy_to_clipboard(root.char_uuid)
+
     Label:
-        text: f"UUID: {root.char_uuid}"
-        font_size: '16sp'
+        id: user_description_label
+        text: ""
+        font_size: '14sp'
         halign: 'left'
         text_size: self.width, None
+        size_hint_y: None
+        height: 0 if not self.text else '20dp'
 
     Label:
         text: f"Properties: {root.char_properties}"
@@ -35,7 +51,11 @@
         TextInput:
             id: value_input
             text: root.char_value
-            size_hint_x: 0.5
+            size_hint_x: 0.4
+        Button:
+            text: 'Copy'
+            size_hint_x: 0.1
+            on_release: root.copy_to_clipboard(root.char_value)
         Spinner:
             id: format_spinner
             text: 'Hex'
@@ -56,3 +76,12 @@
         ToggleButton:
             id: subscribe_button
             text: 'Subscribe'
+        ToggleButton:
+            id: write_mode_button
+            text: 'ASCII'
+            group: 'write_mode'
+            state: 'down'
+        ToggleButton:
+            id: write_mode_hex_button
+            text: 'Hex'
+            group: 'write_mode'

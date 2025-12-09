@@ -1,6 +1,7 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import ObjectProperty, StringProperty
 from kivy.app import App
+from kivy.core.clipboard import Clipboard
 
 
 class DeviceFrameKivy(BoxLayout):
@@ -21,3 +22,6 @@ class DeviceFrameKivy(BoxLayout):
             App.get_running_app().connect_to_device(self.device)
             return True
         return super().on_touch_down(touch)
+
+    def copy_to_clipboard(self, text):
+        Clipboard.copy(text)

@@ -1,5 +1,6 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProperty
+from kivy.core.clipboard import Clipboard
 import struct
 import json
 
@@ -64,3 +65,6 @@ class CharacteristicFrameKivy(BoxLayout):
                 self.char_value = self.raw_value.hex()
         except (struct.error, UnicodeDecodeError):
             self.char_value = "Invalid Format"
+
+    def copy_to_clipboard(self, text):
+        Clipboard.copy(text)

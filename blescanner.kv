@@ -18,14 +18,21 @@
             id: adapter_spinner
             text: 'Default'
             values: ['Default']
-            size_hint_x: 0.4
+            size_hint_x: 0.3
         Button:
             text: 'Refresh'
-            size_hint_x: 0.15
+            size_hint_x: 0.1
         Button:
             id: scan_button
-            text: 'Scan for devices'
-            size_hint_x: 0.25
+            text: 'Scan'
+            size_hint_x: 0.1
+        TextInput:
+            id: scan_timeout_input
+            text: '5.0'
+            size_hint_x: 0.1
+        Label:
+            text: 's'
+            size_hint_x: 0.05
         Button:
             id: disconnect_button
             text: 'Disconnect'
@@ -46,6 +53,7 @@
                 hint_text: 'Filter devices'
                 size_hint_y: None
                 height: '30dp'
+                on_text: app.filter_devices(self.text)
 
             ScrollView:
                 id: device_scroll_view

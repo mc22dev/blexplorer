@@ -16,5 +16,12 @@
 
     Label:
         text: root.device_name
-    Label:
-        text: f"{root.device_address} - {root.device_rssi}"
+    BoxLayout:
+        size_hint_y: None
+        height: '30dp'
+        Label:
+            text: f"{root.device_address} - {root.device_rssi}"
+        Button:
+            text: 'Copy'
+            size_hint_x: 0.2
+            on_release: root.copy_to_clipboard(root.device_address)
