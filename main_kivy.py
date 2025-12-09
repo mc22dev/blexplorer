@@ -80,13 +80,18 @@ class BLEScannerApp(App):
 
     def on_start(self):
         self.discover_adapters()
+        Clock.schedule_once(self.finish_init)
+
+    def finish_init(self, dt):
+        """
+        Finish initialization after the first frame.
+        """
         self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
         self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
         self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
         self.root.ids.clear_log_button.bind(on_release=self.clear_log)
         self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
         self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
-
 
     def on_stop(self):
         self.ble_manager.shutdown()
