@@ -3,12 +3,15 @@ import subprocess
 import re
 from datetime import datetime
 from functools import partial
+import os
 
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.properties import ListProperty, StringProperty
+from kivy.uix.popup import Popup
+from kivy.uix.filechooser import FileChooserListView
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -27,6 +30,30 @@ Builder.load_file('collapsibleframekivy.kv')
 
 class MainLayout(BoxLayout):
     pass
+
+class SaveDialog(BoxLayout):
+    def __init__(self, save_callback, dismiss_callback, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = "vertical"
+        self.save_callback = save_callback
+        self.dismiss_callback = dismiss_callback
+        self.file_chooser = FileChooserListView(path=os.getcwd())
+        self.add_widget(self.file_chooser)
+
+        button_box = BoxLayout(size_hint_y=None, height=40)
+        self.save_button = Builder.load_string("<Button>: {text: 'Save'}")
+        self.save_button.bind(on_release=self.on_save)
+        button_box.add_widget(self.save_button)
+        self.cancel_button = Builder.load_string("<Button>: {text: 'Cancel'}")
+        self.cancel_button.bind(on_release=self.on_cancel)
+        button_box.add_widget(self.cancel_button)
+        self.add_widget(button_box)
+
+    def on_save(self, instance):
+        self.save_callback(self.file_chooser.path, self.file_chooser.selection)
+
+    def on_cancel(self, instance):
+        self.dismiss_callback()
 
 
 class BLEScannerApp(App):
@@ -49,6 +76,10 @@ class BLEScannerApp(App):
         self.discover_adapters()
         self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
         self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
+        self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
+        self.root.ids.clear_log_button.bind(on_release=self.clear_log)
+        self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
+
 
     def on_stop(self):
         self.ble_manager.shutdown()
@@ -117,10 +148,12 @@ class BLEScannerApp(App):
         if is_connected:
             self.log_with_timestamp("Device connected.")
             self.root.ids.disconnect_button.disabled = False
+            self.root.ids.read_all_button.disabled = False
             self.discover_attributes()
         else:
             self.log_with_timestamp("Device disconnected.")
             self.root.ids.disconnect_button.disabled = True
+            self.root.ids.read_all_button.disabled = True
             self.root.ids.characteristic_list.clear_widgets()
             self.characteristic_frames = {}
 
@@ -148,18 +181,55 @@ class BLEScannerApp(App):
             self.characteristic_frames[char.uuid] = char_frame
             service_frames[service_uuid].add_content(char_frame)
 
+            # Disable subscribe button if not supported
+            if "notify" not in char.properties and "indicate" not in char.properties:
+                char_frame.ids.subscribe_button.disabled = True
+
             # Bind the buttons
             char_frame.ids.read_button.bind(on_release=partial(self.read_characteristic, char, char_frame))
             char_frame.ids.write_button.bind(on_release=partial(self.write_characteristic, char, char_frame))
             char_frame.ids.subscribe_button.bind(on_state=partial(self.toggle_subscription, char, char_frame))
 
+    def read_all_characteristics(self, *args):
+        """Initiates a read operation for all readable characteristics."""
+        self.log_with_timestamp("--- Reading all readable characteristics ---")
+        for char_frame in self.characteristic_frames.values():
+            if "read" in char_frame.characteristic.properties:
+                self.read_characteristic(char_frame.characteristic, char_frame)
+
+    def clear_log(self, *args):
+        """Clears the debug log text box."""
+        self.root.ids.log_view.text = ""
+
+    def show_save_dialog(self, *args):
+        """Shows the save file dialog."""
+        content = SaveDialog(save_callback=self.save_log, dismiss_callback=self.dismiss_popup)
+        self.popup = Popup(title="Save Log", content=content, size_hint=(0.9, 0.9))
+        self.popup.open()
+
+    def dismiss_popup(self):
+        self.popup.dismiss()
+
+    def save_log(self, path, selection):
+        """Saves the content of the debug log to a file."""
+        if not selection:
+            return
+        filepath = os.path.join(path, selection[0])
+        log_content = self.root.ids.log_view.text
+        try:
+            with open(filepath, "w") as f:
+                f.write(log_content)
+            self.log_with_timestamp(f"Log saved to {filepath}")
+        except IOError as e:
+            self.log_with_timestamp(f"Error saving log: {e}")
+        self.dismiss_popup()
 
     def read_characteristic(self, characteristic, char_frame, *args):
         self.ble_manager.read_characteristic(characteristic.uuid, lambda value: Clock.schedule_once(lambda dt: self.on_characteristic_read(char_frame, value)))
 
     def on_characteristic_read(self, char_frame, value):
         if value is not None:
-            char_frame.char_value = value.hex()
+            char_frame.raw_value = value
             self.log_with_timestamp(f"Value read from {char_frame.char_uuid}: {value.hex()}")
         else:
             self.log_with_timestamp(f"Failed to read from {char_frame.char_uuid}")
@@ -199,7 +269,7 @@ class BLEScannerApp(App):
     def on_notification(self, characteristic, data):
         self.log_with_timestamp(f"Notification from {characteristic.uuid}: {data.hex()}")
         if characteristic.uuid in self.characteristic_frames:
-            self.characteristic_frames[characteristic.uuid].char_value = data.hex()
+            self.characteristic_frames[characteristic.uuid].raw_value = data
 
     def log_with_timestamp(self, message: str):
         """Logs a message with a timestamp."""

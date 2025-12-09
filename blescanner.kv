@@ -61,6 +61,24 @@
             orientation: 'vertical'
             size_hint_x: 0.6
 
+            # Toolbar
+            BoxLayout:
+                size_hint_y: None
+                height: '48dp'
+                padding: '5dp'
+                spacing: '5dp'
+
+                Button:
+                    id: read_all_button
+                    text: 'Read All'
+                    disabled: True
+                Button:
+                    id: clear_log_button
+                    text: 'Clear Log'
+                Button:
+                    id: save_log_button
+                    text: 'Save Log'
+
             ScrollView:
                 id: char_scroll_view
                 do_scroll_x: False

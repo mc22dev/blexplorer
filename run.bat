@@ -4,4 +4,5 @@ if not exist "venv" (
 )
 call venv\\Scripts\\activate.bat
 pip install -r requirements.txt
+pytest
 python main_kivy.py

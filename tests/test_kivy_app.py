@@ -1,4 +1,5 @@
 import pytest
+import struct
 from kivy.app import App
 from device_frame_kivy import DeviceFrameKivy
 from characteristic_frame_kivy import CharacteristicFrameKivy
@@ -80,3 +81,50 @@ class TestKivyApp:
         assert collapsible_frame.collapsed
         collapsible_frame.toggle_collapse()
         assert not collapsible_frame.collapsed
+
+    def test_data_format_conversion(self):
+        """
+        Tests the data format conversion logic.
+        """
+        char = MockCharacteristic()
+        char_frame = CharacteristicFrameKivy(characteristic=char)
+
+        # Test Hex
+        char_frame.raw_value = b'\x01\x02\x03'
+        char_frame.on_format_change('Hex')
+        assert char_frame.char_value == '010203'
+
+        # Test ASCII
+        char_frame.raw_value = b'Hello'
+        char_frame.on_format_change('ASCII')
+        assert char_frame.char_value == 'Hello'
+
+        # Test Int8
+        char_frame.raw_value = b'\xfd'
+        char_frame.on_format_change('Int8')
+        assert char_frame.char_value == '-3'
+
+        # Test UInt8
+        char_frame.raw_value = b'\xfd'
+        char_frame.on_format_change('UInt8')
+        assert char_frame.char_value == '253'
+
+        # Test Int16
+        char_frame.raw_value = b'\xfd\xff'
+        char_frame.on_format_change('Int16')
+        assert char_frame.char_value == '-3'
+
+        # Test UInt16
+        char_frame.raw_value = b'\xfd\xff'
+        char_frame.on_format_change('UInt16')
+        assert char_frame.char_value == '65533'
+
+        # Test Float32
+        char_frame.raw_value = struct.pack('<f', 3.14)
+        char_frame.on_format_change('Float32')
+        assert abs(float(char_frame.char_value) - 3.14) < 0.001
+
+        # Test Invalid Format
+        char_frame.raw_value = b'\x01\x02\x03'
+        char_frame.on_format_change('Int16') # Wrong number of bytes
+        assert char_frame.char_value == "Invalid Format"
