@@ -2,3 +2,4 @@ bleak
 kivy
 setuptools
 pytest
+buildozer
