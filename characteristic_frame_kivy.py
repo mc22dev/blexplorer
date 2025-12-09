@@ -6,8 +6,23 @@ import json
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.button import Button
+from kivy.clock import Clock
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
+
+
+class Toast(Popup):
+    def __init__(self, text, **kwargs):
+        super().__init__(**kwargs)
+        self.content = Label(text=text)
+        self.size_hint = (None, None)
+        self.size = (150, 50)
+        self.title = ""
+        self.separator_height = 0
+
+    def show(self, duration=1):
+        self.open()
+        Clock.schedule_once(self.dismiss, duration)
 
 
 class InfoPopup(Popup):
@@ -41,6 +56,7 @@ class CharacteristicFrameKivy(BoxLayout):
     char_uuid = StringProperty('')
     short_uuid = StringProperty('')
     char_properties = StringProperty('')
+    full_char_properties = StringProperty('')
     char_value = StringProperty('')
     raw_value = ObjectProperty(b'')
 
@@ -60,8 +76,13 @@ class CharacteristicFrameKivy(BoxLayout):
             "notify": "N",
             "indicate": "I",
         }
-        props = sorted(list(set([prop_map[p] for p in characteristic.properties if p in prop_map])))
-        self.char_properties = "/".join(props)
+
+        # Create the abbreviated properties string
+        abbreviated_props = sorted(list(set([prop_map[p] for p in characteristic.properties if p in prop_map])))
+        self.char_properties = "/".join(abbreviated_props)
+
+        # Create the full properties string for the tooltip
+        self.full_char_properties = "\n".join(sorted(characteristic.properties))
 
         if "write" not in self.characteristic.properties and "write-without-response" not in self.characteristic.properties:
             self.ids.write_button.disabled = True
@@ -144,7 +165,12 @@ class CharacteristicFrameKivy(BoxLayout):
 
     def copy_to_clipboard(self, text):
         Clipboard.copy(text)
+        Toast(text='Copied!').show()
 
     def show_info_popup(self):
         popup = InfoPopup(title="Full UUID", text=self.char_uuid, copy_callback=self.copy_to_clipboard)
+        popup.open()
+
+    def show_properties_popup(self):
+        popup = InfoPopup(title="Properties", text=self.full_char_properties, copy_callback=self.copy_to_clipboard)
         popup.open()
