@@ -176,19 +176,15 @@ class BLEScannerApp(App):
 
     def _on_connection_status_changed(self, is_connected: bool):
         """Callback for connection status changes."""
-        Clock.schedule_once(lambda dt: self._update_connection_ui(is_connected))
+        self.is_device_connected = is_connected
 
-    def _update_connection_ui(self, is_connected: bool):
+    def on_is_device_connected(self, instance, value):
         """Updates the UI based on the connection status."""
-        if is_connected:
+        if value:
             self.log_with_timestamp("Device connected.")
-            self.root.ids.disconnect_button.disabled = False
-            self.root.ids.read_all_button.disabled = False
             self.discover_attributes()
         else:
             self.log_with_timestamp("Device disconnected.")
-            self.root.ids.disconnect_button.disabled = True
-            self.root.ids.read_all_button.disabled = True
             self.root.ids.characteristic_list.clear_widgets()
             self.characteristic_frames = {}
 
