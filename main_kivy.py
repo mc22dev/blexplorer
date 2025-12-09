@@ -65,6 +65,7 @@ class SaveDialog(BoxLayout):
 class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
+    is_device_connected = BooleanProperty(False)
 
     def build(self):
         self.ble_manager = BLEManager(
