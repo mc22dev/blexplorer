@@ -20,15 +20,18 @@
             text: 'Default'
             values: ['Default']
             size_hint_x: 0.4
+            on_text: app.on_adapter_selected(*args)
         Button:
             text: 'Refresh'
             size_hint_x: None
             width: '100dp'
+            on_release: app.discover_adapters()
         Button:
             id: scan_button
             text: 'Scan'
             size_hint_x: None
             width: '100dp'
+            on_release: app.scan_for_devices()
         TextInput:
             id: scan_timeout_input
             text: '5.0'
@@ -45,6 +48,7 @@
             size_hint_x: None
             width: '120dp'
             disabled: True
+            on_release: app.disconnect_from_device()
 
     # Main Content Area
     Splitter:
@@ -100,16 +104,19 @@
                         size_hint_x: None
                         width: '100dp'
                         disabled: True
+                        on_release: app.read_all_characteristics()
                     Button:
                         id: clear_log_button
                         text: 'Clear Log'
                         size_hint_x: None
                         width: '100dp'
+                        on_release: app.clear_log()
                     Button:
                         id: save_log_button
                         text: 'Save Log'
                         size_hint_x: None
                         width: '100dp'
+                        on_release: app.show_save_dialog()
 
                 ScrollView:
                     id: char_scroll_view
