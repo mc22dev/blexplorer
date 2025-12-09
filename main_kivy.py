@@ -356,7 +356,7 @@ class BLEScannerApp(App):
     def on_descriptor_read(self, descriptor, desc_frame, value):
         if value is not None:
             if isinstance(desc_frame, Label):
-                desc_frame.text = f"User Description: {value.decode('utf-8')}"
+                desc_frame.text = f"{value.decode('utf-8')}"
             else:
                 desc_frame.desc_value = value.hex()
             self.log_with_timestamp(f"Value read from {descriptor.uuid}: {value.hex()}")
