@@ -4,7 +4,7 @@ from kivy.app import App
 from device_frame_kivy import DeviceFrameKivy
 from characteristic_frame_kivy import CharacteristicFrameKivy
 from collapsible_frame_kivy import CollapsibleFrameKivy
-from main_kivy import BLEScannerApp
+from main import BLEScannerApp
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from bleak.backends.characteristic import BleakGATTCharacteristic
