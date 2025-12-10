@@ -3,6 +3,6 @@ kivy
 setuptools
 pytest
 buildozer
-cython
+cython==3.0.12
 pyjnius
 typing-extensions
