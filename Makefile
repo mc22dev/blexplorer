@@ -1,4 +1,4 @@
-.PHONY: android install run-android run-local mrproper
+.PHONY: android install run-android run-local mrproper logcat
 
 # Build the Android debug APK
 android:
@@ -22,3 +22,7 @@ mrproper:
 	-rm -rf venv
 	-rm -rf bin
 	-find . -type d -name "__pycache__" -exec rm -r {} +
+
+# Show logs from the Android app
+logcat:
+	adb logcat -s python
