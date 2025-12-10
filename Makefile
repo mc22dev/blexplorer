@@ -6,11 +6,11 @@ android:
 
 # Install the APK on a connected device
 install: android
-	adb install -r bin/blescanner-0.1-arm64-v8a_armeabi-v7a-debug.apk
+	buildozer android deploy
 
-# Run the app on the connected device
-run-android: install
-	adb shell am start -n org.kivy.blescanner/org.kivy.android.PythonActivity
+# Run the app on the connected device (will also install if needed)
+run-android: android
+	buildozer android run
 
 # Set up the environment, run tests, and launch the app locally
 run-local:
@@ -25,4 +25,4 @@ mrproper:
 
 # Show logs from the Android app
 logcat:
-	adb logcat -s python
+	buildozer android logcat
