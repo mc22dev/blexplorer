@@ -3,3 +3,5 @@ kivy
 setuptools
 pytest
 buildozer
+cython
+pyjnius
