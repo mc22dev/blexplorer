@@ -66,6 +66,26 @@ class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
 
+    def request_android_permissions(self):
+        """Requests Android permissions for BLE scanning."""
+        from kivy.utils import platform
+        if platform != 'android':
+            return
+
+        from android.permissions import request_permissions, Permission
+
+        permissions = [
+            Permission.ACCESS_FINE_LOCATION,
+            'android.permission.BLUETOOTH_SCAN',
+            'android.permission.BLUETOOTH_CONNECT'
+        ]
+
+        try:
+            request_permissions(permissions)
+            self.log_with_timestamp("Requested Android permissions.")
+        except Exception as e:
+            self.log_with_timestamp(f"Error requesting permissions: {e}")
+
     def build(self):
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
@@ -79,6 +99,7 @@ class BLEScannerApp(App):
         return MainLayout()
 
     def on_start(self):
+        self.request_android_permissions()
         self.discover_adapters()
         self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
         self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
