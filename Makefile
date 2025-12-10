@@ -6,11 +6,11 @@ android:
 
 # Install the APK on a connected device
 install: android
-	buildozer android deploy
+	source venv/bin/activate && buildozer android deploy
 
 # Run the app on the connected device (will also install if needed)
 run-android: android
-	buildozer android run
+	source venv/bin/activate && buildozer android run
 
 # Set up the environment, run tests, and launch the app locally
 run-local:
@@ -18,11 +18,11 @@ run-local:
 
 # Clean all build artifacts and virtual environments
 mrproper:
-	-yes | buildozer distclean
+	-source venv/bin/activate && yes | buildozer distclean
 	-rm -rf venv
 	-rm -rf bin
 	-find . -type d -name "__pycache__" -exec rm -r {} +
 
 # Show logs from the Android app
 logcat:
-	buildozer android logcat
+	source venv/bin/activate && buildozer android logcat
