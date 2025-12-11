@@ -19,6 +19,22 @@ This is a simple GUI application to scan for BLE devices, connect to them, and r
 
 This will create a virtual environment (if it doesn't exist), install the dependencies, and launch the application.
 
+## Building for Linux
+
+To build a standalone executable for Linux, run the following script:
+
+```
+./scripts/build_linux.sh
+```
+
+Alternatively, you can use the `make` target:
+
+```
+make linux
+```
+
+This will create a `tmp/dist/BLEScanner` directory containing the executable and all its dependencies.
+
 ## Building for Windows
 
 ### On a Windows Machine
@@ -35,7 +51,7 @@ Alternatively, if you have `make` installed on your Windows environment (e.g., t
 make windows
 ```
 
-This will create a `dist/BLEScanner` directory containing the executable and all its dependencies.
+This will create a `tmp/dist/BLEScanner` directory containing the executable and all its dependencies.
 
 ### On a Linux Machine (using Wine)
 

@@ -1,4 +1,4 @@
-.PHONY: android install run-android run-local mrproper logcat windows windows-on-linux
+.PHONY: android install run-android run-local mrproper logcat windows windows-on-linux linux
 
 # Build the Android debug APK
 android:
@@ -11,6 +11,10 @@ windows:
 # Build the Windows executable on Linux using Wine
 windows-on-linux:
 	./scripts/build_windows_on_linux.sh
+
+# Build the Linux executable
+linux:
+	./scripts/build_linux.sh
 
 # Install the APK on a connected device
 install: android
