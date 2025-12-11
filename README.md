@@ -21,6 +21,8 @@ This will create a virtual environment (if it doesn't exist), install the depend
 
 ## Building for Windows
 
+### On a Windows Machine
+
 To build a standalone executable for Windows, run the following script:
 
 ```
@@ -31,6 +33,29 @@ Alternatively, if you have `make` installed on your Windows environment (e.g., t
 
 ```
 make windows
+```
+
+This will create a `dist/BLEScanner` directory containing the executable and all its dependencies.
+
+### On a Linux Machine (using Wine)
+
+It is possible to build the Windows executable on a Linux machine using [Wine](https://www.winehq.org/), which is a compatibility layer for running Windows applications.
+
+**Prerequisites:**
+
+1.  **Wine:** You must have Wine installed.
+2.  **Windows Python:** You must have a Windows version of Python (e.g., 3.9) installed within your Wine environment. The build script assumes a default installation path. If `python.exe` is not found, the script will guide you on how to install it.
+
+Once the prerequisites are met, run the following script:
+
+```
+./build_windows_on_linux.sh
+```
+
+Alternatively, you can use the `make` target:
+
+```
+make windows-on-linux
 ```
 
 This will create a `dist/BLEScanner` directory containing the executable and all its dependencies.
