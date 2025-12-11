@@ -15,9 +15,9 @@ from kivy.uix.popup import Popup
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.button import Button
 from kivy.uix.label import Label
-from kivy.utils import platform
+from kivy.utils import platform as kivy_platform
 
-if platform == 'android':
+if kivy_platform == 'android':
     from jnius import autoclass, PythonJavaClass, java_method
     from android.permissions import Permission
 
@@ -90,7 +90,7 @@ class BLEScannerApp(App):
 
     def request_android_permissions(self):
         """Requests Android permissions for BLE scanning."""
-        if platform != 'android':
+        if kivy_platform != 'android':
             return
 
         permissions = [
@@ -122,7 +122,7 @@ class BLEScannerApp(App):
         return MainLayout()
 
     def on_start(self):
-        if platform == 'android':
+        if kivy_platform == 'android':
             self.root.ids.scan_button.disabled = True
             self.request_android_permissions()
         else:
