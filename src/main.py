@@ -78,10 +78,11 @@ class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
 
-    def request_android_permissions(self):
+    def request_android_permissions(self, callback):
         """Requests Android permissions for BLE scanning."""
         from kivy.utils import platform
         if platform != 'android':
+            callback([], [])  # Immediately callback on non-android platforms
             return
 
         from android.permissions import request_permissions, Permission
@@ -93,10 +94,11 @@ class BLEScannerApp(App):
         ]
 
         try:
-            request_permissions(permissions)
+            request_permissions(permissions, callback)
             self.log_with_timestamp("Requested Android permissions.")
         except Exception as e:
             self.log_with_timestamp(f"Error requesting permissions: {e}")
+            callback([], []) # Callback with empty results on error
 
     def build(self):
         self.ble_manager = BLEManager(
@@ -111,7 +113,8 @@ class BLEScannerApp(App):
         return MainLayout()
 
     def on_start(self):
-        self.request_android_permissions()
+        self.root.ids.scan_button.disabled = True
+        self.request_android_permissions(self._on_permissions_result)
         self.discover_adapters()
         self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
         self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
@@ -120,6 +123,14 @@ class BLEScannerApp(App):
         self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
         self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
 
+    def _on_permissions_result(self, permissions, grants):
+        """Callback for the permission request."""
+        if all(grants):
+            self.log_with_timestamp("All permissions granted.")
+            self.root.ids.scan_button.disabled = False
+        else:
+            self.log_with_timestamp("Some permissions were denied. BLE scanning will not work.")
+            self.root.ids.scan_button.disabled = True
 
     def on_stop(self):
         self.ble_manager.shutdown()
