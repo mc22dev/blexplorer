@@ -1,8 +1,8 @@
 @echo off
 echo "Activating virtual environment..."
-call venv\Scripts\activate.bat
+call tmp\venv\Scripts\activate.bat
 
 echo "Building Windows executable..."
-pyinstaller blescanner.spec
+pyinstaller --workpath=tmp\build --distpath=tmp\dist blescanner.spec
 
-echo "Build complete. The executable is in the dist/BLEScanner directory."
+echo "Build complete. The executable is in the tmp\dist\BLEScanner directory."

@@ -14,11 +14,11 @@ windows-on-linux:
 
 # Install the APK on a connected device
 install: android
-	. venv/bin/activate && buildozer android deploy
+	. tmp/venv/bin/activate && buildozer android deploy
 
-# Run the app on the connected device (will also install if needed)
+# Run the app on a connected device (will also install if needed)
 run-android: android
-	. venv/bin/activate && buildozer android run
+	. tmp/venv/bin/activate && buildozer android run
 
 # Set up the environment, run tests, and launch the app locally
 run-local:
@@ -26,11 +26,10 @@ run-local:
 
 # Clean all build artifacts and virtual environments
 mrproper:
-	- . venv/bin/activate && yes | buildozer distclean
-	-rm -rf venv
-	-rm -rf bin
+	- . tmp/venv/bin/activate && yes | buildozer distclean
+	-rm -rf tmp
 	-find . -type d -name "__pycache__" -exec rm -r {} +
 
 # Show logs from the Android app
 logcat:
-	. venv/bin/activate && buildozer android logcat
+	. tmp/venv/bin/activate && buildozer android logcat

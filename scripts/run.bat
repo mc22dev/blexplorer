@@ -1,8 +1,8 @@
 @echo off
-if not exist "venv" (
-    python -m venv venv
+if not exist "tmp\venv" (
+    python -m venv tmp\venv
 )
-call venv\\Scripts\\activate.bat
+call tmp\venv\Scripts\activate.bat
 pip install -r requirements.txt
 pytest
 python src\main.py
