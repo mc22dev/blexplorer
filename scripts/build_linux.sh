@@ -24,6 +24,6 @@ pip install -r requirements.txt
 
 # Run PyInstaller to build the application
 # The output will be in tmp/dist/BLEScanner and the intermediate files in tmp/build
-pyinstaller blescanner.spec --distpath "$TMP_DIR/dist" --workpath "$TMP_DIR/build"
+pyinstaller blescanner.spec --distpath "$TMP_DIR/dist" --workpath "$TMP_DIR/build" --noconfirm
 
-echo "Build complete. The executable is located in $TMP_DIR/dist/BLEScanner"
+echo "Build complete. The executable is located in $TMP_DIR/dist/BLEScanner/blescanner"

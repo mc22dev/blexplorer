@@ -21,6 +21,13 @@ This will create a virtual environment (if it doesn't exist), install the depend
 
 ## Building for Linux
 
+**Prerequisites:**
+
+You must install the development headers for Kivy's dependencies. On Debian-based systems (like Ubuntu), you can do this by running:
+```
+sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libglew-dev
+```
+
 To build a standalone executable for Linux, run the following script:
 
 ```
@@ -33,7 +40,7 @@ Alternatively, you can use the `make` target:
 make linux
 ```
 
-This will create a `tmp/dist/BLEScanner` directory containing the executable and all its dependencies.
+This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner`) and all its dependencies.
 
 ## Building for Windows
 
@@ -51,7 +58,7 @@ Alternatively, if you have `make` installed on your Windows environment (e.g., t
 make windows
 ```
 
-This will create a `tmp/dist/BLEScanner` directory containing the executable and all its dependencies.
+This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner.exe`) and all its dependencies.
 
 ### On a Linux Machine (using Wine)
 
@@ -78,7 +85,7 @@ Alternatively, you can use the `make` target:
 make windows-on-linux
 ```
 
-This will create a `dist/BLEScanner` directory containing the executable and all its dependencies.
+This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner.exe`) and all its dependencies.
 
 ## Choosing a Bluetooth Adapter
 
