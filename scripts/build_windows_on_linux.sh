@@ -34,7 +34,7 @@ if [ ! -f "$WINE_PYTHON_EXE" ]; then
     # Download Python installer if it doesn't exist
     if [ ! -f "$PYTHON_INSTALLER_FILENAME" ]; then
         echo "--- Downloading Python $PYTHON_VERSION for Windows... ---"
-        wget "$PYTHON_INSTALLER_URL"
+        wget -O "$PYTHON_INSTALLER_FILENAME" "$PYTHON_INSTALLER_URL"
     fi
 
     # Create a fresh Wine prefix and run the installer
