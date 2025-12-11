@@ -113,8 +113,13 @@ class BLEScannerApp(App):
         return MainLayout()
 
     def on_start(self):
-        self.root.ids.scan_button.disabled = True
-        self.request_android_permissions(self._on_permissions_result)
+        from kivy.utils import platform
+        if platform == 'android':
+            self.root.ids.scan_button.disabled = True
+            self.request_android_permissions(self._on_permissions_result)
+        else:
+            self.root.ids.scan_button.disabled = False
+
         self.discover_adapters()
         self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
         self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
@@ -125,7 +130,7 @@ class BLEScannerApp(App):
 
     def _on_permissions_result(self, permissions, grants):
         """Callback for the permission request."""
-        if all(grants):
+        if all(grant == 0 for grant in grants):
             self.log_with_timestamp("All permissions granted.")
             self.root.ids.scan_button.disabled = False
         else:
