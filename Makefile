@@ -1,20 +1,31 @@
-.PHONY: android install run-android run-local mrproper logcat windows windows-on-linux linux
+.PHONY: all android install run-android run-local mrproper logcat windows windows-on-linux linux packages
 
-# Build the Android debug APK
-android:
+# Build for all platforms
+all: linux windows-on-linux android
+
+# Create the packages directory
+packages:
+	mkdir -p tmp/packages
+
+# Build the Android debug APK and package it
+android: packages
 	./scripts/build_android.sh
+	./scripts/package.sh android
 
 # Build the Windows executable (must be run on a Windows machine)
-windows:
+windows: packages
 	./scripts/build_windows.bat
+	./scripts/package.sh windows
 
-# Build the Windows executable on Linux using Wine
-windows-on-linux:
+# Build the Windows executable on Linux using Wine and package it
+windows-on-linux: packages
 	./scripts/build_windows_on_linux.sh
+	./scripts/package.sh windows
 
-# Build the Linux executable
-linux:
+# Build the Linux executable and package it
+linux: packages
 	./scripts/build_linux.sh
+	./scripts/package.sh linux
 
 # Install the APK on a connected device
 install: android
