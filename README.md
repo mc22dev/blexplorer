@@ -27,13 +27,19 @@ To build a standalone executable for Windows, run the following script:
 build_windows.bat
 ```
 
+Alternatively, if you have `make` installed on your Windows environment (e.g., through Git Bash), you can run:
+
+```
+make windows
+```
+
 This will create a `dist/BLEScanner` directory containing the executable and all its dependencies.
 
 ## Choosing a Bluetooth Adapter
 
 You can choose a specific Bluetooth adapter (dongle) using the dropdown menu at the top of the application.
 
-*   On **Linux**, the application will automatically populate this- dropdown with a list of available `hciX` devices. You can click the "Refresh" button to rescan for adapters.
+*   On **Linux**, the application will automatically populate this dropdown with a list of available `hciX` devices. You can click the "Refresh" button to rescan for adapters.
 *   On **Windows and macOS**, automatic discovery is not supported. The dropdown will show "Default", but you can type in the identifier of your adapter if you know it (e.g., the MAC address on Windows).
 
 If "Default" is selected, the system's default Bluetooth adapter will be used.
