@@ -124,7 +124,7 @@ class BLEScannerApp(App):
     def on_start(self):
         if kivy_platform == 'android':
             self.root.ids.scan_button.disabled = True
-            self.request_android_permissions()
+            Clock.schedule_once(lambda dt: self.request_android_permissions())
         else:
             self.root.ids.scan_button.disabled = False
 
