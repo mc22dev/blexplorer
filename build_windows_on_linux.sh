@@ -2,12 +2,13 @@
 set -e
 
 # --- Configuration ---
-# This script assumes you have installed a Windows version of Python 3.9
-# into the default location in your default Wine prefix.
-# You may need to adjust this path if your setup is different.
-WINE_PYTHON_PATH="$HOME/.wine/drive_c/users/$USER/AppData/Local/Programs/Python/Python39"
-WINE_PYTHON_EXE="$WINE_PYTHON_PATH/python.exe"
-WINE_PYINSTALLER_EXE="$WINE_PYTHON_PATH/Scripts/pyinstaller.exe"
+export WINEPREFIX="$PWD/.wine"
+export WINEARCH=win64
+PYTHON_VERSION="3.9.13"
+PYTHON_INSTALLER_URL="https://www.python.org/ftp/python/$PYTHON_VERSION/python-$PYTHON_VERSION-amd64.exe"
+PYTHON_INSTALLER_FILENAME="python-$PYTHON_VERSION-amd64.exe"
+WINE_PYTHON_EXE="$WINEPREFIX/drive_c/users/$USER/AppData/Local/Programs/Python/Python${PYTHON_VERSION%.*}/python.exe"
+WINE_PYINSTALLER_EXE="$WINEPREFIX/drive_c/users/$USER/AppData/Local/Programs/Python/Python${PYTHON_VERSION%.*}/Scripts/pyinstaller.exe"
 
 # --- Prerequisite Checks ---
 
@@ -19,16 +20,29 @@ if ! command -v wine &> /dev/null; then
     exit 1
 fi
 
-# 2. Check for Windows Python in Wine
+# --- Setup Wine and Python ---
+
+# 2. Check for Windows Python in the local Wine prefix
 if [ ! -f "$WINE_PYTHON_EXE" ]; then
-    echo "Error: Windows Python executable not found at '$WINE_PYTHON_EXE'."
-    echo "Please download the official Python installer for Windows (e.g., Python 3.9) and run it with Wine:"
-    echo "  wine python-3.9.X-amd64.exe"
-    echo "Ensure you install it for the current user to the default location."
-    exit 1
+    echo "--- Windows Python not found in local Wine prefix. Installing... ---"
+
+    # Download Python installer if it doesn't exist
+    if [ ! -f "$PYTHON_INSTALLER_FILENAME" ]; then
+        echo "--- Downloading Python $PYTHON_VERSION for Windows... ---"
+        wget "$PYTHON_INSTALLER_URL"
+    fi
+
+    # Create a fresh Wine prefix and run the installer
+    echo "--- Creating Wine prefix at $WINEPREFIX and installing Python... ---"
+    echo "This may take a few minutes..."
+    wineboot --init
+    wine "$PYTHON_INSTALLER_FILENAME" /quiet InstallAllUsers=0 PrependPath=1
+
+    echo "--- Python installation complete. ---"
+else
+    echo "--- Found existing Windows Python installation in local Wine prefix. ---"
 fi
 
-echo "--- Found Wine and Windows Python installation. ---"
 echo "Using Python from: $WINE_PYTHON_EXE"
 
 # --- Build Process ---

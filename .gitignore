@@ -6,6 +6,8 @@ __pycache__/
 *.pyd
 
 # Build artifacts
+.buildozer/
+.wine/
 build/
 dist/
 *.egg-info/

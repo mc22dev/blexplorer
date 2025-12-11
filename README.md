@@ -39,14 +39,18 @@ This will create a `dist/BLEScanner` directory containing the executable and all
 
 ### On a Linux Machine (using Wine)
 
-It is possible to build the Windows executable on a Linux machine using [Wine](https://www.winehq.org/), which is a compatibility layer for running Windows applications.
+It is possible to build the Windows executable on a Linux machine using [Wine](https://www.winehq.org/), a compatibility layer for running Windows applications.
 
 **Prerequisites:**
 
-1.  **Wine:** You must have Wine installed.
-2.  **Windows Python:** You must have a Windows version of Python (e.g., 3.9) installed within your Wine environment. The build script assumes a default installation path. If `python.exe` is not found, the script will guide you on how to install it.
+*   **Wine:** You must have Wine installed on your system (e.g., `sudo apt install wine`).
 
-Once the prerequisites are met, run the following script:
+The build script automates the rest of the setup. On its first run, it will:
+1.  Create a local Wine prefix in a `.wine/` directory to avoid interfering with your system's Wine configuration.
+2.  Download the official Windows installer for Python.
+3.  Install Python into the local Wine prefix.
+
+Once the setup is complete, you can build the application by running the following script:
 
 ```
 ./build_windows_on_linux.sh
