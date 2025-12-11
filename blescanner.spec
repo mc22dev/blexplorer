@@ -21,7 +21,11 @@ a = Analysis(['src/main.py'],
                     ('src/collapsibleframekivy.kv', '.'),
                     ('src/descriptorframekivy.kv', '.'),
                     ('src/deviceframekivy.kv', '.')],
-             hiddenimports=[],
+             hiddenimports=[
+                 'kivy.core.image.img_sdl2',
+                 'kivy.core.text.text_sdl2',
+                 'kivy.core.window.window_sdl2'
+             ],
              hookspath=kivy_hookspath(),
              runtime_hooks=kivy_runtime_hooks(),
              excludes=[],
