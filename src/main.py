@@ -15,6 +15,22 @@ from kivy.uix.popup import Popup
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.utils import platform
+
+if platform == 'android':
+    from jnius import autoclass, PythonJavaClass, java_method
+    from android.permissions import Permission
+
+    class PermissionListener(PythonJavaClass):
+        __javainterfaces__ = ['org/kivy/android/PythonActivity$PermissionListener']
+
+        def __init__(self, app):
+            super().__init__()
+            self.app = app
+
+        @java_method('([Ljava/lang/String;[I)V')
+        def onRequestPermissionsResult(self, permissions, grants):
+            self.app._on_permissions_result(permissions, grants)
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -31,20 +47,15 @@ from gatt import GATT_SERVICES
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     if hasattr(sys, '_MEIPASS'):
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
     else:
-        # For development, the base path is the directory containing main.py
         base_path = os.path.abspath(os.path.dirname(__file__))
-
     return os.path.join(base_path, relative_path)
 
-# Load the kv files for the custom widgets
 Builder.load_file(resource_path('deviceframekivy.kv'))
 Builder.load_file(resource_path('characteristicframekivy.kv'))
 Builder.load_file(resource_path('descriptorframekivy.kv'))
 Builder.load_file(resource_path('collapsibleframekivy.kv'))
-
 
 class MainLayout(BoxLayout):
     pass
@@ -57,7 +68,6 @@ class SaveDialog(BoxLayout):
         self.dismiss_callback = dismiss_callback
         self.file_chooser = FileChooserListView(path=os.getcwd())
         self.add_widget(self.file_chooser)
-
         button_box = BoxLayout(size_hint_y=None, height=40)
         self.save_button = Button(text='Save')
         self.save_button.bind(on_release=self.on_save)
@@ -73,19 +83,15 @@ class SaveDialog(BoxLayout):
     def on_cancel(self, instance):
         self.dismiss_callback()
 
-
 class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
+    permission_listener = None
 
-    def request_android_permissions(self, callback):
+    def request_android_permissions(self):
         """Requests Android permissions for BLE scanning."""
-        from kivy.utils import platform
         if platform != 'android':
-            callback([], [])  # Immediately callback on non-android platforms
             return
-
-        from android.permissions import request_permissions, Permission
 
         permissions = [
             Permission.ACCESS_FINE_LOCATION,
@@ -94,12 +100,14 @@ class BLEScannerApp(App):
         ]
 
         try:
-            self.permission_callback = callback
-            request_permissions(permissions, self.permission_callback)
+            self.permission_listener = PermissionListener(self)
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            current_activity = PythonActivity.mActivity
+            current_activity.requestPermissions(permissions, self.permission_listener)
             self.log_with_timestamp("Requested Android permissions.")
         except Exception as e:
             self.log_with_timestamp(f"Error requesting permissions: {e}")
-            callback([], []) # Callback with empty results on error
+            self._on_permissions_result([], [])
 
     def build(self):
         self.ble_manager = BLEManager(
@@ -114,10 +122,9 @@ class BLEScannerApp(App):
         return MainLayout()
 
     def on_start(self):
-        from kivy.utils import platform
         if platform == 'android':
             self.root.ids.scan_button.disabled = True
-            self.request_android_permissions(self._on_permissions_result)
+            self.request_android_permissions()
         else:
             self.root.ids.scan_button.disabled = False
 
