@@ -94,7 +94,8 @@ class BLEScannerApp(App):
         ]
 
         try:
-            request_permissions(permissions, callback)
+            self.permission_callback = callback
+            request_permissions(permissions, self.permission_callback)
             self.log_with_timestamp("Requested Android permissions.")
         except Exception as e:
             self.log_with_timestamp(f"Error requesting permissions: {e}")
