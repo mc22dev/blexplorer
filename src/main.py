@@ -129,8 +129,13 @@ class BLEScannerApp(App):
         self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
 
     def _on_permissions_result(self, permissions, grants):
-        """Callback for the permission request."""
-        if all(grant == 0 for grant in grants):
+        """Callback for the permission request. Schedules the result handling on the main thread."""
+        self.log_with_timestamp(f"Permission callback received: {permissions}, {grants}")
+        Clock.schedule_once(lambda dt: self._handle_permissions_result(permissions, grants))
+
+    def _handle_permissions_result(self, permissions, grants):
+        """Handles the permission result on the main thread."""
+        if grants and all(grant == 0 for grant in grants):
             self.log_with_timestamp("All permissions granted.")
             self.root.ids.scan_button.disabled = False
         else:
