@@ -2,15 +2,15 @@
 
 # Build the Android debug APK
 android:
-	./build_android.sh
+	./scripts/build_android.sh
 
 # Build the Windows executable (must be run on a Windows machine)
 windows:
-	./build_windows.bat
+	./scripts/build_windows.bat
 
 # Build the Windows executable on Linux using Wine
 windows-on-linux:
-	./build_windows_on_linux.sh
+	./scripts/build_windows_on_linux.sh
 
 # Install the APK on a connected device
 install: android
@@ -22,7 +22,7 @@ run-android: android
 
 # Set up the environment, run tests, and launch the app locally
 run-local:
-	./run.sh
+	./scripts/run.sh
 
 # Clean all build artifacts and virtual environments
 mrproper:
