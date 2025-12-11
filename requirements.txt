@@ -6,3 +6,4 @@ buildozer
 cython==3.0.12
 pyjnius
 typing-extensions
+pyinstaller
