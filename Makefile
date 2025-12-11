@@ -19,17 +19,17 @@ android: packages
 # Build the Windows executable (must be run on a Windows machine)
 windows: packages
 	./scripts/build_windows.bat
-	(cd tmp/dist/BLEScanner && zip -r ../../packages/$(PACKAGE_NAME)-$(VERSION)-windows.zip .)
+	(cd tmp/dist/BLEScanner && zip -r ../../packages/$(PACKAGE_NAME)-$(VERSION)-windows.zip . -x "*_internal*")
 
 # Build the Windows executable on Linux using Wine and package it
 windows-on-linux: packages
 	./scripts/build_windows_on_linux.sh
-	(cd tmp/dist/BLEScanner && zip -r ../../packages/$(PACKAGE_NAME)-$(VERSION)-windows.zip .)
+	(cd tmp/dist/BLEScanner && zip -r ../../packages/$(PACKAGE_NAME)-$(VERSION)-windows.zip . -x "*_internal*")
 
 # Build the Linux executable and package it
 linux: packages
 	./scripts/build_linux.sh
-	(cd tmp/dist/BLEScanner && tar -czf ../../packages/$(PACKAGE_NAME)-$(VERSION)-linux.tar.gz .)
+	(cd tmp/dist/BLEScanner && tar -czf ../../packages/$(PACKAGE_NAME)-$(VERSION)-linux.tar.gz --exclude='./_internal' .)
 
 # Install the APK on a connected device
 install: android
