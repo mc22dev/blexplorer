@@ -16,7 +16,8 @@ class BLEManager:
     def __init__(self,
                  device_discovered_callback: Callable[[BLEDevice, AdvertisementData], Any],
                  connection_status_callback: Callable[[bool], Any],
-                 notification_callback: Callable[[BleakGATTCharacteristic, bytes], Any]) -> None:
+                 notification_callback: Callable[[BleakGATTCharacteristic, bytes], Any],
+                 logger_callback: Callable[[str], Any]) -> None:
         """
         Initializes the BLEManager.
 
@@ -24,6 +25,7 @@ class BLEManager:
             device_discovered_callback: Callback for when a device is discovered.
             connection_status_callback: Callback for connection status changes.
             notification_callback: Callback for characteristic notifications.
+            logger_callback: Callback for logging messages.
         """
         self.client: Optional[BleakClient] = None
         self.selected_device_address: Optional[str] = None
@@ -36,6 +38,7 @@ class BLEManager:
         self.device_discovered_callback = device_discovered_callback
         self.connection_status_callback = connection_status_callback
         self.notification_callback = notification_callback
+        self.logger_callback = logger_callback
 
     def run_async_loop(self) -> None:
         """Runs the asyncio event loop in a separate thread."""
@@ -45,11 +48,13 @@ class BLEManager:
     def shutdown(self) -> None:
         """Shuts down the BLE manager and the asyncio loop."""
         if self.client and self.client.is_connected:
+            self.logger_callback("Disconnecting on shutdown...")
             future = asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
             try:
                 future.result(timeout=2.0)
-            except (asyncio.TimeoutError, BleakError):
-                pass
+                self.logger_callback("Disconnected on shutdown.")
+            except (asyncio.TimeoutError, BleakError) as e:
+                self.logger_callback(f"Error during shutdown disconnect: {e}")
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.thread.join()
 
@@ -72,12 +77,12 @@ class BLEManager:
             for device, adv_data in sorted_devices:
                 self.device_discovered_callback(device, adv_data)
         except BleakError as e:
-            print(f"Scanning Error: {e}")
+            self.logger_callback(f"Scanning Error: {e}")
 
     def connect_to_device(self, device_address: str, adapter: Optional[str]) -> None:
         """Connects to a specified device by its address."""
         if self.client and self.client.is_connected and self.selected_device_address == device_address:
-            print(f"Already connected to {device_address}. Ignoring.")
+            self.logger_callback(f"Already connected to {device_address}. Ignoring.")
             return
 
         self.selected_device_address = device_address
@@ -89,6 +94,7 @@ class BLEManager:
         """Disconnects from the currently connected device."""
         self._manual_disconnect = True
         if self.client and self.client.is_connected:
+            self.logger_callback(f"Disconnecting from {self.client.address}...")
             asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
 
     async def _manage_connection(self) -> None:
@@ -107,15 +113,16 @@ class BLEManager:
             await self.client.connect()
             self.connection_status_callback(True)
         except (BleakError, asyncio.TimeoutError) as e:
-            print(f"Connection Error: {e}")
+            self.logger_callback(f"Connection Error: {e}")
             self.connection_status_callback(False)
 
     def _on_disconnect(self, client: BleakClient) -> None:
         """Handles the device disconnection event."""
+        self.logger_callback(f"Device {client.address} disconnected.")
         self.connection_status_callback(False)
         # Reconnect automatically only if the disconnection was not manual
         if not self._manual_disconnect and self.selected_device_address:
-            print("Connection lost, attempting to reconnect...")
+            self.logger_callback("Connection lost, attempting to reconnect...")
             asyncio.run_coroutine_threadsafe(self._manage_connection(), self.loop)
         else:
             self.selected_device_address = None
@@ -131,7 +138,7 @@ class BLEManager:
             try:
                 value = await self.client.read_gatt_char(characteristic_uuid)
             except BleakError as e:
-                print(f"Read Error on {characteristic_uuid}: {e}")
+                self.logger_callback(f"Read Error on {characteristic_uuid}: {e}")
         callback(value)
 
     def write_characteristic(self, characteristic_uuid: str, value: bytes, callback: Callable[[bool], Any]) -> None:
@@ -146,7 +153,7 @@ class BLEManager:
                 await self.client.write_gatt_char(characteristic_uuid, value)
                 success = True
             except BleakError as e:
-                print(f"Write Error on {characteristic_uuid}: {e}")
+                self.logger_callback(f"Write Error on {characteristic_uuid}: {e}")
         callback(success)
 
     def subscribe_to_characteristic(self, characteristic_uuid: str) -> None:
@@ -159,7 +166,7 @@ class BLEManager:
             try:
                 await self.client.start_notify(characteristic_uuid, self._internal_notification_handler)
             except BleakError as e:
-                print(f"Subscribe Error on {characteristic_uuid}: {e}")
+                self.logger_callback(f"Subscribe Error on {characteristic_uuid}: {e}")
 
     def unsubscribe_from_characteristic(self, characteristic_uuid: str) -> None:
         """Unsubscribes from notifications for a characteristic."""
@@ -171,7 +178,7 @@ class BLEManager:
             try:
                 await self.client.stop_notify(characteristic_uuid)
             except BleakError as e:
-                print(f"Unsubscribe Error on {characteristic_uuid}: {e}")
+                self.logger_callback(f"Unsubscribe Error on {characteristic_uuid}: {e}")
 
     def _internal_notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytes) -> None:
         """Internal handler to pass notifications to the main app."""
@@ -188,7 +195,7 @@ class BLEManager:
             try:
                 value = await self.client.read_gatt_descriptor(descriptor_handle)
             except BleakError as e:
-                print(f"Read Error on descriptor handle {descriptor_handle}: {e}")
+                self.logger_callback(f"Read Error on descriptor handle {descriptor_handle}: {e}")
         callback(value)
 
     def write_descriptor(self, descriptor_handle: int, value: bytes, callback: Callable[[bool], Any]) -> None:
@@ -203,5 +210,5 @@ class BLEManager:
                 await self.client.write_gatt_descriptor(descriptor_handle, value)
                 success = True
             except BleakError as e:
-                print(f"Write Error on descriptor handle {descriptor_handle}: {e}")
+                self.logger_callback(f"Write Error on descriptor handle {descriptor_handle}: {e}")
         callback(success)

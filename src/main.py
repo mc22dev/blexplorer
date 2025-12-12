@@ -80,12 +80,14 @@ class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
     is_scan_button_disabled = BooleanProperty(True)
+    VERSION = "1.0.0"
 
     def on_start(self):
         """
         Called when the application is starting.
         Binds UI events and requests permissions on Android.
         """
+        self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...")
         self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
         self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
         self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
@@ -156,7 +158,8 @@ class BLEScannerApp(App):
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
             connection_status_callback=self._on_connection_status_changed,
-            notification_callback=self.notification_handler
+            notification_callback=self.notification_handler,
+            logger_callback=self.log_with_timestamp
         )
         self.characteristic_frames = {}
         self.device_frames = {}
@@ -254,7 +257,9 @@ class BLEScannerApp(App):
 
     def disconnect_from_device(self, *args):
         """Initiates a manual disconnection from the connected device."""
-        self.ble_manager.disconnect_from_device()
+        if self.ble_manager and self.ble_manager.client and self.ble_manager.client.is_connected:
+            self.log_with_timestamp("Disconnect button pressed.")
+            self.ble_manager.disconnect_from_device()
 
     def _on_connection_status_changed(self, is_connected: bool):
         """Callback for connection status changes."""
@@ -268,7 +273,8 @@ class BLEScannerApp(App):
             self.root.ids.read_all_button.disabled = False
             self.discover_attributes()
         else:
-            self.log_with_timestamp("Device disconnected.")
+            # The BLEManager now logs the disconnection event.
+            # We just need to update the UI state.
             self.root.ids.disconnect_button.disabled = True
             self.root.ids.read_all_button.disabled = True
             self.root.ids.characteristic_list.clear_widgets()
