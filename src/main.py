@@ -30,6 +30,7 @@ from characteristic_frame_kivy import CharacteristicFrameKivy
 from descriptor_frame_kivy import DescriptorFrameKivy
 from collapsible_frame_kivy import CollapsibleFrameKivy
 from gatt import GATT_SERVICES
+from parameter_window import ParameterWindow
 
 
 def resource_path(relative_path):
@@ -48,6 +49,7 @@ Builder.load_file(resource_path('deviceframekivy.kv'))
 Builder.load_file(resource_path('characteristicframekivy.kv'))
 Builder.load_file(resource_path('descriptorframekivy.kv'))
 Builder.load_file(resource_path('collapsibleframekivy.kv'))
+Builder.load_file(resource_path('parameterwindow.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -82,7 +84,20 @@ class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
     is_scan_button_disabled = BooleanProperty(True)
+    scan_timeout = StringProperty("5.0")
     VERSION = "1.0.0"
+
+    def open_parameter_window(self):
+        """Opens the parameter window."""
+        popup = ParameterWindow()
+        popup.ids.scan_timeout_input.text = self.scan_timeout
+        popup.open()
+
+    def update_parameters(self, popup):
+        """Updates the parameters from the parameter window."""
+        self.scan_timeout = popup.ids.scan_timeout_input.text
+        self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
+        popup.dismiss()
 
     def on_start(self):
         """
@@ -208,7 +223,7 @@ class BLEScannerApp(App):
         adapter = adapter if adapter != "Default" else None
 
         try:
-            timeout = float(self.root.ids.scan_timeout_input.text)
+            timeout = float(self.scan_timeout)
         except ValueError:
             self.log_with_timestamp("Invalid scan timeout. Please enter a number.", LogLevel.ERROR)
             self.is_scan_button_disabled = False

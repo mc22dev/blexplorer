@@ -1,0 +1,36 @@
+#:kivy 2.0.0
+
+<ParameterWindow>:
+    title: 'Parameters'
+    size_hint: 0.6, 0.4
+    auto_dismiss: False
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: '10dp'
+        spacing: '10dp'
+
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: '30dp'
+
+            Label:
+                text: 'Scan Timeout:'
+            TextInput:
+                id: scan_timeout_input
+                text: '5.0'
+                multiline: False
+
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: '40dp'
+            spacing: '10dp'
+
+            Button:
+                text: 'OK'
+                on_release: app.update_parameters(root)
+            Button:
+                text: 'Cancel'
+                on_release: root.dismiss()
