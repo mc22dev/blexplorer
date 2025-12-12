@@ -19,6 +19,18 @@ OTA_CHARACTERISTIC_UUID = "00010203-0405-0607-0809-0a0b0c0d2b12"
 class BLEManager:
     """A manager for handling BLE communications."""
 
+    @staticmethod
+    def _crc16_modbus(data: bytes) -> int:
+        crc = 0xFFFF
+        for byte in data:
+            crc ^= byte
+            for _ in range(8):
+                if crc & 0x0001:
+                    crc = (crc >> 1) ^ 0xA001
+                else:
+                    crc >>= 1
+        return crc
+
     def __init__(self,
                  device_discovered_callback: Callable[[BLEDevice, AdvertisementData], Any],
                  connection_status_callback: Callable[[bool], Any],
@@ -192,7 +204,10 @@ class BLEManager:
 
     def _internal_notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytes) -> None:
         """Internal handler to pass notifications to the main app."""
-        self.notification_callback(characteristic, data)
+        if characteristic.uuid == OTA_CHARACTERISTIC_UUID and hasattr(self, 'ota_notification_queue') and self.ota_notification_queue:
+            self.ota_notification_queue.put_nowait(data)
+        else:
+            self.notification_callback(characteristic, data)
 
     def read_descriptor(self, descriptor_handle: int, callback: Callable[[Optional[bytes]], Any]) -> None:
         """Reads the value of a descriptor."""
@@ -225,31 +240,87 @@ class BLEManager:
 
     def start_ota_upload(self, filepath: str, progress_callback: Callable[[int], Any]) -> None:
         """Starts the OTA firmware upload process."""
+        self.logger_callback(f"start_ota_upload called for filepath: {filepath}", LogLevel.DEBUG)
         asyncio.run_coroutine_threadsafe(self._ota_upload(filepath, progress_callback), self.loop)
 
     async def _ota_upload(self, filepath: str, progress_callback: Callable[[int], Any]) -> None:
-        """The core logic for the OTA upload."""
+        """The core logic for the OTA upload, following the Telink protocol."""
         self.logger_callback(f"Starting OTA upload for {filepath}", LogLevel.INFO)
+        self.ota_notification_queue = asyncio.Queue()
+
         try:
             with open(filepath, "rb") as f:
                 firmware = f.read()
 
-            total_size = len(firmware)
-            chunk_size = 16  # A common chunk size for BLE
+            await self.client.start_notify(OTA_CHARACTERISTIC_UUID, self._internal_notification_handler)
+            self.logger_callback("OTA notifications started.", LogLevel.DEBUG)
 
+            # Start command
+            start_command = b'\x01\xff\xff\xff'
+            await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, start_command, response=False)
+            self.logger_callback(f"Sent OTA start command: {start_command.hex()}", LogLevel.DEBUG)
+
+            # Wait for ACK
+            ack = await asyncio.wait_for(self.ota_notification_queue.get(), timeout=5.0)
+            if ack[0] != 0x01:
+                raise BleakError(f"OTA Start ACK failed. Expected 0x01, got {ack.hex()}")
+            self.logger_callback("Received OTA start ACK.", LogLevel.DEBUG)
+
+            # Send firmware chunks
+            total_size = len(firmware)
+            chunk_size = 16
             for i in range(0, total_size, chunk_size):
                 chunk = firmware[i:i+chunk_size]
-                await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, chunk)
+                packet_index = i // chunk_size
+
+                # Pad chunk if it's smaller than chunk_size
+                if len(chunk) < chunk_size:
+                    chunk += b'\xff' * (chunk_size - len(chunk))
+
+                # Packet format: [index (2 bytes LE), data (16 bytes)]
+                header = packet_index.to_bytes(2, 'little')
+                packet_data = header + chunk
+
+                # Calculate CRC and append
+                crc = self._crc16_modbus(packet_data).to_bytes(2, 'little')
+                packet_to_send = packet_data + crc
+
+                await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, packet_to_send, response=False)
+
+                # Wait for ACK for the current packet index
+                ack_index_data = await asyncio.wait_for(self.ota_notification_queue.get(), timeout=2.0)
+                ack_index = int.from_bytes(ack_index_data[:2], 'little')
+
+                if ack_index != packet_index:
+                    raise BleakError(f"OTA data ACK mismatch. Expected {packet_index}, got {ack_index}")
+
                 progress = int((i + len(chunk)) / total_size * 100)
                 progress_callback(progress)
-                await asyncio.sleep(0.01) # Small delay to avoid flooding
 
-            self.logger_callback("OTA upload completed successfully.", LogLevel.SUCCESS)
+            # End command
+            end_command = b'\x02\x00'
+            await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, end_command, response=False)
+            self.logger_callback(f"Sent OTA end command: {end_command.hex()}", LogLevel.DEBUG)
+
+            # Wait for final ACK
+            final_ack = await asyncio.wait_for(self.ota_notification_queue.get(), timeout=5.0)
+            if final_ack[0] != 0x02:
+                raise BleakError(f"OTA End ACK failed. Expected 0x02, got {final_ack.hex()}")
+            self.logger_callback("Received OTA end ACK.", LogLevel.DEBUG)
+
             progress_callback(100)
+            self.logger_callback("OTA upload completed successfully.", LogLevel.SUCCESS)
 
         except FileNotFoundError:
             self.logger_callback(f"Firmware file not found at {filepath}", LogLevel.ERROR)
+        except asyncio.TimeoutError:
+            self.logger_callback("OTA operation timed out waiting for ACK.", LogLevel.ERROR)
         except BleakError as e:
             self.logger_callback(f"OTA Upload Error: {e}", LogLevel.ERROR)
         except Exception as e:
             self.logger_callback(f"An unexpected error occurred during OTA upload: {e}", LogLevel.ERROR)
+        finally:
+            if self.client and self.client.is_connected:
+                await self.client.stop_notify(OTA_CHARACTERISTIC_UUID)
+                self.logger_callback("OTA notifications stopped.", LogLevel.DEBUG)
+            self.ota_notification_queue = None
