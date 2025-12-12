@@ -4,43 +4,21 @@
     orientation: 'vertical'
     size_hint_y: None
     height: self.minimum_height
-    spacing: '2dp'
-    padding: '5dp'
-    md_bg_color: app.theme_cls.primary_color if self.hovered else app.theme_cls.bg_light
 
-    MDLabel:
-        id: device_name
-        text: root.device_name
+    MDCard:
         size_hint_y: None
-        height: '24dp'
-        font_style: 'H6'
-        halign: 'left'
-        valign: 'middle'
-        text_size: self.width, None
+        height: "88dp"
+        padding: "8dp"
+        on_release: app.connect_to_device(root.device)
 
-    MDLabel:
-        id: device_address
-        text: root.device_address
-        size_hint_y: None
-        height: '20dp'
-        font_style: 'Caption'
-        halign: 'left'
-        valign: 'middle'
-        text_size: self.width, None
+        ThreeLineAvatarIconListItem:
+            text: root.device_name
+            secondary_text: root.device_address
+            tertiary_text: f"RSSI: {root.device_rssi}"
 
-    MDBoxLayout:
-        size_hint_y: None
-        height: '20dp'
-        MDLabel:
-            text: 'RSSI: '
-            size_hint_x: None
-            width: self.texture_size[0]
-        MDLabel:
-            id: rssi_label
-            text: root.device_rssi
-            size_hint_x: None
-            width: '40dp'
-        MDRaisedButton:
-            text: 'Copy'
-            size_hint_x: 0.2
-            on_release: root.copy_to_clipboard(root.device_address)
+            IconLeftWidget:
+                icon: "bluetooth"
+
+            IconRightWidget:
+                icon: "content-copy"
+                on_release: root.copy_to_clipboard(root.device_address)

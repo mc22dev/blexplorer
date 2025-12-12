@@ -112,9 +112,10 @@ class LoadDialog(MDBoxLayout):
 class BLEScannerApp(MDApp):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
-    is_scan_button_disabled = BooleanProperty(True)
     scan_timeout = StringProperty("5.0")
     VERSION = "1.0.0"
+    is_scanning = BooleanProperty(False)
+    is_connected = BooleanProperty(False)
 
     def open_parameter_window(self):
         """Opens the parameter window."""
@@ -160,22 +161,13 @@ class BLEScannerApp(MDApp):
     def on_start(self):
         """
         Called when the application is starting.
-        Binds UI events and requests permissions on Android.
+        Requests permissions on Android.
         """
         self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...", LogLevel.INFO)
-        self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
-        self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
-        self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
-        self.root.ids.clear_log_button.bind(on_release=self.clear_log)
-        self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
-        self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
-
         Window.bind(on_keyboard=self._on_keyboard)
 
         if kivy_platform == 'android':
             self.request_android_permissions()
-        else:
-            self.is_scan_button_disabled = False
 
         self.discover_adapters()
 
@@ -186,10 +178,8 @@ class BLEScannerApp(MDApp):
         """
         if success:
             self.log_with_timestamp("Permissions granted.", LogLevel.SUCCESS)
-            self.is_scan_button_disabled = False
         else:
             self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
-            self.is_scan_button_disabled = True
 
     def _on_permissions_callback(self, permissions, grants):
         """
@@ -279,11 +269,10 @@ class BLEScannerApp(MDApp):
 
     def scan_for_devices(self, *args):
         """Initiates a scan for nearby BLE devices."""
-        self.is_scan_button_disabled = True
-        self.root.ids.scan_button.text = "Scanning..."
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
+        self.is_scanning = True
         adapter = self.root.ids.adapter_spinner.text
         adapter = adapter if adapter != "Default" else None
 
@@ -291,8 +280,7 @@ class BLEScannerApp(MDApp):
             timeout = float(self.scan_timeout)
         except ValueError:
             self.log_with_timestamp("Invalid scan timeout. Please enter a number.", LogLevel.ERROR)
-            self.is_scan_button_disabled = False
-            self.root.ids.scan_button.text = "Scan"
+            self.is_scanning = False
             return
 
         self.ble_manager.scan_for_devices(adapter, timeout)
@@ -300,8 +288,7 @@ class BLEScannerApp(MDApp):
 
     def on_scan_finished(self, *args):
         self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
-        self.is_scan_button_disabled = False
-        self.root.ids.scan_button.text = "Scan"
+        self.is_scanning = False
 
     def filter_devices(self, search_term):
         """Filters the device list based on the search term."""
@@ -349,16 +336,14 @@ class BLEScannerApp(MDApp):
 
     def _update_connection_ui(self, is_connected: bool):
         """Updates the UI based on the connection status."""
+        self.is_connected = is_connected
         if is_connected:
             self.log_with_timestamp("Device connected.", LogLevel.SUCCESS)
-            self.root.ids.disconnect_button.disabled = False
-            self.root.ids.read_all_button.disabled = False
             self.discover_attributes()
+            self.root.ids.bottom_nav.switch_tab('device_screen')
         else:
             # The BLEManager now logs the disconnection event.
             # We just need to update the UI state.
-            self.root.ids.disconnect_button.disabled = True
-            self.root.ids.read_all_button.disabled = True
             self.root.ids.characteristic_list.clear_widgets()
             self.characteristic_frames = {}
 
