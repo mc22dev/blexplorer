@@ -158,7 +158,7 @@ class BLEScannerApp(App):
         self.device_frames = {}
         self.device_cache = DeviceCache()
         self.selected_device = None
-        return Builder.load_file(resource_path('blescanner.kv'))
+        return MainLayout()
 
     def on_stop(self):
         self.ble_manager.shutdown()
