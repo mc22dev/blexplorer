@@ -103,7 +103,14 @@ class BLEScannerApp(App):
             self.permission_listener = PermissionListener(self)
             PythonActivity = autoclass('org.kivy.android.PythonActivity')
             current_activity = PythonActivity.mActivity
-            current_activity.requestPermissions(permissions, self.permission_listener)
+
+            # Pyjnius requires a Java array of strings for the permissions
+            String = autoclass('java.lang.String')
+            permissions_java = autoclass('java.lang.reflect.Array').newInstance(String, len(permissions))
+            for i, p in enumerate(permissions):
+                permissions_java[i] = String(p)
+
+            current_activity.requestPermissions(permissions_java, self.permission_listener)
             self.log_with_timestamp("Requested Android permissions.")
         except Exception as e:
             self.log_with_timestamp(f"Error requesting permissions: {e}")
