@@ -28,7 +28,7 @@ windows-on-linux: packages
 
 # Run the Windows executable on Linux using Wine
 run-windows-on-linux: windows-on-linux
-	wine tmp/dist/BLEScanner/blescanner.exe
+	WINEPREFIX="tmp/.wine" wine tmp/dist/BLEScanner/blescanner.exe
 
 # Build the Linux executable and package it
 linux: packages
