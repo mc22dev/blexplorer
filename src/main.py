@@ -492,18 +492,9 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}", LogLevel.INFO)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
-        """Logs a message with a timestamp and color-coding based on the level."""
-        color_map = {
-            LogLevel.DEBUG: "gray",
-            LogLevel.INFO: "white",
-            LogLevel.WARNING: "yellow",
-            LogLevel.ERROR: "red",
-            LogLevel.SUCCESS: "green"
-        }
-        color = color_map.get(level, "white")
-
+        """Logs a message with a timestamp and level."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        log_message = f"[{timestamp}] [color={color}]{message}[/color]\n"
+        log_message = f"[{timestamp}] [{level.value}] {message}\n"
         self.root.ids.log_view.text += log_message
 
 
