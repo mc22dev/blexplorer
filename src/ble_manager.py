@@ -12,6 +12,9 @@ from bleak.exc import BleakError
 
 from models import LogLevel
 
+OTA_SERVICE_UUID = "00010203-0405-0607-0809-0a0b0c0d1912"
+OTA_CHARACTERISTIC_UUID = "00010203-0405-0607-0809-0a0b0c0d2b12"
+
 
 class BLEManager:
     """A manager for handling BLE communications."""
@@ -219,3 +222,34 @@ class BLEManager:
             except BleakError as e:
                 self.logger_callback(f"Write Error on descriptor handle {descriptor_handle}: {e}", LogLevel.ERROR)
         callback(success)
+
+    def start_ota_upload(self, filepath: str, progress_callback: Callable[[int], Any]) -> None:
+        """Starts the OTA firmware upload process."""
+        asyncio.run_coroutine_threadsafe(self._ota_upload(filepath, progress_callback), self.loop)
+
+    async def _ota_upload(self, filepath: str, progress_callback: Callable[[int], Any]) -> None:
+        """The core logic for the OTA upload."""
+        self.logger_callback(f"Starting OTA upload for {filepath}", LogLevel.INFO)
+        try:
+            with open(filepath, "rb") as f:
+                firmware = f.read()
+
+            total_size = len(firmware)
+            chunk_size = 16  # A common chunk size for BLE
+
+            for i in range(0, total_size, chunk_size):
+                chunk = firmware[i:i+chunk_size]
+                await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, chunk)
+                progress = int((i + len(chunk)) / total_size * 100)
+                progress_callback(progress)
+                await asyncio.sleep(0.01) # Small delay to avoid flooding
+
+            self.logger_callback("OTA upload completed successfully.", LogLevel.SUCCESS)
+            progress_callback(100)
+
+        except FileNotFoundError:
+            self.logger_callback(f"Firmware file not found at {filepath}", LogLevel.ERROR)
+        except BleakError as e:
+            self.logger_callback(f"OTA Upload Error: {e}", LogLevel.ERROR)
+        except Exception as e:
+            self.logger_callback(f"An unexpected error occurred during OTA upload: {e}", LogLevel.ERROR)

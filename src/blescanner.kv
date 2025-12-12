@@ -85,6 +85,10 @@
                 Button:
                     id: save_log_button
                     text: 'Save Log'
+                Button:
+                    id: ota_button
+                    text: 'OTA'
+                    on_release: app.open_ota_window()
 
             ScrollView:
                 id: char_scroll_view
