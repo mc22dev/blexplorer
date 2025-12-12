@@ -556,7 +556,14 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}", LogLevel.INFO)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
-        """Logs a message with a timestamp and level."""
+        """
+        Logs a message with a timestamp and level in a thread-safe manner.
+        Schedules the actual UI update on the main Kivy thread.
+        """
+        Clock.schedule_once(lambda dt: self._log_on_main_thread(message, level))
+
+    def _log_on_main_thread(self, message: str, level: LogLevel):
+        """Performs the actual log update on the main thread."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         log_message = f"[{timestamp}] [{level.value}] {message}\n"
         self.root.ids.log_view.text += log_message
