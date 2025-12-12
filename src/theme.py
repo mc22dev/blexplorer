@@ -46,20 +46,20 @@ THEMES = {
 
 class ThemeManager(EventDispatcher):
     """Manages the application's theme."""
-    name = StringProperty('Light')
-    background = ColorProperty(THEMES['Light']['background'])
-    text = ColorProperty(THEMES['Light']['text'])
-    primary = ColorProperty(THEMES['Light']['primary'])
-    secondary = ColorProperty(THEMES['Light']['secondary'])
-    success = ColorProperty(THEMES['Light']['success'])
-    warning = ColorProperty(THEMES['Light']['warning'])
-    error = ColorProperty(THEMES['Light']['error'])
-    input_bg = ColorProperty(THEMES['Light']['input_bg'])
-    input_fg = ColorProperty(THEMES['Light']['input_fg'])
-    disabled_fg = ColorProperty(THEMES['Light']['disabled_fg'])
-    header_bg = ColorProperty(THEMES['Light']['header_bg'])
-    button_bg = ColorProperty(THEMES['Light']['button_bg'])
-    button_fg = ColorProperty(THEMES['Light']['button_fg'])
+    name = StringProperty('Dark')
+    background = ColorProperty(THEMES['Dark']['background'])
+    text = ColorProperty(THEMES['Dark']['text'])
+    primary = ColorProperty(THEMES['Dark']['primary'])
+    secondary = ColorProperty(THEMES['Dark']['secondary'])
+    success = ColorProperty(THEMES['Dark']['success'])
+    warning = ColorProperty(THEMES['Dark']['warning'])
+    error = ColorProperty(THEMES['Dark']['error'])
+    input_bg = ColorProperty(THEMES['Dark']['input_bg'])
+    input_fg = ColorProperty(THEMES['Dark']['input_fg'])
+    disabled_fg = ColorProperty(THEMES['Dark']['disabled_fg'])
+    header_bg = ColorProperty(THEMES['Dark']['header_bg'])
+    button_bg = ColorProperty(THEMES['Dark']['button_bg'])
+    button_fg = ColorProperty(THEMES['Dark']['button_fg'])
 
     def set_theme(self, theme_name: str):
         """

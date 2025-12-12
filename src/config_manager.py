@@ -24,7 +24,7 @@ class ConfigManager:
                 'timeout': '5.0'
             },
             'theme': {
-                'name': 'Light'
+                'name': 'Dark'
             }
         }
         self._load_or_create_config()
