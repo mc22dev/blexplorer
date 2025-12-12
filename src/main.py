@@ -111,41 +111,27 @@ class BLEScannerApp(App):
             self.log_with_timestamp("Permissions denied. Scanning is disabled.")
             self.is_scan_button_disabled = True
 
+    def _on_permissions_callback(self, permissions, grants):
+        """
+        Callback for the permission request. Checks if all permissions were granted.
+        """
+        success = all(grant == 0 for grant in grants)
+        self._on_permissions_result(success)
+
     def request_android_permissions(self):
         """
-        Requests BLE scanning permissions on Android using a robust callback mechanism.
+        Requests BLE scanning permissions on Android using Kivy's built-in APIs.
         """
-        from jnius import autoclass, PythonJavaClass, java_method
+        from android.permissions import request_permissions, Permission
 
-        # Define a Python class that implements the native Java PermissionListener interface
-        class PermissionListener(PythonJavaClass):
-            __javainterfaces__ = ['org/kivy/android/PythonActivity$PermissionListener']
-
-            def __init__(self, app_instance):
-                super().__init__()
-                self.app = app_instance
-
-            @java_method('([Ljava/lang/String;[I)V')
-            def onRequestPermissionsResult(self, permissions, grants):
-                # In Kivy, a grant value of 0 means GRANTED, -1 means DENIED.
-                success = all(grant == 0 for grant in grants)
-                Clock.schedule_once(lambda dt: self.app._on_permissions_result(success))
-
-        PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        activity = PythonActivity.mActivity
-
-        permissions_to_request = [
-            "android.permission.BLUETOOTH_SCAN",
-            "android.permission.BLUETOOTH_CONNECT",
-            "android.permission.ACCESS_FINE_LOCATION"
+        permissions = [
+            Permission.BLUETOOTH_SCAN,
+            Permission.BLUETOOTH_CONNECT,
+            Permission.ACCESS_FINE_LOCATION,
         ]
 
-        # The listener must be stored in an instance variable to prevent garbage collection
-        self._permission_listener = PermissionListener(self)
         self.log_with_timestamp("Requesting Android permissions...")
-
-        # Pyjnius can automatically convert the Python list to a Java String array
-        activity.requestPermissions(permissions_to_request, self._permission_listener)
+        request_permissions(permissions, self._on_permissions_callback)
 
 
     def build(self):
