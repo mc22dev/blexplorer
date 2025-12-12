@@ -1,4 +1,5 @@
 #:kivy 2.0.0
+#:import theme_manager theme.theme_manager
 
 <CharacteristicFrameKivy>:
     orientation: 'vertical'
@@ -9,7 +10,7 @@
 
     canvas.before:
         Color:
-            rgba: 0.2, 0.2, 0.2, 1
+            rgba: theme_manager.secondary
         Rectangle:
             pos: self.pos
             size: self.size
@@ -22,17 +23,21 @@
             font_size: '16sp'
             halign: 'left'
             text_size: self.width, None
+            color: theme_manager.text
         Button:
             text: 'ⓘ'
             size_hint_x: 0.1
             on_release: root.show_info_popup()
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         Button:
             text: root.char_properties
             font_size: '14sp'
             halign: 'right'
             text_size: self.width, None
             size_hint_x: 0.3
-            background_color: (0,0,0,0)  # Make it look like a label
+            background_color: (0,0,0,0)
+            color: theme_manager.text
             on_release: root.show_properties_popup()
 
     Label:
@@ -43,6 +48,7 @@
         text_size: self.width, None
         size_hint_y: None
         height: 0 if not self.text else '20dp'
+        color: theme_manager.text
 
     BoxLayout:
         size_hint_y: None
@@ -51,16 +57,22 @@
             id: value_input
             text: root.char_value
             size_hint_x: 0.6
+            background_color: theme_manager.input_bg
+            foreground_color: theme_manager.input_fg
         Button:
             text: '📋'
             size_hint_x: 0.1
             on_release: root.copy_to_clipboard(root.char_value)
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         Spinner:
             id: format_spinner
             text: 'Hex'
             values: ['Hex', 'ASCII', 'JSON', 'Int8', 'UInt8', 'Int16', 'UInt16', 'Int32', 'UInt32', 'Float32', 'Float64']
             size_hint_x: 0.3
             on_text: root.on_format_change(self.text)
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
 
     BoxLayout:
         size_hint_y: None
@@ -69,12 +81,18 @@
         Button:
             id: read_button
             text: 'Read'
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         Button:
             id: write_button
             text: 'Write'
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         ToggleButton:
             id: subscribe_button
             text: 'Subscribe'
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         BoxLayout:
             id: write_controls
             size_hint_y: None
@@ -86,3 +104,5 @@
                 id: write_mode_spinner
                 text: 'ASCII'
                 values: ['ASCII', 'Hex']
+                background_color: theme_manager.button_bg
+                color: theme_manager.button_fg
