@@ -5,16 +5,16 @@
     size_hint_y: None
     height: self.minimum_height
 
-    BoxLayout:
+    MDBoxLayout:
         id: header
         size_hint_y: None
         height: '48dp'
 
-        Button:
+        MDRaisedButton:
             text: ('[+] ' if root.collapsed else '[-] ') + root.title
             on_release: root.toggle_collapse()
 
-    BoxLayout:
+    MDBoxLayout:
         id: content
         orientation: 'vertical'
         size_hint_y: None

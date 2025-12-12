@@ -8,15 +8,15 @@ import sys
 from enum import Enum
 
 from kivy.utils import platform as kivy_platform
-from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
+from kivymd.app import MDApp
+from kivymd.uix.boxlayout import MDBoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.properties import ListProperty, StringProperty, BooleanProperty
-from kivy.uix.popup import Popup
+from kivymd.uix.dialog import MDDialog
+from kivymd.uix.button import MDFlatButton
 from kivy.uix.filechooser import FileChooserListView
-from kivy.uix.button import Button
-from kivy.uix.label import Label
+from kivymd.uix.button import MDRaisedButton
 from kivy.core.window import Window
 
 from bleak.backends.device import BLEDevice
@@ -56,10 +56,10 @@ Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
 
 
-class MainLayout(BoxLayout):
+class MainLayout(MDBoxLayout):
     pass
 
-class SaveDialog(BoxLayout):
+class SaveDialog(MDBoxLayout):
     def __init__(self, save_callback, dismiss_callback, **kwargs):
         super().__init__(**kwargs)
         self.orientation = "vertical"
@@ -68,11 +68,11 @@ class SaveDialog(BoxLayout):
         self.file_chooser = FileChooserListView(path=os.getcwd())
         self.add_widget(self.file_chooser)
 
-        button_box = BoxLayout(size_hint_y=None, height=40)
-        self.save_button = Button(text='Save')
+        button_box = MDBoxLayout(size_hint_y=None, height=40)
+        self.save_button = MDRaisedButton(text='Save')
         self.save_button.bind(on_release=self.on_save)
         button_box.add_widget(self.save_button)
-        self.cancel_button = Button(text='Cancel')
+        self.cancel_button = MDFlatButton(text='Cancel')
         self.cancel_button.bind(on_release=self.on_cancel)
         button_box.add_widget(self.cancel_button)
         self.add_widget(button_box)
@@ -84,7 +84,7 @@ class SaveDialog(BoxLayout):
         self.dismiss_callback()
 
 
-class LoadDialog(BoxLayout):
+class LoadDialog(MDBoxLayout):
     def __init__(self, load_callback, dismiss_callback, **kwargs):
         super().__init__(**kwargs)
         self.orientation = "vertical"
@@ -93,11 +93,11 @@ class LoadDialog(BoxLayout):
         self.file_chooser = FileChooserListView(path=os.getcwd())
         self.add_widget(self.file_chooser)
 
-        button_box = BoxLayout(size_hint_y=None, height=40)
-        self.load_button = Button(text='Load')
+        button_box = MDBoxLayout(size_hint_y=None, height=40)
+        self.load_button = MDRaisedButton(text='Load')
         self.load_button.bind(on_release=self.on_load)
         button_box.add_widget(self.load_button)
-        self.cancel_button = Button(text='Cancel')
+        self.cancel_button = MDFlatButton(text='Cancel')
         self.cancel_button.bind(on_release=self.on_cancel)
         button_box.add_widget(self.cancel_button)
         self.add_widget(button_box)
@@ -109,7 +109,7 @@ class LoadDialog(BoxLayout):
         self.dismiss_callback()
 
 
-class BLEScannerApp(App):
+class BLEScannerApp(MDApp):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
     is_scan_button_disabled = BooleanProperty(True)
@@ -130,7 +130,7 @@ class BLEScannerApp(App):
         popup.ids.scan_timeout_input.text = self.scan_timeout
 
         theme_name = self.config_manager.get_setting('theme', 'name')
-        theme_manager.set_theme(theme_name)
+        self.theme_cls.theme_style = theme_name
         popup.ids.theme_spinner.text = theme_name
 
         self.log_with_timestamp("Default parameters restored.", LogLevel.INFO)
@@ -147,7 +147,7 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
 
             self.config_manager.set_setting('theme', 'name', new_theme)
-            theme_manager.set_theme(new_theme)
+            self.theme_cls.theme_style = new_theme
             self.log_with_timestamp(f"Theme set to {new_theme}.", LogLevel.INFO)
 
             popup.dismiss()
@@ -235,8 +235,7 @@ class BLEScannerApp(App):
         self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
 
         # Set the initial theme
-        theme_name = self.config_manager.get_setting('theme', 'name')
-        theme_manager.set_theme(theme_name)
+        self.theme_cls.theme_style = self.config_manager.get_setting('theme', 'name')
 
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
@@ -406,7 +405,7 @@ class BLEScannerApp(App):
 
             char_frame.ids.read_button.bind(on_release=partial(self.read_characteristic, char, char_frame))
             char_frame.ids.write_button.bind(on_release=partial(self.write_characteristic, char, char_frame))
-            char_frame.ids.subscribe_button.bind(on_state=partial(self.toggle_subscription, char, char_frame))
+            char_frame.ids.subscribe_button.bind(active=partial(self.toggle_subscription, char, char_frame))
 
             user_desc = None
             for desc in char.descriptors:
@@ -456,11 +455,12 @@ class BLEScannerApp(App):
         """Shows the save file dialog."""
         self.log_with_timestamp("Showing save log dialog...", LogLevel.INFO)
         content = SaveDialog(save_callback=self.save_log, dismiss_callback=self.dismiss_popup)
-        self.popup = Popup(title="Save Log", content=content, size_hint=(0.9, 0.9))
-        self.popup.open()
+        self.dialog = MDDialog(title="Save Log", type="custom", content_cls=content,
+                               size_hint=(0.9, 0.9))
+        self.dialog.open()
 
     def dismiss_popup(self):
-        self.popup.dismiss()
+        self.dialog.dismiss()
 
     def save_log(self, path, selection):
         """Saves the content of the debug log to a file."""
@@ -529,7 +529,7 @@ class BLEScannerApp(App):
 
     def on_descriptor_read(self, descriptor, desc_frame, value):
         if value is not None:
-            if isinstance(desc_frame, Label):
+            if isinstance(desc_frame, MDLabel):
                 desc_frame.text = f"{value.decode('utf-8')}"
             else:
                 desc_frame.desc_value = value.hex()
@@ -553,8 +553,8 @@ class BLEScannerApp(App):
         else:
             self.log_with_timestamp(f"Write Error on {desc_frame.desc_uuid}", LogLevel.ERROR)
 
-    def toggle_subscription(self, characteristic, char_frame, widget, state):
-        if state == 'down':
+    def toggle_subscription(self, characteristic, char_frame, widget, active):
+        if active:
             self.ble_manager.subscribe_to_characteristic(characteristic.uuid)
             self.log_with_timestamp(f"Subscribed to {characteristic.uuid}", LogLevel.INFO)
         else:
@@ -597,8 +597,9 @@ class BLEScannerApp(App):
     def show_load_dialog(self):
         """Shows the load file dialog for OTA upload."""
         content = LoadDialog(load_callback=self.upload_firmware, dismiss_callback=self.dismiss_popup)
-        self.popup = Popup(title="Load Firmware", content=content, size_hint=(0.9, 0.9))
-        self.popup.open()
+        self.dialog = MDDialog(title="Load Firmware", type="custom", content_cls=content,
+                                 size_hint=(0.9, 0.9))
+        self.dialog.open()
 
     def upload_firmware(self, path, selection):
         """Handles the firmware upload process."""

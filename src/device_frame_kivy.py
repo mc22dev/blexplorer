@@ -1,13 +1,13 @@
-from kivy.uix.boxlayout import BoxLayout
+from kivymd.uix.boxlayout import MDBoxLayout
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.app import App
 from kivy.core.clipboard import Clipboard
-from kivy.uix.popup import Popup
-from kivy.uix.label import Label
-from kivy.uix.button import Button
+from kivymd.uix.dialog import MDDialog
+from kivymd.uix.label import MDLabel
+from kivymd.uix.button import MDRaisedButton
 from kivy.core.window import Window
 
-class DeviceFrameKivy(BoxLayout):
+class DeviceFrameKivy(MDBoxLayout):
     device = ObjectProperty(None)
     adv_data = ObjectProperty(None)
     device_name = StringProperty("Unknown")
@@ -32,7 +32,7 @@ class DeviceFrameKivy(BoxLayout):
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             for child in self.walk(restrict=True):
-                if isinstance(child, Button) and child.collide_point(*touch.pos):
+                if isinstance(child, MDRaisedButton) and child.collide_point(*touch.pos):
                     return super().on_touch_down(touch)
             App.get_running_app().connect_to_device(self.device)
             return True
@@ -40,7 +40,7 @@ class DeviceFrameKivy(BoxLayout):
 
     def copy_to_clipboard(self, text):
         Clipboard.copy(text)
-        popup = Popup(title='Copied',
-                      content=Label(text=f'"{text}" copied to clipboard.'),
-                      size_hint=(None, None), size=(300, 100))
-        popup.open()
+        dialog = MDDialog(title='Copied',
+                          text=f'"{text}" copied to clipboard.',
+                          size_hint=(None, None), size=(300, 100))
+        dialog.open()

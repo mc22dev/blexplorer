@@ -1,139 +1,109 @@
 #:kivy 2.0.0
-#:import theme_manager theme.theme_manager
 
 <MainLayout>:
     orientation: 'vertical'
-    canvas.before:
-        Color:
-            rgba: theme_manager.background
-        Rectangle:
-            pos: self.pos
-            size: self.size
+    md_bg_color: app.theme_cls.bg_dark
 
     # Top Adapter Bar
-    BoxLayout:
+    MDBoxLayout:
         size_hint_y: None
         height: '48dp'
         padding: '5dp'
         spacing: '5dp'
 
-        Label:
+        MDLabel:
             text: 'Adapter:'
             size_hint_x: None
             width: '80dp'
-            color: theme_manager.text
         Spinner:
             id: adapter_spinner
             text: 'Default'
             values: ['Default']
             size_hint_x: 0.3
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
+        MDRaisedButton:
             text: 'Refresh'
             size_hint_x: 0.1
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
+        MDRaisedButton:
             id: scan_button
             text: 'Scan'
             size_hint_x: 0.1
             disabled: app.is_scan_button_disabled
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
+        MDRaisedButton:
             id: parameter_button
             text: 'Parameters'
             size_hint_x: 0.15
             on_release: app.open_parameter_window()
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
+        MDRaisedButton:
             id: disconnect_button
             text: 'Disconnect'
             size_hint_x: 0.2
             disabled: True
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
 
     # Main Content Area
-    BoxLayout:
+    MDBoxLayout:
         orientation: 'horizontal'
 
         # Left Pane: Device List
-        BoxLayout:
+        MDBoxLayout:
             orientation: 'vertical'
             size_hint_x: 0.4
 
-            TextInput:
+            MDTextField:
                 id: search_input
                 hint_text: 'Filter devices'
                 size_hint_y: None
                 height: '30dp'
                 on_text: app.filter_devices(self.text)
-                background_color: theme_manager.input_bg
-                foreground_color: theme_manager.input_fg
 
             ScrollView:
                 id: device_scroll_view
                 do_scroll_x: False
-                BoxLayout:
+                MDBoxLayout:
                     id: device_list
                     orientation: 'vertical'
                     size_hint_y: None
                     height: self.minimum_height
 
         # Right Pane: Characteristics and Log
-        BoxLayout:
+        MDBoxLayout:
             orientation: 'vertical'
             size_hint_x: 0.6
 
             # Toolbar
-            BoxLayout:
+            MDBoxLayout:
                 size_hint_y: None
                 height: '48dp'
                 padding: '5dp'
                 spacing: '5dp'
 
-                Button:
+                MDRaisedButton:
                     id: read_all_button
                     text: 'Read All'
                     disabled: True
-                    background_color: theme_manager.button_bg
-                    color: theme_manager.button_fg
-                Button:
+                MDRaisedButton:
                     id: clear_log_button
                     text: 'Clear Log'
-                    background_color: theme_manager.button_bg
-                    color: theme_manager.button_fg
-                Button:
+                MDRaisedButton:
                     id: save_log_button
                     text: 'Save Log'
-                    background_color: theme_manager.button_bg
-                    color: theme_manager.button_fg
-                Button:
+                MDRaisedButton:
                     id: ota_button
                     text: 'OTA'
                     on_release: app.open_ota_window()
-                    background_color: theme_manager.button_bg
-                    color: theme_manager.button_fg
 
             ScrollView:
                 id: char_scroll_view
                 do_scroll_x: False
-                BoxLayout:
+                MDBoxLayout:
                     id: characteristic_list
                     orientation: 'vertical'
                     size_hint_y: None
                     height: self.minimum_height
-                    Label:
+                    MDLabel:
                         text: 'Characteristics will appear here'
-                        color: theme_manager.text
 
-            TextInput:
+            MDTextField:
                 id: log_view
                 text: ''
                 readonly: True
                 size_hint_y: 0.4
-                background_color: theme_manager.input_bg
-                foreground_color: theme_manager.input_fg

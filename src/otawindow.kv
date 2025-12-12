@@ -5,32 +5,32 @@
     size_hint: 0.8, 0.6
     auto_dismiss: False
 
-    BoxLayout:
+    MDBoxLayout:
         orientation: 'vertical'
         padding: '10dp'
         spacing: '10dp'
 
-        Label:
+        MDLabel:
             id: file_label
             text: 'No file selected'
             size_hint_y: None
             height: '30dp'
 
-        ProgressBar:
+        MDProgressBar:
             id: progress_bar
             max: 100
             value: 0
             size_hint_y: None
             height: '24dp'
 
-        BoxLayout:
+        MDBoxLayout:
             size_hint_y: None
             height: '48dp'
             spacing: '10dp'
 
-            Button:
+            MDRaisedButton:
                 id: upload_button
                 text: 'Upload'
-            Button:
+            MDRaisedButton:
                 text: 'Close'
                 on_release: root.dismiss()
