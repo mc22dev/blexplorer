@@ -1,4 +1,4 @@
-.PHONY: all android install run-android run-local mrproper logcat windows windows-on-linux linux packages
+.PHONY: all android install run-android run-local mrproper logcat windows windows-on-linux linux packages run-windows-on-linux
 
 # Extract package metadata from the buildozer.spec file
 PACKAGE_NAME := $(shell grep '^package.name =' buildozer.spec | cut -d' ' -f3)
@@ -25,6 +25,10 @@ windows: packages
 windows-on-linux: packages
 	./scripts/build_windows_on_linux.sh
 	(cd tmp/dist/BLEScanner && zip -r ../../packages/$(PACKAGE_NAME)-$(VERSION)-windows.zip . -x "*_internal*")
+
+# Run the Windows executable on Linux using Wine
+run-windows-on-linux: windows-on-linux
+	wine tmp/dist/BLEScanner/blescanner.exe
 
 # Build the Linux executable and package it
 linux: packages
