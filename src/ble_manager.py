@@ -257,7 +257,7 @@ class BLEManager:
 
             # Start command
             start_command = b'\x01\xff\xff\xff'
-            await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, start_command, response=False)
+            await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, start_command, response=True)
             self.logger_callback(f"Sent OTA start command: {start_command.hex()}", LogLevel.DEBUG)
 
             # Wait for ACK
@@ -285,7 +285,7 @@ class BLEManager:
                 crc = self._crc16_modbus(packet_data).to_bytes(2, 'little')
                 packet_to_send = packet_data + crc
 
-                await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, packet_to_send, response=False)
+                await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, packet_to_send, response=True)
 
                 # Wait for ACK for the current packet index
                 ack_index_data = await asyncio.wait_for(self.ota_notification_queue.get(), timeout=2.0)
@@ -299,7 +299,7 @@ class BLEManager:
 
             # End command
             end_command = b'\x02\x00'
-            await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, end_command, response=False)
+            await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, end_command, response=True)
             self.logger_callback(f"Sent OTA end command: {end_command.hex()}", LogLevel.DEBUG)
 
             # Wait for final ACK
