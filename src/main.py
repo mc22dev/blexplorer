@@ -5,6 +5,7 @@ from datetime import datetime
 from functools import partial
 import os
 import sys
+from enum import Enum
 
 from kivy.utils import platform as kivy_platform
 from kivy.app import App
@@ -23,12 +24,13 @@ from bleak.backends.scanner import AdvertisementData
 
 from ble_manager import BLEManager
 from device_cache import DeviceCache, service_to_dict
-from models import CachedService
+from models import CachedService, LogLevel
 from device_frame_kivy import DeviceFrameKivy
 from characteristic_frame_kivy import CharacteristicFrameKivy
 from descriptor_frame_kivy import DescriptorFrameKivy
 from collapsible_frame_kivy import CollapsibleFrameKivy
 from gatt import GATT_SERVICES
+
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -87,7 +89,7 @@ class BLEScannerApp(App):
         Called when the application is starting.
         Binds UI events and requests permissions on Android.
         """
-        self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...")
+        self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...", LogLevel.INFO)
         self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
         self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
         self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
@@ -110,10 +112,10 @@ class BLEScannerApp(App):
         Enables the scan button if permissions were granted.
         """
         if success:
-            self.log_with_timestamp("Permissions granted.")
+            self.log_with_timestamp("Permissions granted.", LogLevel.SUCCESS)
             self.is_scan_button_disabled = False
         else:
-            self.log_with_timestamp("Permissions denied. Scanning is disabled.")
+            self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
             self.is_scan_button_disabled = True
 
     def _on_permissions_callback(self, permissions, grants):
@@ -135,7 +137,7 @@ class BLEScannerApp(App):
             Permission.ACCESS_FINE_LOCATION,
         ]
 
-        self.log_with_timestamp("Requesting Android permissions...")
+        self.log_with_timestamp("Requesting Android permissions...", LogLevel.INFO)
         request_permissions(permissions, self._on_permissions_callback)
 
     def _on_keyboard(self, window, key, scancode, codepoint, modifier):
@@ -178,22 +180,22 @@ class BLEScannerApp(App):
                 result = subprocess.run(['hciconfig'], capture_output=True, text=True, check=True)
                 adapters.extend(re.findall(r'^(hci\d+)', result.stdout, re.MULTILINE))
             except (FileNotFoundError, subprocess.CalledProcessError):
-                self.log_with_timestamp("hciconfig not found. Could not list Bluetooth adapters.")
+                self.log_with_timestamp("hciconfig not found. Could not list Bluetooth adapters.", LogLevel.WARNING)
         else:
-            self.log_with_timestamp("Adapter discovery is currently only supported on Linux.")
+            self.log_with_timestamp("Adapter discovery is currently only supported on Linux.", LogLevel.DEBUG)
         self.root.ids.adapter_spinner.values = adapters
 
     def on_adapter_selected(self, spinner, text):
         """
         Handles the selection of a Bluetooth adapter.
         """
-        self.log_with_timestamp(f"Adapter selected: {text}")
+        self.log_with_timestamp(f"Adapter selected: {text}", LogLevel.INFO)
         if platform.system() == "Linux" and text != "Default":
             try:
                 result = subprocess.run(['hciconfig', '-a', text], capture_output=True, text=True, check=True)
-                self.log_with_timestamp(f"--- Adapter Info for {text} ---\n{result.stdout.strip()}\n--------------------")
+                self.log_with_timestamp(f"--- Adapter Info for {text} ---\n{result.stdout.strip()}\n--------------------", LogLevel.DEBUG)
             except (FileNotFoundError, subprocess.CalledProcessError) as e:
-                self.log_with_timestamp(f"Could not get info for adapter {text}: {e}")
+                self.log_with_timestamp(f"Could not get info for adapter {text}: {e}", LogLevel.ERROR)
 
     def scan_for_devices(self, *args):
         """Initiates a scan for nearby BLE devices."""
@@ -201,14 +203,14 @@ class BLEScannerApp(App):
         self.root.ids.scan_button.text = "Scanning..."
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
-        self.log_with_timestamp("Scan started...")
+        self.log_with_timestamp("Scan started...", LogLevel.INFO)
         adapter = self.root.ids.adapter_spinner.text
         adapter = adapter if adapter != "Default" else None
 
         try:
             timeout = float(self.root.ids.scan_timeout_input.text)
         except ValueError:
-            self.log_with_timestamp("Invalid scan timeout. Please enter a number.")
+            self.log_with_timestamp("Invalid scan timeout. Please enter a number.", LogLevel.ERROR)
             self.is_scan_button_disabled = False
             self.root.ids.scan_button.text = "Scan"
             return
@@ -217,7 +219,7 @@ class BLEScannerApp(App):
         Clock.schedule_once(self.on_scan_finished, timeout + 0.5)
 
     def on_scan_finished(self, *args):
-        self.log_with_timestamp("Scan stopped.")
+        self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
         self.is_scan_button_disabled = False
         self.root.ids.scan_button.text = "Scan"
 
@@ -242,7 +244,7 @@ class BLEScannerApp(App):
         """
         Populates the UI with a discovered BLE device.
         """
-        self.log_with_timestamp(f"Found device: {device.address} ({device.name or 'Unknown'}) RSSI: {adv_data.rssi}")
+        self.log_with_timestamp(f"Found device: {device.address} ({device.name or 'Unknown'}) RSSI: {adv_data.rssi}", LogLevel.DEBUG)
         frame = DeviceFrameKivy(device=device, adv_data=adv_data)
         self.device_frames[device.address] = frame
         self.root.ids.device_list.add_widget(frame)
@@ -250,7 +252,7 @@ class BLEScannerApp(App):
     def connect_to_device(self, device: BLEDevice):
         """Connects to the selected device."""
         self.selected_device = device
-        self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...")
+        self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...", LogLevel.INFO)
         adapter = self.root.ids.adapter_spinner.text
         adapter = adapter if adapter != "Default" else None
         self.ble_manager.connect_to_device(device.address, adapter)
@@ -258,7 +260,7 @@ class BLEScannerApp(App):
     def disconnect_from_device(self, *args):
         """Initiates a manual disconnection from the connected device."""
         if self.ble_manager and self.ble_manager.client and self.ble_manager.client.is_connected:
-            self.log_with_timestamp("Disconnect button pressed.")
+            self.log_with_timestamp("Disconnect button pressed.", LogLevel.INFO)
             self.ble_manager.disconnect_from_device()
 
     def _on_connection_status_changed(self, is_connected: bool):
@@ -268,7 +270,7 @@ class BLEScannerApp(App):
     def _update_connection_ui(self, is_connected: bool):
         """Updates the UI based on the connection status."""
         if is_connected:
-            self.log_with_timestamp("Device connected.")
+            self.log_with_timestamp("Device connected.", LogLevel.SUCCESS)
             self.root.ids.disconnect_button.disabled = False
             self.root.ids.read_all_button.disabled = False
             self.discover_attributes()
@@ -289,12 +291,12 @@ class BLEScannerApp(App):
         if self.selected_device:
             cached_services_data = self.device_cache.load_device(self.selected_device.address)
             if cached_services_data:
-                self.log_with_timestamp("Loading services from cache...")
+                self.log_with_timestamp("Loading services from cache...", LogLevel.DEBUG)
                 cached_services = [CachedService(s) for s in cached_services_data]
                 all_characteristics = [char for service in cached_services for char in service.characteristics]
                 all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
                 self.populate_characteristic_ui(all_characteristics)
-                self.log_with_timestamp("Finished loading from cache.")
+                self.log_with_timestamp("Finished loading from cache.", LogLevel.DEBUG)
 
         if self.ble_manager.client:
             if not cached_services_data:
@@ -341,35 +343,37 @@ class BLEScannerApp(App):
 
     def _check_for_attribute_diffs(self, cached_services):
         if self.ble_manager.client:
-            self.log_with_timestamp("Checking for attribute differences...")
+            self.log_with_timestamp("Checking for attribute differences...", LogLevel.DEBUG)
             live_services = [service_to_dict(s) for s in self.ble_manager.client.services]
 
             if cached_services:
                 diffs = self.device_cache.compare_services(cached_services, live_services)
                 if diffs:
-                    self.log_with_timestamp("Differences found between cache and live data:")
+                    self.log_with_timestamp("Differences found between cache and live data:", LogLevel.INFO)
                     for diff in diffs:
-                        self.log_with_timestamp(f"- {diff}")
-                    self.log_with_timestamp("Refreshing UI with live data...")
+                        self.log_with_timestamp(f"- {diff}", LogLevel.INFO)
+                    self.log_with_timestamp("Refreshing UI with live data...", LogLevel.INFO)
                     self.discover_attributes()
                 else:
-                    self.log_with_timestamp("No differences found.")
+                    self.log_with_timestamp("No differences found.", LogLevel.DEBUG)
 
             self.device_cache.save_device(self.ble_manager.client)
 
     def read_all_characteristics(self, *args):
         """Initiates a read operation for all readable characteristics."""
-        self.log_with_timestamp("--- Reading all readable characteristics ---")
+        self.log_with_timestamp("--- Reading all readable characteristics ---", LogLevel.INFO)
         for char_frame in self.characteristic_frames.values():
             if "read" in char_frame.characteristic.properties:
                 self.read_characteristic(char_frame.characteristic, char_frame)
 
     def clear_log(self, *args):
         """Clears the debug log text box."""
+        self.log_with_timestamp("Clearing log...", LogLevel.INFO)
         self.root.ids.log_view.text = ""
 
     def show_save_dialog(self, *args):
         """Shows the save file dialog."""
+        self.log_with_timestamp("Showing save log dialog...", LogLevel.INFO)
         content = SaveDialog(save_callback=self.save_log, dismiss_callback=self.dismiss_popup)
         self.popup = Popup(title="Save Log", content=content, size_hint=(0.9, 0.9))
         self.popup.open()
@@ -386,9 +390,9 @@ class BLEScannerApp(App):
         try:
             with open(filepath, "w") as f:
                 f.write(log_content)
-            self.log_with_timestamp(f"Log saved to {filepath}")
+            self.log_with_timestamp(f"Log saved to {filepath}", LogLevel.SUCCESS)
         except IOError as e:
-            self.log_with_timestamp(f"Error saving log: {e}")
+            self.log_with_timestamp(f"Error saving log: {e}", LogLevel.ERROR)
         self.dismiss_popup()
 
     def read_characteristic(self, characteristic, char_frame, *args):
@@ -398,34 +402,41 @@ class BLEScannerApp(App):
         if value is not None:
             char_frame.raw_value = value
             display_format = char_frame.ids.format_spinner.text
-            self.log_with_timestamp(f"Value read from {char_frame.char_uuid} ({display_format}): {char_frame.char_value}")
+            self.log_with_timestamp(f"Value read from {char_frame.char_uuid} ({display_format}): {char_frame.char_value}", LogLevel.SUCCESS)
             char_frame.ids.value_input.background_color = (0, 1, 0, 1) # Green for success
             Clock.schedule_once(lambda dt: self.reset_char_color(char_frame), 0.5)
         else:
-            self.log_with_timestamp(f"Failed to read from {char_frame.char_uuid}")
+            self.log_with_timestamp(f"Failed to read from {char_frame.char_uuid}", LogLevel.ERROR)
 
     def write_characteristic(self, characteristic, char_frame, *args):
         value_str = char_frame.ids.value_input.text
+        write_mode = char_frame.ids.write_mode_spinner.text
         try:
             char_frame.ids.value_input.background_color = (1, 1, 1, 1)
-            if char_frame.ids.write_mode_spinner.text == 'ASCII':
+            if write_mode == 'ASCII':
                 write_value = value_str.encode('utf-8')
             else:  # Hex mode
                 write_value = bytes.fromhex(value_str)
         except ValueError:
-            self.log_with_timestamp(f"Invalid input for write on {characteristic.uuid}")
+            self.log_with_timestamp(f"Invalid input for write on {characteristic.uuid}", LogLevel.ERROR)
             char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
             return
 
-        self.ble_manager.write_characteristic(characteristic.uuid, write_value, lambda success: Clock.schedule_once(lambda dt: self.on_characteristic_write(char_frame, success, characteristic)))
+        self.ble_manager.write_characteristic(
+            characteristic.uuid,
+            write_value,
+            lambda success: Clock.schedule_once(
+                lambda dt: self.on_characteristic_write(char_frame, success, characteristic, value_str, write_mode)
+            )
+        )
 
-    def on_characteristic_write(self, char_frame, success, characteristic):
+    def on_characteristic_write(self, char_frame, success, characteristic, value_written, write_mode):
         if success:
-            self.log_with_timestamp(f"Value written to {char_frame.char_uuid}")
+            self.log_with_timestamp(f"Value written to {char_frame.char_uuid} ({write_mode}): {value_written}", LogLevel.SUCCESS)
             if "read" in characteristic.properties:
                 self.read_characteristic(characteristic, char_frame)
         else:
-            self.log_with_timestamp(f"Write Error on {char_frame.char_uuid}")
+            self.log_with_timestamp(f"Write Error on {char_frame.char_uuid}", LogLevel.ERROR)
             char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
 
     def reset_char_color(self, char_frame):
@@ -441,33 +452,33 @@ class BLEScannerApp(App):
                 desc_frame.text = f"{value.decode('utf-8')}"
             else:
                 desc_frame.desc_value = value.hex()
-            self.log_with_timestamp(f"Value read from {descriptor.uuid}: {value.hex()}")
+            self.log_with_timestamp(f"Value read from {descriptor.uuid}: {value.hex()}", LogLevel.SUCCESS)
         else:
-            self.log_with_timestamp(f"Failed to read from {descriptor.uuid}")
+            self.log_with_timestamp(f"Failed to read from {descriptor.uuid}", LogLevel.ERROR)
 
     def write_descriptor(self, descriptor, desc_frame, *args):
         value_str = desc_frame.ids.value_input.text
         try:
             write_value = bytes.fromhex(value_str)
         except ValueError:
-            self.log_with_timestamp(f"Invalid hex value for write on {descriptor.uuid}")
+            self.log_with_timestamp(f"Invalid hex value for write on {descriptor.uuid}", LogLevel.ERROR)
             return
 
         self.ble_manager.write_descriptor(descriptor.handle, write_value, lambda success: Clock.schedule_once(lambda dt: self.on_descriptor_write(desc_frame, success)))
 
     def on_descriptor_write(self, desc_frame, success):
         if success:
-            self.log_with_timestamp(f"Value written to {desc_frame.desc_uuid}")
+            self.log_with_timestamp(f"Value written to {desc_frame.desc_uuid}", LogLevel.SUCCESS)
         else:
-            self.log_with_timestamp(f"Write Error on {desc_frame.desc_uuid}")
+            self.log_with_timestamp(f"Write Error on {desc_frame.desc_uuid}", LogLevel.ERROR)
 
     def toggle_subscription(self, characteristic, char_frame, widget, state):
         if state == 'down':
             self.ble_manager.subscribe_to_characteristic(characteristic.uuid)
-            self.log_with_timestamp(f"Subscribed to {characteristic.uuid}")
+            self.log_with_timestamp(f"Subscribed to {characteristic.uuid}", LogLevel.INFO)
         else:
             self.ble_manager.unsubscribe_from_characteristic(characteristic.uuid)
-            self.log_with_timestamp(f"Unsubscribed from {characteristic.uuid}")
+            self.log_with_timestamp(f"Unsubscribed from {characteristic.uuid}", LogLevel.INFO)
 
     def notification_handler(self, characteristic, data):
         """Handles incoming notifications."""
@@ -478,12 +489,21 @@ class BLEScannerApp(App):
             char_frame = self.characteristic_frames[characteristic.uuid]
             char_frame.raw_value = data
             display_format = char_frame.ids.format_spinner.text
-            self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}")
+            self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}", LogLevel.INFO)
 
-    def log_with_timestamp(self, message: str):
-        """Logs a message with a timestamp."""
+    def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
+        """Logs a message with a timestamp and color-coding based on the level."""
+        color_map = {
+            LogLevel.DEBUG: "gray",
+            LogLevel.INFO: "white",
+            LogLevel.WARNING: "yellow",
+            LogLevel.ERROR: "red",
+            LogLevel.SUCCESS: "green"
+        }
+        color = color_map.get(level, "white")
+
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        log_message = f"[{timestamp}] {message}\n"
+        log_message = f"[{timestamp}] [color={color}]{message}[/color]\n"
         self.root.ids.log_view.text += log_message
 
 
