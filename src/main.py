@@ -12,7 +12,7 @@ from kivymd.app import MDApp
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
-from kivy.properties import ListProperty, StringProperty, BooleanProperty
+from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
 from kivy.uix.filechooser import FileChooserListView
@@ -117,6 +117,11 @@ class BLEScannerApp(MDApp):
     is_scanning = BooleanProperty(False)
     is_connected = BooleanProperty(False)
 
+    scan_button = ObjectProperty(None)
+    disconnect_button = ObjectProperty(None)
+    refresh_button = ObjectProperty(None)
+    upload_button = ObjectProperty(None)
+
     def open_parameter_window(self):
         """Opens the parameter window."""
         self.parameter_popup = ParameterWindow()
@@ -170,6 +175,25 @@ class BLEScannerApp(MDApp):
             self.request_android_permissions()
 
         self.discover_adapters()
+        Clock.schedule_once(self._find_and_bind_buttons)
+
+    def _find_and_bind_buttons(self, *args):
+        """Finds the toolbar buttons and binds their disabled properties."""
+        for button in self.root.ids.main_toolbar.ids.right_actions.children:
+            if button.icon == "bluetooth-scan":
+                self.scan_button = button
+                self.bind(is_scanning=lambda instance, value: setattr(self.scan_button, 'disabled', value))
+            elif button.icon == "logout":
+                self.disconnect_button = button
+                self.bind(is_connected=lambda instance, value: setattr(self.disconnect_button, 'disabled', not value))
+
+        for button in self.root.ids.device_toolbar.ids.right_actions.children:
+            if button.icon == "refresh":
+                self.refresh_button = button
+                self.bind(is_connected=lambda instance, value: setattr(self.refresh_button, 'disabled', not value))
+            elif button.icon == "upload":
+                self.upload_button = button
+                self.bind(is_connected=lambda instance, value: setattr(self.upload_button, 'disabled', not value))
 
     def _on_permissions_result(self, success: bool, dt=None):
         """
@@ -211,10 +235,10 @@ class BLEScannerApp(MDApp):
             if codepoint == 'q':
                 self.stop()
             elif codepoint == 's':
-                if not self.is_scan_button_disabled:
+                if not self.is_scanning:
                     self.scan_for_devices()
             elif codepoint == 'd':
-                if not self.root.ids.disconnect_button.disabled:
+                if self.is_connected:
                     self.disconnect_from_device()
             elif codepoint == 'l':
                 self.clear_log()

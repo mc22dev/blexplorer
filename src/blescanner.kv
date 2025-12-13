@@ -4,9 +4,10 @@
     orientation: 'vertical'
 
     MDTopAppBar:
+        id: main_toolbar
         title: "BLE Scanner"
-        left_action_items: [{"icon": "cog-outline", "on_release": lambda x: app.open_parameter_window()}]
-        right_action_items: [{"icon": "bluetooth-scan", "on_release": lambda x: app.scan_for_devices(), "disabled": app.is_scanning}, {"icon": "logout", "on_release": lambda x: app.disconnect_from_device(), "disabled": not app.is_connected}]
+        left_action_items: [["cog-outline", lambda x: app.open_parameter_window()]]
+        right_action_items: [["bluetooth-scan", lambda x: app.scan_for_devices()], ["logout", lambda x: app.disconnect_from_device()]]
 
     MDScreen:
         MDBottomNavigation:
@@ -54,8 +55,9 @@
                     orientation: 'vertical'
 
                     MDTopAppBar:
+                        id: device_toolbar
                         title: "Device Info"
-                        right_action_items: [{"icon": "refresh", "on_release": lambda x: app.read_all_characteristics(), "disabled": not app.is_connected}, {"icon": "upload", "on_release": lambda x: app.open_ota_window(), "disabled": not app.is_connected}]
+                        right_action_items: [["refresh", lambda x: app.read_all_characteristics()], ["upload", lambda x: app.open_ota_window()]]
 
                     ScrollView:
                         id: char_scroll_view
@@ -75,8 +77,9 @@
                 MDBoxLayout:
                     orientation: 'vertical'
                     MDTopAppBar:
+                        id: log_toolbar
                         title: "Log"
-                        right_action_items: [{"icon": "delete", "on_release": lambda x: app.clear_log()}, {"icon": "content-save", "on_release": lambda x: app.show_save_dialog()}]
+                        right_action_items: [["delete", lambda x: app.clear_log()], ["content-save", lambda x: app.show_save_dialog()]]
                     MDTextField:
                         id: log_view
                         text: ''
