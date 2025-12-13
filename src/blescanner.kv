@@ -55,10 +55,7 @@
 
                     MDTopAppBar:
                         title: "Device Info"
-                        right_action_items: [ \
-                            ["refresh", lambda x: app.read_all_characteristics(), {"disabled": not app.is_connected}], \
-                            ["upload", lambda x: app.open_ota_window(), {"disabled": not app.is_connected}], \
-                        ]
+                        right_action_items: [["refresh", lambda x: app.read_all_characteristics(), {"disabled": not app.is_connected}], ["upload", lambda x: app.open_ota_window(), {"disabled": not app.is_connected}]]
 
                     ScrollView:
                         id: char_scroll_view
@@ -79,10 +76,7 @@
                     orientation: 'vertical'
                     MDTopAppBar:
                         title: "Log"
-                        right_action_items: [ \
-                            ["delete", lambda x: app.clear_log()], \
-                            ["content-save", lambda x: app.show_save_dialog()] \
-                        ]
+                        right_action_items: [["delete", lambda x: app.clear_log()], ["content-save", lambda x: app.show_save_dialog()]]
                     MDTextField:
                         id: log_view
                         text: ''
