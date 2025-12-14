@@ -1,5 +1,5 @@
 from kivymd.uix.boxlayout import MDBoxLayout
-from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProperty
+from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.core.clipboard import Clipboard
 import struct
 import json
@@ -32,38 +32,25 @@ class InfoPopup(MDDialog):
         )
 
 
+from gatt import GATT_CHARACTERISTICS
+
 class CharacteristicFrameKivy(MDBoxLayout):
     characteristic = ObjectProperty(None)
     char_uuid = StringProperty('')
-    short_uuid = StringProperty('')
-    char_properties = StringProperty('')
+    char_name = StringProperty('')
     full_char_properties = StringProperty('')
     char_value = StringProperty('')
     raw_value = ObjectProperty(b'')
+    collapsed = BooleanProperty(True)
 
     def __init__(self, characteristic: BleakGATTCharacteristic, **kwargs):
         super().__init__(**kwargs)
         self.characteristic = characteristic
         self.char_uuid = characteristic.uuid
-        if self.char_uuid.startswith("0000") and self.char_uuid.endswith("-0000-1000-8000-00805f9b34fb"):
-            self.short_uuid = f"0x{self.char_uuid[4:8]}"
-        else:
-            self.short_uuid = f"{self.char_uuid.split('-')[0]}..."
-
-        prop_map = {
-            "read": "R",
-            "write": "W",
-            "write-without-response": "W",
-            "notify": "N",
-            "indicate": "I",
-        }
-
-        # Create the abbreviated properties string
-        abbreviated_props = sorted(list(set([prop_map[p] for p in characteristic.properties if p in prop_map])))
-        self.char_properties = "/".join(abbreviated_props)
+        self.char_name = GATT_CHARACTERISTICS.get(self.char_uuid.lower(), "Unknown Characteristic")
 
         # Create the full properties string for the tooltip
-        self.full_char_properties = "\n".join(sorted(characteristic.properties))
+        self.full_char_properties = ", ".join(sorted(characteristic.properties))
 
         if "write" not in self.characteristic.properties and "write-without-response" not in self.characteristic.properties:
             self.ids.write_button.disabled = True
@@ -148,10 +135,5 @@ class CharacteristicFrameKivy(MDBoxLayout):
         Clipboard.copy(text)
         toast('Copied!')
 
-    def show_info_popup(self):
-        popup = InfoPopup(title="Full UUID", text=self.char_uuid, copy_callback=self.copy_to_clipboard)
-        popup.open()
-
-    def show_properties_popup(self):
-        popup = InfoPopup(title="Properties", text=self.full_char_properties, copy_callback=self.copy_to_clipboard)
-        popup.open()
+    def toggle_collapse(self):
+        self.collapsed = not self.collapsed

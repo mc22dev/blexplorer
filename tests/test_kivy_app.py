@@ -68,7 +68,7 @@ class TestKivyApp:
         char = MockCharacteristic()
         char_frame = CharacteristicFrameKivy(characteristic=char)
         assert char_frame.char_uuid == "00002a00-0000-1000-8000-00805f9b34fb"
-        assert char_frame.char_properties == "R/W"
+        assert char_frame.full_char_properties == "read, write"
 
     def test_collapsible_frame_instantiation_and_toggle(self):
         """
