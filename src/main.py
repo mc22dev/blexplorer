@@ -17,6 +17,7 @@ from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
 from kivy.uix.filechooser import FileChooserListView
 from kivymd.uix.button import MDRaisedButton
+from kivymd.uix.label import MDLabel
 from kivy.core.window import Window
 
 from bleak.backends.device import BLEDevice
