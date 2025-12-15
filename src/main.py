@@ -460,7 +460,8 @@ class BLEScannerApp(MDApp):
             desc_frame.ids.write_button.bind(on_release=partial(self.write_descriptor, desc, desc_frame))
 
         if user_desc:
-            self.read_descriptor(user_desc, char_frame.ids.user_description_label)
+            # Defer the read operation to allow the UI to draw first
+            Clock.schedule_once(lambda dt: self.read_descriptor(user_desc, char_frame.ids.user_description_label), 0.1)
 
         return char_frame
 
