@@ -1,5 +1,5 @@
 from kivymd.uix.boxlayout import MDBoxLayout
-from kivy.properties import ObjectProperty, StringProperty
+from kivy.properties import ObjectProperty, StringProperty, NumericProperty
 from kivy.app import App
 from kivy.core.clipboard import Clipboard
 from kivymd.uix.dialog import MDDialog
@@ -11,6 +11,7 @@ class DeviceFrameKivy(MDBoxLayout):
     device_name = StringProperty("Unknown")
     device_address = StringProperty("")
     device_rssi = StringProperty("")
+    scan_count = NumericProperty(0)
 
     def on_device(self, instance, value):
         """Handles updates to the device object."""

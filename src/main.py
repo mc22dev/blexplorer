@@ -276,6 +276,7 @@ class BLEScannerApp(MDApp):
         self.device_cache = DeviceCache()
         self.selected_device = None
         self.discovered_devices_batch = []
+        self.scan_counts = {}
         return MainLayout()
 
     def on_stop(self):
@@ -299,6 +300,7 @@ class BLEScannerApp(MDApp):
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
         self.discovered_devices_batch = []
+        self.scan_counts = {}
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
         self.is_scanning = True
         adapter = self.adapter if self.adapter != "Default" else None
@@ -350,16 +352,19 @@ class BLEScannerApp(MDApp):
         """
         Populates the UI with a discovered BLE device, updating if it already exists.
         """
+        self.scan_counts[device.address] = self.scan_counts.get(device.address, 0) + 1
+
         if device.address in self.device_frames:
             # Update existing frame only if data has changed to avoid unnecessary UI redraws
             frame = self.device_frames[device.address]
+            frame.scan_count = self.scan_counts[device.address]
             if frame.device.name != device.name or frame.adv_data.rssi != adv_data.rssi:
                 frame.device = device
                 frame.adv_data = adv_data
         else:
             # Create a new frame for a new device
             self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
-            frame = DeviceFrameKivy(device=device, adv_data=adv_data)
+            frame = DeviceFrameKivy(device=device, adv_data=adv_data, scan_count=self.scan_counts[device.address])
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
 
