@@ -66,7 +66,7 @@ class BLEManager:
 
     def shutdown(self) -> None:
         """Shuts down the BLE manager and the asyncio loop."""
-        if self.scanner and self.scanner.scanning:
+        if self.scanner:
             asyncio.run_coroutine_threadsafe(self.scanner.stop(), self.loop)
         if self.client and self.client.is_connected:
             self.logger_callback("Disconnecting on shutdown...", LogLevel.INFO)
