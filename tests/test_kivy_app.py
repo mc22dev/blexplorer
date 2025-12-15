@@ -2,6 +2,7 @@ import pytest
 import struct
 from kivy.app import App
 from device_frame_kivy import DeviceFrameKivy
+from models import DeviceScanStats
 from characteristic_frame_kivy import CharacteristicFrameKivy
 from collapsible_frame_kivy import CollapsibleFrameKivy
 from main import BLEScannerApp
@@ -56,10 +57,12 @@ class TestKivyApp:
             tx_power=0,
             platform_data=()
         )
-        device_frame = DeviceFrameKivy(device=device, adv_data=adv_data)
+        stats = DeviceScanStats()
+        stats.update(adv_data)
+        device_frame = DeviceFrameKivy(device=device, adv_data=adv_data, stats=stats)
         assert device_frame.device_name == 'Test Device'
         assert device_frame.device_address == '00:11:22:33:44:55'
-        assert device_frame.device_rssi == '-50'
+        assert "RSSI: -50" in device_frame.rssi_info
 
     def test_characteristic_frame_instantiation(self):
         """
