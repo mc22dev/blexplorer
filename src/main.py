@@ -275,6 +275,7 @@ class BLEScannerApp(MDApp):
         self.device_frames = {}
         self.device_cache = DeviceCache()
         self.selected_device = None
+        self.discovered_devices_batch = []
         return MainLayout()
 
     def on_stop(self):
@@ -297,6 +298,7 @@ class BLEScannerApp(MDApp):
         """Initiates a scan for nearby BLE devices."""
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
+        self.discovered_devices_batch = []
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
         self.is_scanning = True
         adapter = self.adapter if self.adapter != "Default" else None
@@ -308,11 +310,14 @@ class BLEScannerApp(MDApp):
             self.is_scanning = False
             return
 
+        Clock.schedule_interval(self._process_device_batch, 0.25)  # Process batch every 250ms
         self.ble_manager.scan_for_devices(adapter, timeout)
         Clock.schedule_once(self.on_scan_finished, timeout)
 
     def on_scan_finished(self, *args):
         self.ble_manager.stop_scan()
+        Clock.unschedule(self._process_device_batch)
+        self._process_device_batch()  # Process any remaining devices
         self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
         self.is_scanning = False
 
@@ -331,16 +336,32 @@ class BLEScannerApp(MDApp):
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
-        Clock.schedule_once(lambda dt: self._populate_device_ui(device, adv_data))
+        self.discovered_devices_batch.append((device, adv_data))
+
+    def _process_device_batch(self, *args):
+        """Processes the batch of discovered devices and updates the UI."""
+        # Sort by RSSI to show the strongest signals first
+        sorted_batch = sorted(self.discovered_devices_batch, key=lambda x: x[1].rssi, reverse=True)
+        for device, adv_data in sorted_batch:
+            self._populate_device_ui(device, adv_data)
+        self.discovered_devices_batch = []
 
     def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
         """
-        Populates the UI with a discovered BLE device.
+        Populates the UI with a discovered BLE device, updating if it already exists.
         """
-        self.log_with_timestamp(f"Found device: {device.address} ({device.name or 'Unknown'}) RSSI: {adv_data.rssi}", LogLevel.DEBUG)
-        frame = DeviceFrameKivy(device=device, adv_data=adv_data)
-        self.device_frames[device.address] = frame
-        self.root.ids.device_list.add_widget(frame)
+        if device.address in self.device_frames:
+            # Update existing frame
+            frame = self.device_frames[device.address]
+            frame.device = device
+            frame.adv_data = adv_data
+            frame.device_rssi = str(adv_data.rssi)
+        else:
+            # Create a new frame for a new device
+            self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
+            frame = DeviceFrameKivy(device=device, adv_data=adv_data)
+            self.device_frames[device.address] = frame
+            self.root.ids.device_list.add_widget(frame)
 
     def connect_to_device(self, device: BLEDevice):
         """Connects to the selected device."""
