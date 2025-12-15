@@ -6,6 +6,8 @@
     MDTopAppBar:
         id: main_toolbar
         title: "BLE Scanner"
+        size_hint_y: None
+        height: "48dp"
         left_action_items: [["cog-outline", lambda x: app.open_parameter_window()]]
         right_action_items: [["bluetooth-scan", lambda x: app.scan_for_devices()], ["logout", lambda x: app.disconnect_from_device()]]
 
@@ -21,14 +23,6 @@
 
                 MDBoxLayout:
                     orientation: 'vertical'
-
-                    Spinner:
-                        id: adapter_spinner
-                        text: 'Default'
-                        values: ['Default']
-                        size_hint_y: None
-                        height: "48dp"
-                        on_text: app.on_adapter_selected(self, self.text)
 
                     MDTextField:
                         id: search_input
@@ -80,8 +74,11 @@
                         id: log_toolbar
                         title: "Log"
                         right_action_items: [["delete", lambda x: app.clear_log()], ["content-save", lambda x: app.show_save_dialog()]]
-                    MDTextField:
-                        id: log_view
-                        text: ''
-                        multiline: True
-                        readonly: True
+                    ScrollView:
+                        MDTextField:
+                            id: log_view
+                            text: ''
+                            multiline: True
+                            readonly: True
+                            size_hint_y: None
+                            height: self.minimum_height
