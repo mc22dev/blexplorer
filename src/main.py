@@ -309,9 +309,10 @@ class BLEScannerApp(MDApp):
             return
 
         self.ble_manager.scan_for_devices(adapter, timeout)
-        Clock.schedule_once(self.on_scan_finished, timeout + 0.5)
+        Clock.schedule_once(self.on_scan_finished, timeout)
 
     def on_scan_finished(self, *args):
+        self.ble_manager.stop_scan()
         self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
         self.is_scanning = False
 
