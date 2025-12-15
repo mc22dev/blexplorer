@@ -34,15 +34,21 @@
                     font_style: "Caption"
                     adaptive_height: True
 
-                MDLabel:
+                MDFlatButton:
                     text: root.service_uuids
                     font_style: "Caption"
                     adaptive_height: True
+                    on_release: root.show_full_data_popup("Service UUIDs", root.full_service_uuids)
+                    theme_text_color: "Primary"
+                    padding: [0, 0, 0, 0]
 
-                MDLabel:
+                MDFlatButton:
                     text: root.manufacturer_data
                     font_style: "Caption"
                     adaptive_height: True
+                    on_release: root.show_full_data_popup("Manufacturer Data", root.full_manufacturer_data)
+                    theme_text_color: "Primary"
+                    padding: [0, 0, 0, 0]
 
             MDBoxLayout:
                 orientation: 'vertical'

@@ -16,6 +16,8 @@ class DeviceFrameKivy(MDBoxLayout):
     adv_flags = StringProperty("")
     service_uuids = StringProperty("")
     manufacturer_data = StringProperty("")
+    full_service_uuids = StringProperty("")
+    full_manufacturer_data = StringProperty("")
 
 
     def on_device(self, instance, value):
@@ -48,15 +50,25 @@ class DeviceFrameKivy(MDBoxLayout):
         self.adv_flags = "Flags: " + ", ".join(flags) if flags else "Flags: Not Connectable"
 
         self.service_uuids = ""
+        self.full_service_uuids = ""
         if self.stats.adv_data.service_uuids:
-            self.service_uuids = "Services: " + ", ".join(self.stats.adv_data.service_uuids)
+            self.full_service_uuids = "Services: " + ", ".join(self.stats.adv_data.service_uuids)
+            if len(self.full_service_uuids) > 30:
+                self.service_uuids = self.full_service_uuids[:27] + "..."
+            else:
+                self.service_uuids = self.full_service_uuids
 
         self.manufacturer_data = ""
+        self.full_manufacturer_data = ""
         if self.stats.adv_data.manufacturer_data:
             manu_data_str = []
             for company_id, data in self.stats.adv_data.manufacturer_data.items():
                 manu_data_str.append(f"0x{company_id:04X}: {data.hex()}")
-            self.manufacturer_data = "Manu: " + ", ".join(manu_data_str)
+            self.full_manufacturer_data = "Manu: " + ", ".join(manu_data_str)
+            if len(self.full_manufacturer_data) > 30:
+                self.manufacturer_data = self.full_manufacturer_data[:27] + "..."
+            else:
+                self.manufacturer_data = self.full_manufacturer_data
 
 
     def __init__(self, **kwargs):
@@ -70,4 +82,11 @@ class DeviceFrameKivy(MDBoxLayout):
         dialog = MDDialog(title='Copied',
                           text=f'"{text}" copied to clipboard.',
                           size_hint=(None, None), size=(300, 100))
+        dialog.open()
+
+    def show_full_data_popup(self, title, data):
+        """Displays a popup with the full data."""
+        if not data:
+            return
+        dialog = MDDialog(title=title, text=data, size_hint=(0.8, 0.5))
         dialog.open()
