@@ -351,11 +351,11 @@ class BLEScannerApp(MDApp):
         Populates the UI with a discovered BLE device, updating if it already exists.
         """
         if device.address in self.device_frames:
-            # Update existing frame
+            # Update existing frame only if data has changed to avoid unnecessary UI redraws
             frame = self.device_frames[device.address]
-            frame.device = device
-            frame.adv_data = adv_data
-            frame.device_rssi = str(adv_data.rssi)
+            if frame.device.name != device.name or frame.adv_data.rssi != adv_data.rssi:
+                frame.device = device
+                frame.adv_data = adv_data
         else:
             # Create a new frame for a new device
             self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
