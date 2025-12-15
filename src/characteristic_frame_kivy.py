@@ -41,7 +41,7 @@ class CharacteristicFrameKivy(MDBoxLayout):
     full_char_properties = StringProperty('')
     char_value = StringProperty('')
     raw_value = ObjectProperty(b'')
-    collapsed = BooleanProperty(True)
+    collapsed = BooleanProperty(False)
 
     def __init__(self, characteristic: BleakGATTCharacteristic, **kwargs):
         super().__init__(**kwargs)
