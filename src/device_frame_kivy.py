@@ -7,7 +7,6 @@ from kivy.core.window import Window
 
 class DeviceFrameKivy(MDBoxLayout):
     device = ObjectProperty(None)
-    adv_data = ObjectProperty(None)
     stats = ObjectProperty(None)
 
     device_name = StringProperty("Unknown")
@@ -21,10 +20,6 @@ class DeviceFrameKivy(MDBoxLayout):
         """Handles updates to the device object."""
         self.device_name = self.device.name or "Unknown"
         self.device_address = self.device.address
-
-    def on_adv_data(self, instance, value):
-        """Handles updates to the advertisement data object."""
-        pass
 
     def on_stats(self, instance, value):
         """Handles updates to the statistics object."""
@@ -55,7 +50,6 @@ class DeviceFrameKivy(MDBoxLayout):
         super().__init__(**kwargs)
         # Trigger the on_... methods to populate the UI initially
         self.on_device(self, self.device)
-        self.on_adv_data(self, self.adv_data)
         self.on_stats(self, self.stats)
 
     def copy_to_clipboard(self, text):

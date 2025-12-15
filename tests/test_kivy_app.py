@@ -59,7 +59,7 @@ class TestKivyApp:
         )
         stats = DeviceScanStats()
         stats.update(adv_data)
-        device_frame = DeviceFrameKivy(device=device, adv_data=adv_data, stats=stats)
+        device_frame = DeviceFrameKivy(device=device, stats=stats)
         assert device_frame.device_name == 'Test Device'
         assert device_frame.device_address == '00:11:22:33:44:55'
         assert "RSSI: -50" in device_frame.rssi_info

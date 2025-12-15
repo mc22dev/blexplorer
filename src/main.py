@@ -362,13 +362,13 @@ class BLEScannerApp(MDApp):
             # Update existing frame only if data has changed to avoid unnecessary UI redraws
             frame = self.device_frames[device.address]
             frame.stats = stats
-            if frame.device.name != device.name or frame.adv_data.rssi != adv_data.rssi:
+            frame.property('stats').dispatch(frame)
+            if frame.device.name != device.name:
                 frame.device = device
-                frame.adv_data = adv_data
         else:
             # Create a new frame for a new device
             self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
-            frame = DeviceFrameKivy(device=device, adv_data=adv_data, stats=stats)
+            frame = DeviceFrameKivy(device=device, stats=stats)
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
 
