@@ -4,6 +4,12 @@
     orientation: 'vertical'
     size_hint_y: None
     height: self.minimum_height
+    canvas.before:
+        Color:
+            rgba: app.theme.secondary
+        Rectangle:
+            pos: self.pos
+            size: self.size
 
     BoxLayout:
         id: card
