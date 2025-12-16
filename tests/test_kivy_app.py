@@ -4,7 +4,6 @@ from kivy.app import App
 from device_frame_kivy import DeviceFrameKivy
 from models import DeviceScanStats
 from characteristic_frame_kivy import CharacteristicFrameKivy
-from collapsible_frame_kivy import CollapsibleFrameKivy
 from main import BLEScannerApp
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -73,22 +72,6 @@ class TestKivyApp:
         assert char_frame.char_uuid == "00002a00-0000-1000-8000-00805f9b34fb"
         assert char_frame.full_char_properties == "read, write"
 
-    def test_collapsible_frame_instantiation_and_toggle(self):
-        """
-        Tests that the CollapsibleFrameKivy widget can be instantiated and its expansion state can be changed.
-        """
-        collapsible_frame = CollapsibleFrameKivy(title="Test Frame", is_expanded=False)
-        assert collapsible_frame.title == "Test Frame"
-        assert not collapsible_frame.is_expanded
-
-        # Simulate expanding the frame
-        collapsible_frame.is_expanded = True
-        assert collapsible_frame.is_expanded
-
-        # Simulate collapsing the frame
-        collapsible_frame.is_expanded = False
-        assert not collapsible_frame.is_expanded
-
     def test_data_format_conversion(self):
         """
         Tests the data format conversion logic.
@@ -135,3 +118,49 @@ class TestKivyApp:
         char_frame.raw_value = b'\x01\x02\x03'
         char_frame.on_format_change('Int16') # Wrong number of bytes
         assert char_frame.char_value == "Invalid Format"
+
+    def test_toggle_service_expansion(self, app):
+        """
+        Tests that the toggle_service_expansion method correctly adds and removes
+        characteristic data from the RecycleView's data list.
+        """
+        # Mock the RecycleView and its data
+        class MockRecycleView:
+            def __init__(self):
+                self.data = []
+            def refresh_from_data(self):
+                pass
+
+        class MockIds(object):
+            pass
+
+        mock_ids = MockIds()
+        mock_ids.characteristic_list_rv = MockRecycleView()
+
+        app.root = type('MockRoot', (object,), {})()
+        app.root.ids = mock_ids
+
+        # Populate with some data
+        service_uuid = "00001800-0000-1000-8000-00805f9b34fb"
+        char1 = MockCharacteristic()
+        char2 = MockCharacteristic(uuid="00002a01-0000-1000-8000-00805f9b34fb")
+        app.service_map = {service_uuid: [char1, char2]}
+
+        header_data = {
+            'viewclass': 'ServiceHeader',
+            'text': 'Service 1',
+            'service_uuid': service_uuid,
+            'is_expanded': False,
+            'app': app
+        }
+        app.root.ids.characteristic_list_rv.data = [header_data]
+
+        # Test expansion
+        app.toggle_service_expansion(header_data)
+        assert len(app.root.ids.characteristic_list_rv.data) == 3
+        assert app.root.ids.characteristic_list_rv.data[1]['viewclass'] == 'CharacteristicFrameKivy'
+        assert app.root.ids.characteristic_list_rv.data[2]['viewclass'] == 'CharacteristicFrameKivy'
+
+        # Test collapse
+        app.toggle_service_expansion(header_data)
+        assert len(app.root.ids.characteristic_list_rv.data) == 1
