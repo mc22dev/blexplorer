@@ -1,11 +1,12 @@
-from kivymd.uix.boxlayout import MDBoxLayout
+from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.app import App
 from kivy.core.clipboard import Clipboard
-from kivymd.uix.dialog import MDDialog
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
 from kivy.core.window import Window
 
-class DeviceFrameKivy(MDBoxLayout):
+class DeviceFrameKivy(BoxLayout):
     device = ObjectProperty(None)
     stats = ObjectProperty(None)
     is_selected = BooleanProperty(False)
@@ -84,14 +85,16 @@ class DeviceFrameKivy(MDBoxLayout):
 
     def copy_to_clipboard(self, text):
         Clipboard.copy(text)
-        dialog = MDDialog(title='Copied',
-                          text=f'"{text}" copied to clipboard.',
-                          size_hint=(None, None), size=(300, 100))
-        dialog.open()
+        popup = Popup(title='Copied',
+                      content=Label(text=f'"{text}" copied to clipboard.'),
+                      size_hint=(None, None), size=(300, 100))
+        popup.open()
 
     def show_full_data_popup(self, title, data):
         """Displays a popup with the full data."""
         if not data:
             return
-        dialog = MDDialog(title=title, text=data, size_hint=(0.8, 0.5))
-        dialog.open()
+        popup = Popup(title=title,
+                      content=Label(text=data),
+                      size_hint=(0.8, 0.5))
+        popup.open()

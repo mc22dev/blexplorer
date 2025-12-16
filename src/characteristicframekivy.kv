@@ -6,21 +6,33 @@
     height: self.minimum_height
     padding: '4dp'
 
-    MDCard:
+    BoxLayout:
         orientation: 'vertical'
         size_hint_y: None
         height: self.minimum_height
-        on_release: root.toggle_collapse()
+        canvas.before:
+            Color:
+                rgba: app.theme.secondary
+            Rectangle:
+                pos: self.pos
+                size: self.size
 
-        ThreeLineAvatarIconListItem:
-            text: root.char_name
-            secondary_text: root.char_uuid
-            tertiary_text: root.full_char_properties
+        Button:
+            on_release: root.toggle_collapse()
+            background_color: app.theme.header_bg
+            BoxLayout:
+                size: self.parent.size
+                pos: self.parent.pos
+                Label:
+                    text: root.char_name
+                Label:
+                    text: root.char_uuid
+                    font_size: '12sp'
+                Label:
+                    text: root.full_char_properties
+                    font_size: '10sp'
 
-            IconLeftWidget:
-                icon: "bluetooth"
-
-        MDBoxLayout:
+        BoxLayout:
             id: content
             orientation: 'vertical'
             padding: '10dp'
@@ -29,24 +41,23 @@
             height: 0 if root.collapsed else self.minimum_height
             opacity: 0 if root.collapsed else 1
 
-            MDLabel:
+            Label:
                 id: user_description_label
                 text: ""
-                font_style: 'Body1'
                 halign: 'left'
                 text_size: self.width, None
                 size_hint_y: None
                 height: 0 if not self.text else '20dp'
 
-            MDBoxLayout:
+            BoxLayout:
                 size_hint_y: None
                 height: '48dp'
-                MDTextField:
+                TextInput:
                     id: value_input
                     text: root.char_value
                     size_hint_x: 0.6
-                MDIconButton:
-                    icon: 'content-copy'
+                Button:
+                    text: 'Copy'
                     on_release: root.copy_to_clipboard(root.char_value)
                 Spinner:
                     id: format_spinner
@@ -55,22 +66,22 @@
                     size_hint_x: 0.3
                     on_text: root.on_format_change(self.text)
 
-            MDBoxLayout:
+            BoxLayout:
                 size_hint_y: None
                 height: '48dp'
                 spacing: '10dp'
-                MDRaisedButton:
+                Button:
                     id: read_button
                     text: 'Read'
-                MDRaisedButton:
+                Button:
                     id: write_button
                     text: 'Write'
-                MDSwitch:
+                Switch:
                     id: subscribe_button
-                MDLabel:
+                Label:
                     text: 'Subscribe'
 
-            MDBoxLayout:
+            BoxLayout:
                 id: write_controls
                 size_hint_y: None
                 height: '48dp' if root.characteristic and ("write" in root.characteristic.properties or "write-without-response" in root.characteristic.properties) else 0

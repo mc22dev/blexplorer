@@ -5,33 +5,35 @@
     padding: "10dp"
     spacing: "10dp"
 
-    MDCard:
+    BoxLayout:
         orientation: 'vertical'
         size_hint_y: None
         height: self.minimum_height
         padding: "10dp"
 
-        MDRelativeLayout:
+        RelativeLayout:
             size_hint_y: None
             height: "48dp"
 
-            MDLabel:
+            Label:
                 text: root.title
                 bold: True
-                adaptive_height: True
+                size_hint_y: None
+                height: self.texture_size[1]
                 pos_hint: {"center_y": 0.5}
 
-            MDIconButton:
-                icon: "chevron-down" if root.is_expanded else "chevron-up"
+            Button:
+                text: "V" if root.is_expanded else ">"
                 pos_hint: {"right": 1, "center_y": 0.5}
                 on_release:
                     root.is_expanded = not root.is_expanded
                     root.on_expansion()
+                size_hint_x: None
+                width: "48dp"
 
-        MDBoxLayout:
+        BoxLayout:
             id: content_box
             orientation: 'vertical'
-            adaptive_height: True
             size_hint_y: None if root.is_expanded else 0
             height: self.minimum_height if root.is_expanded else 0
             opacity: 1 if root.is_expanded else 0

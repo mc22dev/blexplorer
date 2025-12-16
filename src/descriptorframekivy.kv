@@ -6,32 +6,36 @@
     spacing: '5dp'
     size_hint_y: None
     height: self.minimum_height
-    md_bg_color: app.theme_cls.bg_light
+    canvas.before:
+        Color:
+            rgba: app.theme.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
 
-    MDLabel:
+    Label:
         text: f"Descriptor UUID: {root.desc_uuid}"
-        font_style: 'Body1'
         halign: 'left'
         text_size: self.width, None
 
-    MDBoxLayout:
+    BoxLayout:
         size_hint_y: None
         height: '30dp'
-        MDLabel:
+        Label:
             text: 'Value:'
             size_hint_x: 0.2
-        MDTextField:
+        TextInput:
             id: value_input
             text: root.desc_value
             size_hint_x: 0.8
 
-    MDBoxLayout:
+    BoxLayout:
         size_hint_y: None
         height: '30dp'
         spacing: '5dp'
-        MDRaisedButton:
+        Button:
             id: read_button
             text: 'Read'
-        MDRaisedButton:
+        Button:
             id: write_button
             text: 'Write'

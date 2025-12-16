@@ -1,40 +1,39 @@
-from kivymd.uix.boxlayout import MDBoxLayout
+from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.core.clipboard import Clipboard
 import struct
 import json
-from kivymd.uix.dialog import MDDialog
-from kivymd.uix.label import MDLabel
-from kivymd.uix.button import MDRaisedButton, MDFlatButton
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
+from kivy.uix.button import Button
 from kivy.clock import Clock
-from kivymd.toast import toast
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 
 
-class InfoPopup(MDDialog):
+class InfoPopup(Popup):
     def __init__(self, title, text, copy_callback, **kwargs):
+        content = BoxLayout(orientation='vertical')
+        content.add_widget(Label(text=text))
+        button_layout = BoxLayout(size_hint_y=None, height='44dp')
+        copy_button = Button(text='COPY')
+        copy_button.bind(on_release=lambda x: copy_callback(text))
+        button_layout.add_widget(copy_button)
+        close_button = Button(text='CLOSE')
+        close_button.bind(on_release=self.dismiss)
+        button_layout.add_widget(close_button)
+        content.add_widget(button_layout)
         super().__init__(
             title=title,
-            type="custom",
-            content_cls=MDLabel(text=text),
-            buttons=[
-                MDFlatButton(
-                    text="COPY",
-                    on_release=lambda x: copy_callback(text)
-                ),
-                MDFlatButton(
-                    text="CLOSE",
-                    on_release=self.dismiss
-                ),
-            ],
+            content=content,
+            size_hint=(0.8, 0.5),
             **kwargs
         )
 
 
 from gatt import GATT_CHARACTERISTICS
 
-class CharacteristicFrameKivy(MDBoxLayout):
+class CharacteristicFrameKivy(BoxLayout):
     characteristic = ObjectProperty(None)
     char_uuid = StringProperty('')
     char_name = StringProperty('')
@@ -133,7 +132,8 @@ class CharacteristicFrameKivy(MDBoxLayout):
 
     def copy_to_clipboard(self, text):
         Clipboard.copy(text)
-        toast('Copied!')
+        popup = Popup(title='Copied!', content=Label(text='Copied!'), size_hint=(None, None), size=(200, 100))
+        popup.open()
 
     def toggle_collapse(self):
         self.collapsed = not self.collapsed

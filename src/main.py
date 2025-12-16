@@ -8,16 +8,15 @@ import os
 import sys
 
 from kivy.utils import platform as kivy_platform
-from kivymd.app import MDApp
-from kivymd.uix.boxlayout import MDBoxLayout
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty
-from kivymd.uix.dialog import MDDialog
-from kivymd.uix.button import MDFlatButton
+from kivy.uix.popup import Popup
+from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserListView
-from kivymd.uix.button import MDRaisedButton
-from kivymd.uix.label import MDLabel
+from kivy.uix.label import Label
 from kivy.core.window import Window
 
 from bleak.backends.device import BLEDevice
@@ -57,10 +56,10 @@ Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
 
 
-class MainLayout(MDBoxLayout):
+class MainLayout(BoxLayout):
     pass
 
-class SaveDialog(MDBoxLayout):
+class SaveDialog(BoxLayout):
     def __init__(self, save_callback, dismiss_callback, **kwargs):
         super().__init__(**kwargs)
         self.orientation = "vertical"
@@ -69,11 +68,11 @@ class SaveDialog(MDBoxLayout):
         self.file_chooser = FileChooserListView(path=os.getcwd())
         self.add_widget(self.file_chooser)
 
-        button_box = MDBoxLayout(size_hint_y=None, height=40)
-        self.save_button = MDRaisedButton(text='Save')
+        button_box = BoxLayout(size_hint_y=None, height=40)
+        self.save_button = Button(text='Save')
         self.save_button.bind(on_release=self.on_save)
         button_box.add_widget(self.save_button)
-        self.cancel_button = MDFlatButton(text='Cancel')
+        self.cancel_button = Button(text='Cancel')
         self.cancel_button.bind(on_release=self.on_cancel)
         button_box.add_widget(self.cancel_button)
         self.add_widget(button_box)
@@ -85,7 +84,7 @@ class SaveDialog(MDBoxLayout):
         self.dismiss_callback()
 
 
-class LoadDialog(MDBoxLayout):
+class LoadDialog(BoxLayout):
     def __init__(self, load_callback, dismiss_callback, **kwargs):
         super().__init__(**kwargs)
         self.orientation = "vertical"
@@ -94,11 +93,11 @@ class LoadDialog(MDBoxLayout):
         self.file_chooser = FileChooserListView(path=os.getcwd())
         self.add_widget(self.file_chooser)
 
-        button_box = MDBoxLayout(size_hint_y=None, height=40)
-        self.load_button = MDRaisedButton(text='Load')
+        button_box = BoxLayout(size_hint_y=None, height=40)
+        self.load_button = Button(text='Load')
         self.load_button.bind(on_release=self.on_load)
         button_box.add_widget(self.load_button)
-        self.cancel_button = MDFlatButton(text='Cancel')
+        self.cancel_button = Button(text='Cancel')
         self.cancel_button.bind(on_release=self.on_cancel)
         button_box.add_widget(self.cancel_button)
         self.add_widget(button_box)
@@ -110,7 +109,7 @@ class LoadDialog(MDBoxLayout):
         self.dismiss_callback()
 
 
-class BLEScannerApp(MDApp):
+class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
     scan_timeout = StringProperty("5.0")
@@ -141,7 +140,7 @@ class BLEScannerApp(MDApp):
         popup.ids.scan_timeout_input.text = self.scan_timeout
 
         theme_name = self.config_manager.get_setting('theme', 'name')
-        self.theme_cls.theme_style = theme_name
+        theme_manager.set_theme(theme_name)
         popup.ids.theme_spinner.text = theme_name
 
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
@@ -162,7 +161,7 @@ class BLEScannerApp(MDApp):
             self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
 
             self.config_manager.set_setting('theme', 'name', new_theme)
-            self.theme_cls.theme_style = new_theme
+            theme_manager.set_theme(new_theme)
             self.log_with_timestamp(f"Theme set to {new_theme}.", LogLevel.INFO)
 
             self.adapter = new_adapter
@@ -192,22 +191,16 @@ class BLEScannerApp(MDApp):
         Clock.schedule_once(self._find_and_bind_buttons)
 
     def _find_and_bind_buttons(self, *args):
-        """Finds the toolbar buttons and binds their disabled properties."""
-        for button in self.root.ids.main_toolbar.ids.right_actions.children:
-            if button.icon == "bluetooth-scan":
-                self.scan_button = button
-                self.bind(is_scanning=lambda instance, value: setattr(self.scan_button, 'disabled', value))
-            elif button.icon == "logout":
-                self.disconnect_button = button
-                self.bind(is_connected=lambda instance, value: setattr(self.disconnect_button, 'disabled', not value))
+        """Binds the toolbar buttons disabled properties."""
+        self.scan_button = self.root.ids.scan_button
+        self.disconnect_button = self.root.ids.disconnect_button
+        self.refresh_button = self.root.ids.refresh_button
+        self.upload_button = self.root.ids.upload_button
 
-        for button in self.root.ids.device_toolbar.ids.right_actions.children:
-            if button.icon == "refresh":
-                self.refresh_button = button
-                self.bind(is_connected=lambda instance, value: setattr(self.refresh_button, 'disabled', not value))
-            elif button.icon == "upload":
-                self.upload_button = button
-                self.bind(is_connected=lambda instance, value: setattr(self.upload_button, 'disabled', not value))
+        self.bind(is_scanning=lambda instance, value: setattr(self.scan_button, 'disabled', value))
+        self.bind(is_connected=lambda instance, value: setattr(self.disconnect_button, 'disabled', not value))
+        self.bind(is_connected=lambda instance, value: setattr(self.refresh_button, 'disabled', not value))
+        self.bind(is_connected=lambda instance, value: setattr(self.upload_button, 'disabled', not value))
 
     def _on_permissions_result(self, success: bool, dt=None):
         """
@@ -262,9 +255,8 @@ class BLEScannerApp(MDApp):
         self.config_manager = ConfigManager(config_path)
         self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
-
-        # Set the initial theme
-        self.theme_cls.theme_style = self.config_manager.get_setting('theme', 'name')
+        self.theme = theme_manager
+        theme_manager.set_theme(self.config_manager.get_setting('theme', 'name'))
 
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
@@ -429,7 +421,7 @@ class BLEScannerApp(MDApp):
         if is_connected:
             self.log_with_timestamp("Device connected.", LogLevel.SUCCESS)
             self.discover_attributes()
-            self.root.ids.bottom_nav.switch_tab('device_screen')
+            self.root.ids.bottom_nav.switch_to(self.root.ids.device_screen_tab)
         else:
             if self.selected_device_frame:
                 self.selected_device_frame.is_selected = False
@@ -545,7 +537,7 @@ class BLEScannerApp(MDApp):
         """Shows the save file dialog."""
         self.log_with_timestamp("Showing save log dialog...", LogLevel.INFO)
         content = SaveDialog(save_callback=self.save_log, dismiss_callback=self.dismiss_popup)
-        self.dialog = MDDialog(title="Save Log", type="custom", content_cls=content,
+        self.dialog = Popup(title="Save Log", content=content,
                                size_hint=(0.9, 0.9))
         self.dialog.open()
 
@@ -619,7 +611,7 @@ class BLEScannerApp(MDApp):
 
     def on_descriptor_read(self, descriptor, desc_frame, value):
         if value is not None:
-            if isinstance(desc_frame, MDLabel):
+            if isinstance(desc_frame, Label):
                 desc_frame.text = f"{value.decode('utf-8')}"
             else:
                 desc_frame.desc_value = value.hex()
@@ -684,7 +676,7 @@ class BLEScannerApp(MDApp):
     def show_load_dialog(self):
         """Shows the load file dialog for OTA upload."""
         content = LoadDialog(load_callback=self.upload_firmware, dismiss_callback=self.dismiss_popup)
-        self.dialog = MDDialog(title="Load Firmware", type="custom", content_cls=content,
+        self.dialog = Popup(title="Load Firmware", content=content,
                                  size_hint=(0.9, 0.9))
         self.dialog.open()
 
