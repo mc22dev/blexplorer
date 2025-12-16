@@ -17,6 +17,7 @@ from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
 from kivy.uix.filechooser import FileChooserListView
 from kivymd.uix.button import MDRaisedButton
+from kivy.metrics import dp
 from kivymd.uix.label import MDLabel
 from kivy.core.window import Window
 
@@ -481,6 +482,7 @@ class BLEScannerApp(MDApp):
                 'text': f"Service: {service_name} ({service_uuid})",
                 'service_uuid': service_uuid,
                 'is_expanded': False,
+                'height': dp(48),
             }
             rv_data.append({'data': header_data, 'app': self})
 
@@ -512,6 +514,7 @@ class BLEScannerApp(MDApp):
                 char_data = {
                     'viewclass': 'CharacteristicFrameKivy',
                     'characteristic': char,
+                    'height': dp(200),
                 }
                 self.root.ids.characteristic_list_rv.data.insert(header_index + 1 + i, {'data': char_data, 'app': self})
         else:
