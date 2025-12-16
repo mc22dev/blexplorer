@@ -275,7 +275,7 @@ class BLEScannerApp(MDApp):
         self.characteristic_frames = {}
         self.device_frames = {}
         self.device_cache = DeviceCache()
-        self.selected_device = None
+        self.selected_device_frame = None
         self.discovered_devices_batch = []
         self.scan_stats = {}
         return MainLayout()
@@ -298,6 +298,9 @@ class BLEScannerApp(MDApp):
 
     def scan_for_devices(self, *args):
         """Initiates a scan for nearby BLE devices."""
+        if self.selected_device_frame:
+            self.selected_device_frame.is_selected = False
+            self.selected_device_frame = None
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
         self.discovered_devices_batch = []
@@ -378,12 +381,18 @@ class BLEScannerApp(MDApp):
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
 
-    def connect_to_device(self, device: BLEDevice):
+    def connect_to_device(self, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""
         if self.is_scanning:
             self.stop_scan()
 
-        self.selected_device = device
+        if self.selected_device_frame:
+            self.selected_device_frame.is_selected = False
+
+        self.selected_device_frame = device_frame
+        self.selected_device_frame.is_selected = True
+
+        device = device_frame.device
         self.is_connecting = True
         self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...", LogLevel.INFO)
         adapter = self.adapter if self.adapter != "Default" else None
@@ -408,6 +417,9 @@ class BLEScannerApp(MDApp):
             self.discover_attributes()
             self.root.ids.bottom_nav.switch_tab('device_screen')
         else:
+            if self.selected_device_frame:
+                self.selected_device_frame.is_selected = False
+                self.selected_device_frame = None
             # The BLEManager now logs the disconnection event.
             # We just need to update the UI state.
             self.root.ids.characteristic_list.clear_widgets()
@@ -419,8 +431,8 @@ class BLEScannerApp(MDApp):
         self.characteristic_frames = {}
 
         cached_services_data = None
-        if self.selected_device:
-            cached_services_data = self.device_cache.load_device(self.selected_device.address)
+        if self.selected_device_frame:
+            cached_services_data = self.device_cache.load_device(self.selected_device_frame.device.address)
             if cached_services_data:
                 self.log_with_timestamp("Loading services from cache...", LogLevel.DEBUG)
                 cached_services = [CachedService(s) for s in cached_services_data]
