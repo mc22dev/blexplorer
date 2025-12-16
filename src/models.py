@@ -53,6 +53,7 @@ class DeviceScanStats:
         self.periods: List[float] = []
         self.adv_data: Optional[AdvertisementData] = None
 
+        self.rssi: int = 0
         self.min_rssi: int = 0
         self.max_rssi: int = 0
         self.avg_rssi: float = 0.0
@@ -64,6 +65,7 @@ class DeviceScanStats:
     def update(self, adv_data: AdvertisementData):
         """Updates the statistics with new advertisement data."""
         self.adv_data = adv_data
+        self.rssi = adv_data.rssi
         self.rssi_values.append(adv_data.rssi)
         if len(self.rssi_values) > self.max_samples:
             self.rssi_values.pop(0)
