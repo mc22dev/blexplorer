@@ -38,7 +38,8 @@ class DeviceFrameKivy(MDBoxLayout):
         self.period_info = (f"Period: {self.stats.last_period:.2f} ms "
                             f"(Min: {self.stats.min_period:.2f}, "
                             f"Max: {self.stats.max_period:.2f}, "
-                            f"Avg: {self.stats.avg_period:.2f})")
+                            f"Avg: {self.stats.avg_period:.2f}) | "
+                            f"Count: {len(self.stats.rssi_values)}")
 
         flags = []
         if self.device.details and hasattr(self.device.details, 'props') and self.device.details.props.get('Connectable'):
