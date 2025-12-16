@@ -118,6 +118,7 @@ class BLEScannerApp(MDApp):
     VERSION = "1.0.0"
     is_scanning = BooleanProperty(False)
     is_connected = BooleanProperty(False)
+    is_connecting = BooleanProperty(False)
 
     scan_button = ObjectProperty(None)
     disconnect_button = ObjectProperty(None)
@@ -316,12 +317,17 @@ class BLEScannerApp(MDApp):
         self.ble_manager.scan_for_devices(adapter, timeout)
         Clock.schedule_once(self.on_scan_finished, timeout)
 
+    def stop_scan(self, *args):
+        """Stops the BLE scan."""
+        if self.is_scanning:
+            self.ble_manager.stop_scan()
+            Clock.unschedule(self._process_device_batch)
+            self._process_device_batch()  # Process any remaining devices
+            self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
+            self.is_scanning = False
+
     def on_scan_finished(self, *args):
-        self.ble_manager.stop_scan()
-        Clock.unschedule(self._process_device_batch)
-        self._process_device_batch()  # Process any remaining devices
-        self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
-        self.is_scanning = False
+        self.stop_scan()
 
     def filter_devices(self, search_term):
         """Filters the device list based on the search term."""
@@ -374,7 +380,11 @@ class BLEScannerApp(MDApp):
 
     def connect_to_device(self, device: BLEDevice):
         """Connects to the selected device."""
+        if self.is_scanning:
+            self.stop_scan()
+
         self.selected_device = device
+        self.is_connecting = True
         self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...", LogLevel.INFO)
         adapter = self.adapter if self.adapter != "Default" else None
         self.ble_manager.connect_to_device(device.address, adapter)
@@ -392,6 +402,7 @@ class BLEScannerApp(MDApp):
     def _update_connection_ui(self, is_connected: bool):
         """Updates the UI based on the connection status."""
         self.is_connected = is_connected
+        self.is_connecting = False
         if is_connected:
             self.log_with_timestamp("Device connected.", LogLevel.SUCCESS)
             self.discover_attributes()
