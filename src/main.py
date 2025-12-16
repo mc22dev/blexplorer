@@ -481,22 +481,21 @@ class BLEScannerApp(MDApp):
                 'text': f"Service: {service_name} ({service_uuid})",
                 'service_uuid': service_uuid,
                 'is_expanded': False,
-                'app': self
             }
-            rv_data.append(header_data)
+            rv_data.append({'data': header_data, 'app': self})
 
         self.root.ids.characteristic_list_rv.data = rv_data
 
     def toggle_service_expansion(self, header_data):
         """Toggles the expansion of a service in the RecycleView."""
-        service_uuid = header_data['service_uuid']
-        is_expanded = not header_data['is_expanded']
-        header_data['is_expanded'] = is_expanded
+        service_uuid = header_data['data']['service_uuid']
+        is_expanded = not header_data['data']['is_expanded']
+        header_data['data']['is_expanded'] = is_expanded
 
         # Find the index of the header in the data list
         header_index = -1
         for i, item in enumerate(self.root.ids.characteristic_list_rv.data):
-            if item.get('service_uuid') == service_uuid:
+            if item['data'].get('service_uuid') == service_uuid:
                 header_index = i
                 break
 
@@ -513,13 +512,12 @@ class BLEScannerApp(MDApp):
                 char_data = {
                     'viewclass': 'CharacteristicFrameKivy',
                     'characteristic': char,
-                    'app': self
                 }
-                self.root.ids.characteristic_list_rv.data.insert(header_index + 1 + i, char_data)
+                self.root.ids.characteristic_list_rv.data.insert(header_index + 1 + i, {'data': char_data, 'app': self})
         else:
             # Remove characteristics from the list
             while (header_index + 1 < len(self.root.ids.characteristic_list_rv.data) and
-                   self.root.ids.characteristic_list_rv.data[header_index + 1].get('viewclass') == 'CharacteristicFrameKivy'):
+                   self.root.ids.characteristic_list_rv.data[header_index + 1]['data'].get('viewclass') == 'CharacteristicFrameKivy'):
                 self.root.ids.characteristic_list_rv.data.pop(header_index + 1)
 
         self.root.ids.characteristic_list_rv.refresh_from_data()

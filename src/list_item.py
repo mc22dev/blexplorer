@@ -18,7 +18,7 @@ class ListItem(MDBoxLayout):
         self.clear_widgets()
         if self.data['viewclass'] == 'ServiceHeader':
             header = ServiceHeader(text=self.data['text'])
-            header.bind(on_release=lambda x: self.app.toggle_service_expansion(self.data))
+            header.bind(on_release=lambda x: self.app.toggle_service_expansion({'data': self.data, 'app': self.app}))
             self.add_widget(header)
         elif self.data['viewclass'] == 'CharacteristicFrameKivy':
             char_frame = self.app._create_and_bind_characteristic_frame(self.data['characteristic'])

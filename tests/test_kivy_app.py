@@ -151,16 +151,16 @@ class TestKivyApp:
             'text': 'Service 1',
             'service_uuid': service_uuid,
             'is_expanded': False,
-            'app': app
         }
-        app.root.ids.characteristic_list_rv.data = [header_data]
+        nested_header_data = {'data': header_data, 'app': app}
+        app.root.ids.characteristic_list_rv.data = [nested_header_data]
 
         # Test expansion
-        app.toggle_service_expansion(header_data)
+        app.toggle_service_expansion(nested_header_data)
         assert len(app.root.ids.characteristic_list_rv.data) == 3
-        assert app.root.ids.characteristic_list_rv.data[1]['viewclass'] == 'CharacteristicFrameKivy'
-        assert app.root.ids.characteristic_list_rv.data[2]['viewclass'] == 'CharacteristicFrameKivy'
+        assert app.root.ids.characteristic_list_rv.data[1]['data']['viewclass'] == 'CharacteristicFrameKivy'
+        assert app.root.ids.characteristic_list_rv.data[2]['data']['viewclass'] == 'CharacteristicFrameKivy'
 
         # Test collapse
-        app.toggle_service_expansion(header_data)
+        app.toggle_service_expansion(nested_header_data)
         assert len(app.root.ids.characteristic_list_rv.data) == 1
