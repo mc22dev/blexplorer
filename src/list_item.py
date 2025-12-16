@@ -6,6 +6,15 @@ class ListItem(MDBoxLayout):
     app = ObjectProperty()
 
     def on_data(self, instance, value):
+        self.populate()
+
+    def on_app(self, instance, value):
+        self.populate()
+
+    def populate(self):
+        if not self.app or not self.data:
+            return
+
         self.clear_widgets()
         if self.data['viewclass'] == 'ServiceHeader':
             header = ServiceHeader(text=self.data['text'])
