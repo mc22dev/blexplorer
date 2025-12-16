@@ -613,9 +613,6 @@ class BLEScannerApp(MDApp):
         await asyncio.sleep(0.5)
         char_frame.ids.value_input.background_color = (1, 1, 1, 1)
 
-    def reset_char_color(self, char_frame):
-        char_frame.ids.value_input.background_color = (1, 1, 1, 1)
-
     async def read_descriptor(self, descriptor, desc_frame, *args):
         value = await self.ble_manager.read_descriptor(descriptor.handle)
         self.on_descriptor_read(descriptor, desc_frame, value)
@@ -714,8 +711,8 @@ class BLEScannerApp(MDApp):
     async def app_func(self):
         """The async main function of the app."""
         await self.async_run(async_lib='asyncio')
-        if self.ble_manager.scanner and self.ble_manager.scanner.is_scanning:
-            await self.ble_manager.stop_scan()
+        if self.is_scanning:
+            await self.stop_scan()
         if self.ble_manager.client and self.ble_manager.client.is_connected:
             await self.ble_manager.disconnect_from_device()
 
