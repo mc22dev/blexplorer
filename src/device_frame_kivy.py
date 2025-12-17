@@ -1,4 +1,5 @@
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.behaviors import ButtonBehavior
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.app import App
 from kivy.core.clipboard import Clipboard
@@ -6,7 +7,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.core.window import Window
 
-class DeviceFrameKivy(BoxLayout):
+class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     device = ObjectProperty(None)
     stats = ObjectProperty(None)
     is_selected = BooleanProperty(False)

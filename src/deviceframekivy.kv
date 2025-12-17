@@ -1,99 +1,76 @@
 #:kivy 2.0.0
 
 <DeviceFrameKivy>:
-    orientation: 'vertical'
+    orientation: 'horizontal'
     size_hint_y: None
-    height: self.minimum_height
-    canvas.before:
-        Color:
-            rgba: app.theme.secondary
-        Rectangle:
-            pos: self.pos
-            size: self.size
+    height: '120dp'
+    padding: "8dp"
+    on_release: app.connect_to_device(root)
+    background_color: app.theme.primary if root.is_selected else app.theme.secondary
+
+    Button:
+        text: "Connect"
+        size_hint_x: 0.2
+        on_release: app.connect_to_device(root)
 
     BoxLayout:
-        id: card
-        size_hint_y: None
-        height: self.minimum_height
-        canvas.before:
-            Color:
-                rgba: app.theme.primary if root.is_selected else app.theme.background
-            Rectangle:
-                pos: self.pos
-                size: self.size
+        orientation: 'vertical'
+        padding: "8dp"
+        size_hint_x: 0.6
+
+        Label:
+            text: root.device_name
+            bold: True
+            size_hint_y: None
+            height: self.texture_size[1]
+
+        Label:
+            text: root.device_address
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
         Button:
+            text: root.service_uuids
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
+            on_release: root.show_full_data_popup("Service UUIDs", root.full_service_uuids)
             background_color: (0,0,0,0)
-            on_release: app.connect_to_device(root)
+            color: app.theme.primary
 
-            BoxLayout:
-                size: self.parent.size
-                pos: self.parent.pos
-                padding: "8dp"
+        Button:
+            text: root.manufacturer_data
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
+            on_release: root.show_full_data_popup("Manufacturer Data", root.full_manufacturer_data)
+            background_color: (0,0,0,0)
+            color: app.theme.primary
 
-                Button:
-                    text: "Connect"
-                    size_hint_x: 0.2
-                    on_release: app.connect_to_device(root)
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_x: 0.4
 
-                BoxLayout:
-                    orientation: 'vertical'
-                    padding: "8dp"
-                    size_hint_x: 0.6
+        Label:
+            text: root.rssi_info
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
-                    Label:
-                        text: root.device_name
-                        bold: True
-                        size_hint_y: None
-                        height: self.texture_size[1]
+        Label:
+            text: root.period_info
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
-                    Label:
-                        text: root.device_address
-                        font_size: '12sp'
-                        size_hint_y: None
-                        height: self.texture_size[1]
+        Label:
+            text: root.adv_flags
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
-                    Button:
-                        text: root.service_uuids
-                        font_size: '12sp'
-                        size_hint_y: None
-                        height: self.texture_size[1]
-                        on_release: root.show_full_data_popup("Service UUIDs", root.full_service_uuids)
-                        background_color: (0,0,0,0)
-                        color: app.theme.primary
-
-                    Button:
-                        text: root.manufacturer_data
-                        font_size: '12sp'
-                        size_hint_y: None
-                        height: self.texture_size[1]
-                        on_release: root.show_full_data_popup("Manufacturer Data", root.full_manufacturer_data)
-                        background_color: (0,0,0,0)
-                        color: app.theme.primary
-
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_x: 0.4
-
-                    Label:
-                        text: root.rssi_info
-                        font_size: '12sp'
-                        size_hint_y: None
-                        height: self.texture_size[1]
-
-                    Label:
-                        text: root.period_info
-                        font_size: '12sp'
-                        size_hint_y: None
-                        height: self.texture_size[1]
-
-                    Label:
-                        text: root.adv_flags
-                        font_size: '12sp'
-                        size_hint_y: None
-                        height: self.texture_size[1]
-
-                Button:
-                    text: "Copy"
-                    size_hint_x: 0.2
-                    on_release: root.copy_to_clipboard(root.device_address)
+    Button:
+        text: "Copy"
+        size_hint_x: 0.2
+        on_release: root.copy_to_clipboard(root.device_address)
