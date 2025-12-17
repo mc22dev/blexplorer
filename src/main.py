@@ -118,6 +118,7 @@ class BLEScannerApp(App):
     is_scanning = BooleanProperty(False)
     is_connected = BooleanProperty(False)
     is_connecting = BooleanProperty(False)
+    is_shutting_down = BooleanProperty(False)
 
     scan_button = ObjectProperty(None)
     disconnect_button = ObjectProperty(None)
@@ -412,6 +413,8 @@ class BLEScannerApp(App):
 
     def _on_connection_status_changed(self, is_connected: bool):
         """Callback for connection status changes."""
+        if self.is_shutting_down:
+            return
         self._update_connection_ui(is_connected)
 
     def _update_connection_ui(self, is_connected: bool):
@@ -703,6 +706,7 @@ class BLEScannerApp(App):
     async def app_func(self):
         """The async main function of the app."""
         await self.async_run(async_lib='asyncio')
+        self.is_shutting_down = True
         if self.is_scanning:
             await self.stop_scan()
         if self.ble_manager.client and self.ble_manager.client.is_connected:
