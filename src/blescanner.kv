@@ -47,7 +47,8 @@
 
                 BoxLayout:
                     orientation: 'vertical'
-                    adaptive_height: True
+                    size_hint_y: None
+                    height: self.children[0].height
                     Label:
                         text: "Connecting..."
                         halign: "center"
