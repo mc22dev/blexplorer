@@ -25,7 +25,7 @@ class GlobalRSSIGraph(FloatLayout):
         self.add_widget(self.min_label)
         self.add_widget(self.duration_label)
 
-    def _get_device_color(self, address):
+    def get_device_color(self, address):
         """Assigns a unique, bright color to each device address."""
         if address not in self._device_colors:
             rgb = colorsys.hsv_to_rgb(self._hue_iterator, 0.9, 1.0)
@@ -74,6 +74,11 @@ class GlobalRSSIGraph(FloatLayout):
         self.duration_label.pos = (self.right - self.duration_label.texture_size[0] - padding, self.y + padding)
 
         with self.canvas.after:
+            # Draw axis lines
+            Color(1, 1, 1, 0.3)  # Semi-transparent white for the axes
+            Line(points=[graph_x, graph_y, graph_x + graph_width, graph_y], width=1)  # X-axis
+            Line(points=[graph_x, graph_y, graph_x, graph_y + graph_height], width=1)  # Y-axis
+
             for address, data in self.device_data.items():
                 rssi_values = data['rssi']
                 timestamps = data['timestamps']
@@ -81,7 +86,7 @@ class GlobalRSSIGraph(FloatLayout):
                 if len(rssi_values) < 2:
                     continue
 
-                Color(*self._get_device_color(address))
+                Color(*self.get_device_color(address))
                 points = []
 
                 if total_duration == 0:

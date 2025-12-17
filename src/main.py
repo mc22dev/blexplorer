@@ -399,6 +399,11 @@ class BLEScannerApp(App):
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
 
+        # Assign the color from the graph to the device frame
+        if 'global_rssi_graph' in self.root.ids:
+            graph = self.root.ids.global_rssi_graph
+            frame.indicator_color = graph.get_device_color(device.address)
+
     def connect_to_device(self, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""
         asyncio.create_task(self.async_connect_to_device(device_frame))
