@@ -12,7 +12,7 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
-from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty
+from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty, DictProperty
 from kivy.uix.popup import Popup
 from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserListView
@@ -34,6 +34,7 @@ from parameter_window import ParameterWindow
 from config_manager import ConfigManager
 from ota_window import OTAWindow
 from theme import theme_manager
+from global_rssi_graph import GlobalRSSIGraph
 
 
 def resource_path(relative_path):
@@ -54,6 +55,7 @@ Builder.load_file(resource_path('descriptorframekivy.kv'))
 Builder.load_file(resource_path('collapsibleframekivy.kv'))
 Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
+Builder.load_file(resource_path('globalrssigraph.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -124,6 +126,7 @@ class BLEScannerApp(App):
     disconnect_button = ObjectProperty(None)
     refresh_button = ObjectProperty(None)
     upload_button = ObjectProperty(None)
+    global_graph_data = DictProperty({})
 
     def open_parameter_window(self):
         """Opens the parameter window."""
@@ -299,6 +302,9 @@ class BLEScannerApp(App):
             self.selected_device_frame.is_selected = False
             self.selected_device_frame = None
         self.root.ids.device_list.clear_widgets()
+        if 'global_rssi_graph' in self.root.ids:
+            self.root.ids.global_rssi_graph.clear_graph()
+        self.global_graph_data = {}
         self.device_frames = {}
         self.discovered_devices_batch = []
         self.scan_stats = {}
@@ -369,6 +375,15 @@ class BLEScannerApp(App):
 
         stats = self.scan_stats[device.address]
         stats.update(adv_data)
+
+        # Update the global graph data
+        self.global_graph_data[device.address] = {
+            'rssi': stats.rssi_values,
+            'timestamps': stats.timestamps
+        }
+        # Manually dispatch the event since we are modifying a nested dictionary
+        self.property('global_graph_data').dispatch(self)
+
 
         if device.address in self.device_frames:
             # Update existing frame only if data has changed to avoid unnecessary UI redraws

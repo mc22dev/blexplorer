@@ -1,0 +1,9 @@
+#:kivy 2.0.0
+
+<GlobalRSSIGraph>:
+    canvas.before:
+        Color:
+            rgba: app.theme.secondary if app else (0.15, 0.15, 0.15, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size

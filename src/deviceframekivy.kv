@@ -3,7 +3,7 @@
 <DeviceFrameKivy>:
     orientation: 'horizontal'
     size_hint_y: None
-    height: '140dp'
+    height: '120dp'
     padding: "8dp"
     on_release: app.connect_to_device(root)
     background_color: app.theme.primary if root.is_selected else app.theme.secondary
@@ -51,11 +51,6 @@
     BoxLayout:
         orientation: 'vertical'
         size_hint_x: 0.4
-
-        RSSIGraph:
-            id: rssi_graph
-            size_hint_y: None
-            height: '50dp'
 
         Label:
             text: root.rssi_info
