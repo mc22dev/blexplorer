@@ -1,11 +1,51 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.behaviors import ButtonBehavior
-from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
+from kivy.properties import ObjectProperty, StringProperty, BooleanProperty, ListProperty
 from kivy.app import App
 from kivy.core.clipboard import Clipboard
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.core.window import Window
+from kivy.uix.widget import Widget
+from kivy.graphics import Color, Line, Rectangle
+
+
+class RSSIGraph(Widget):
+    """A widget to display a simple line graph of RSSI values."""
+    rssi_values = ListProperty([])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bind(pos=self.update_graph, size=self.update_graph, rssi_values=self.update_graph)
+
+    def update_graph(self, *args):
+        """Draws the RSSI graph."""
+        self.canvas.clear()
+        if not self.rssi_values or len(self.rssi_values) < 2:
+            return
+
+        with self.canvas:
+            # Set line color from theme
+            Color(*App.get_running_app().theme.primary)
+
+            points = []
+            min_rssi = -100  # Typical min RSSI
+            max_rssi = -30   # Typical max RSSI for BLE, can be higher up close
+
+            # Normalize and create points
+            num_values = len(self.rssi_values)
+            for i, rssi in enumerate(self.rssi_values):
+                x = self.x + (i / (num_values - 1)) * self.width
+
+                # Normalize RSSI to fit widget height (0-1 range)
+                normalized_rssi = (rssi - min_rssi) / (max_rssi - min_rssi)
+                normalized_rssi = max(0, min(1, normalized_rssi))  # Clamp between 0 and 1
+
+                y = self.y + normalized_rssi * self.height
+                points.extend([x, y])
+
+            Line(points=points, width=1.2)
+
 
 class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     device = ObjectProperty(None)
@@ -37,6 +77,10 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
                           f"(Min: {self.stats.min_rssi}, "
                           f"Max: {self.stats.max_rssi}, "
                           f"Avg: {self.stats.avg_rssi:.2f})")
+
+        # Update the graph with the new RSSI values
+        if 'rssi_graph' in self.ids:
+            self.ids.rssi_graph.rssi_values = self.stats.rssi_values
 
         self.period_info = (f"Period: {self.stats.last_period:.2f} ms "
                             f"(Min: {self.stats.min_period:.2f}, "
