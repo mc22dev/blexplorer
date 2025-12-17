@@ -356,14 +356,20 @@ class BLEScannerApp(App):
         """Periodically processes the batch of discovered devices."""
         while True:
             self._process_device_batch()
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(1.0)
 
     def _process_device_batch(self, *args):
         """Processes the batch of discovered devices and updates the UI."""
         # Sort by RSSI to show the strongest signals first
         sorted_batch = sorted(self.discovered_devices_batch, key=lambda x: x[1].rssi, reverse=True)
+        if not sorted_batch:
+            return
+
         for device, adv_data in sorted_batch:
             self._populate_device_ui(device, adv_data)
+
+        # Manually dispatch the event once after processing the whole batch
+        self.property('global_graph_data').dispatch(self)
         self.discovered_devices_batch = []
 
     def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
@@ -381,9 +387,6 @@ class BLEScannerApp(App):
             'rssi': stats.rssi_values,
             'timestamps': stats.timestamps
         }
-        # Manually dispatch the event since we are modifying a nested dictionary
-        self.property('global_graph_data').dispatch(self)
-
 
         if device.address in self.device_frames:
             # Update existing frame only if data has changed to avoid unnecessary UI redraws
