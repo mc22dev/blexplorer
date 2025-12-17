@@ -60,7 +60,7 @@
                 GlobalRSSIGraph:
                     id: global_rssi_graph
                     size_hint_y: 0.4
-                    device_data: app.global_graph_data
+                    device_data: app.global_graph_data if app else {}
 
                 ScrollView:
                     id: device_scroll_view
