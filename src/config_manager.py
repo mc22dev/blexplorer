@@ -28,6 +28,10 @@ class ConfigManager:
             },
             'bluetooth': {
                 'adapter': 'Default'
+            },
+            'ota': {
+                'service_uuid': '00010203-0405-0607-0809-0a0b0c0d1912',
+                'characteristic_uuid': '00010203-0405-0607-0809-0a0b0c0d2b12'
             }
         }
         self._load_or_create_config()
