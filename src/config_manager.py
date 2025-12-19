@@ -64,7 +64,14 @@ class ConfigManager:
         if not os.path.exists(self.config_path):
             self._create_default_config()
         else:
-            self.config.read(self.config_path)
+            try:
+                self.config.read(self.config_path)
+            except configparser.DuplicateOptionError as e:
+                print(f"Error: Corrupt config file detected at {self.config_path}. Details: {e}")
+                print("Resetting configuration to defaults.")
+                self.restore_defaults()
+                return  # Exit after resetting to avoid further processing
+
             # Ensure that any new default settings are added to an existing config file
             needs_saving = False
             for section, options in self.defaults.items():
@@ -124,4 +131,6 @@ class ConfigManager:
         # This removes the existing file and recreates it with defaults
         if os.path.exists(self.config_path):
             os.remove(self.config_path)
+        # Re-initialize the config parser to clear any old state
+        self.config = configparser.ConfigParser()
         self._create_default_config()
