@@ -18,7 +18,7 @@ class ConfigManager:
             config_path: The full path to the configuration file.
         """
         self.config_path = config_path
-        self.config = configparser.ConfigParser()
+        self.config = configparser.ConfigParser(delimiters=('=',))
         self.defaults = {
             'scan': {
                 'timeout': '5.0'
@@ -132,5 +132,5 @@ class ConfigManager:
         if os.path.exists(self.config_path):
             os.remove(self.config_path)
         # Re-initialize the config parser to clear any old state
-        self.config = configparser.ConfigParser()
+        self.config = configparser.ConfigParser(delimiters=('=',))
         self._create_default_config()
