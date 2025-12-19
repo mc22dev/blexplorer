@@ -10,41 +10,66 @@
         padding: '10dp'
         spacing: '10dp'
 
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: '30dp'
+        TabbedPanel:
+            do_default_tab: False
 
-            Label:
-                text: 'Bluetooth Adapter:'
-            Spinner:
-                id: adapter_spinner
-                text: 'Default'
-                values: ['Default']
+            TabbedPanelItem:
+                text: 'Settings'
 
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: '30dp'
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: '10dp'
+                    spacing: '10dp'
 
-            Label:
-                text: 'Scan Timeout:'
-            TextInput:
-                id: scan_timeout_input
-                text: '5.0'
-                multiline: False
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: '30dp'
 
-        BoxLayout:
-            orientation: 'horizontal'
-            size_hint_y: None
-            height: '30dp'
+                        Label:
+                            text: 'Bluetooth Adapter:'
+                        Spinner:
+                            id: adapter_spinner
+                            text: 'Default'
+                            values: ['Default']
 
-            Label:
-                text: 'Theme:'
-            Spinner:
-                id: theme_spinner
-                text: 'Dark'
-                values: ['Light', 'Dark']
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: '30dp'
+
+                        Label:
+                            text: 'Scan Timeout:'
+                        TextInput:
+                            id: scan_timeout_input
+                            text: '5.0'
+                            multiline: False
+
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: '30dp'
+
+                        Label:
+                            text: 'Theme:'
+                        Spinner:
+                            id: theme_spinner
+                            text: 'Dark'
+                            values: ['Light', 'Dark']
+
+            TabbedPanelItem:
+                text: 'Versions'
+
+                BoxLayout:
+                    orientation: 'vertical'
+                    padding: '10dp'
+
+                    Label:
+                        id: versions_label
+                        text: root.versions_info
+                        size_hint_y: None
+                        height: self.texture_size[1]
+
 
         BoxLayout:
             orientation: 'horizontal'
