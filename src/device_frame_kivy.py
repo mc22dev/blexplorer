@@ -11,6 +11,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     device = ObjectProperty(None)
     stats = ObjectProperty(None)
     is_selected = BooleanProperty(False)
+    is_graph_selected = BooleanProperty(True)
     indicator_color = ColorProperty([0, 0, 0, 0])  # Default to transparent
 
     device_name = StringProperty("Unknown")
@@ -26,7 +27,9 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
 
     def on_device(self, instance, value):
         """Handles updates to the device object."""
-        self.device_name = self.device.name or "Unknown"
+        app = App.get_running_app()
+        custom_name = app.config_manager.get_device_name(self.device.address)
+        self.device_name = custom_name or self.device.name or "Unknown"
         self.device_address = self.device.address
 
     def on_stats(self, instance, value):
@@ -81,9 +84,19 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.register_event_type('on_graph_selection_change')
         # Trigger the on_... methods to populate the UI initially
         self.on_device(self, self.device)
         self.on_stats(self, self.stats)
+
+    def on_graph_selection_change(self, *args):
+        """Event dispatched when the graph selection changes."""
+        pass
+
+    def toggle_graph_selection(self):
+        """Toggles the selection for the graph."""
+        self.is_graph_selected = not self.is_graph_selected
+        self.dispatch('on_graph_selection_change', self.device.address, self.is_graph_selected)
 
     def copy_to_clipboard(self, text):
         Clipboard.copy(text)
@@ -99,4 +112,14 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
         popup = Popup(title=title,
                       content=Label(text=data),
                       size_hint=(0.8, 0.5))
+        popup.open()
+
+    def save_custom_name(self, name):
+        """Saves the custom name for the device."""
+        app = App.get_running_app()
+        app.config_manager.set_device_name(self.device.address, name)
+        self.device_name = name
+        popup = Popup(title='Saved',
+                      content=Label(text=f'Name saved for {self.device.address}.'),
+                      size_hint=(None, None), size=(300, 100))
         popup.open()

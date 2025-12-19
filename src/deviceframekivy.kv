@@ -8,15 +8,22 @@
     on_release: app.connect_to_device(root)
     background_color: app.theme.primary if root.is_selected else app.theme.secondary
 
-    Widget:
+    Button:
+        id: graph_toggle
         size_hint_x: None
         width: '20dp'
+        on_release: root.toggle_graph_selection()
         canvas:
             Color:
                 rgba: root.indicator_color
             Ellipse:
                 size: (12, 12)
                 pos: self.center_x - 6, self.center_y - 6
+            Color:
+                rgba: (1, 1, 1, 1) if root.is_graph_selected else (0, 0, 0, 0)
+            Line:
+                circle: (self.center_x, self.center_y, 8)
+                width: 1
 
     Button:
         text: "Connect"
@@ -28,11 +35,22 @@
         padding: "8dp"
         size_hint_x: 0.6
 
-        Label:
-            text: root.device_name
-            bold: True
+        BoxLayout:
             size_hint_y: None
-            height: self.texture_size[1]
+            height: self.minimum_height
+            TextInput:
+                id: device_name_input
+                text: root.device_name
+                bold: True
+                size_hint_y: None
+                height: self.minimum_height
+                multiline: False
+                on_text_validate: root.save_custom_name(self.text)
+            Button:
+                text: "Save"
+                size_hint_x: None
+                width: "50dp"
+                on_release: root.save_custom_name(device_name_input.text)
 
         Label:
             text: root.device_address

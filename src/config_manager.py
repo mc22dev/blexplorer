@@ -32,9 +32,32 @@ class ConfigManager:
             'ota': {
                 'service_uuid': '00010203-0405-0607-0809-0a0b0c0d1912',
                 'characteristic_uuid': '00010203-0405-0607-0809-0a0b0c0d2b12'
-            }
+            },
+            'device_names': {}
         }
         self._load_or_create_config()
+
+    def get_device_name(self, address: str) -> str:
+        """
+        Gets the custom name for a given device address.
+
+        Args:
+            address: The MAC address of the device.
+
+        Returns:
+            The custom name as a string, or None if not found.
+        """
+        return self.get_setting('device_names', address)
+
+    def set_device_name(self, address: str, name: str):
+        """
+        Sets a custom name for a device and saves the configuration.
+
+        Args:
+            address: The MAC address of the device.
+            name: The custom name to set.
+        """
+        self.set_setting('device_names', address, name)
 
     def _load_or_create_config(self):
         """Loads the config file, or creates it with defaults if it doesn't exist."""

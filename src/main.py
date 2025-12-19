@@ -227,6 +227,7 @@ class BLEScannerApp(App):
         self.selected_device_frame = None
         self.discovered_devices_batch = []
         self.scan_stats = {}
+        self.graph_selection = {}
         return MainLayout()
 
     async def on_stop(self):
@@ -324,8 +325,21 @@ class BLEScannerApp(App):
             self._populate_device_ui(device, adv_data)
 
         # Reassign the dictionary to trigger the update on the Kivy property
-        self.global_graph_data = self.global_graph_data.copy()
+        self._update_graph_data()
         self.discovered_devices_batch = []
+
+    def _update_graph_data(self):
+        """Filters and updates the graph data based on selection."""
+        filtered_data = {
+            addr: data for addr, data in self.global_graph_data.items()
+            if self.graph_selection.get(addr, True)
+        }
+        self.root.ids.global_rssi_graph.device_data = filtered_data
+
+    def _on_graph_selection_change(self, instance, address, is_selected):
+        """Callback for when a device's graph selection changes."""
+        self.graph_selection[address] = is_selected
+        self._update_graph_data()
 
     def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
         """
@@ -333,6 +347,7 @@ class BLEScannerApp(App):
         """
         if device.address not in self.scan_stats:
             self.scan_stats[device.address] = DeviceScanStats()
+            self.graph_selection[device.address] = True  # Default to selected
 
         stats = self.scan_stats[device.address]
         stats.update(adv_data)
@@ -354,6 +369,7 @@ class BLEScannerApp(App):
             # Create a new frame for a new device
             self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
             frame = DeviceFrameKivy(device=device, stats=stats)
+            frame.bind(on_graph_selection_change=self._on_graph_selection_change)
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
 
