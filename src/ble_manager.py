@@ -85,7 +85,13 @@ class BLEManager:
     async def stop_scan(self) -> None:
         """Stops the BLE scan."""
         if self.scanner:
-            await self.scanner.stop()
+            try:
+                await self.scanner.stop()
+            except AssertionError:
+                self.logger_callback(
+                    "AssertionError during scan stop, possibly due to Wine environment. Ignoring.",
+                    LogLevel.WARNING
+                )
 
     async def connect_to_device(self, device_address: str, adapter: Optional[str]) -> None:
         """Connects to a specified device by its address."""
