@@ -15,6 +15,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     indicator_color = ColorProperty([0, 0, 0, 0])  # Default to transparent
 
     device_name = StringProperty("Unknown")
+    custom_device_name = StringProperty("")
     device_address = StringProperty("")
     rssi_info = StringProperty("")
     period_info = StringProperty("")
@@ -28,8 +29,8 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     def on_device(self, instance, value):
         """Handles updates to the device object."""
         app = App.get_running_app()
-        custom_name = app.config_manager.get_device_name(self.device.address)
-        self.device_name = custom_name or self.device.name or "Unknown"
+        self.custom_device_name = app.config_manager.get_device_name(self.device.address) or ""
+        self.device_name = self.device.name or "Unknown"
         self.device_address = self.device.address
 
     def on_stats(self, instance, value):
@@ -118,7 +119,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
         """Saves the custom name for the device."""
         app = App.get_running_app()
         app.config_manager.set_device_name(self.device.address, name)
-        self.device_name = name
+        self.custom_device_name = name
         popup = Popup(title='Saved',
                       content=Label(text=f'Name saved for {self.device.address}.'),
                       size_hint=(None, None), size=(300, 100))

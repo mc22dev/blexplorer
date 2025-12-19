@@ -40,7 +40,8 @@
             height: self.minimum_height
             TextInput:
                 id: device_name_input
-                text: root.device_name
+                text: root.custom_device_name
+                hint_text: "Custom Name"
                 bold: True
                 size_hint_y: None
                 height: self.minimum_height
@@ -51,6 +52,12 @@
                 size_hint_x: None
                 width: "50dp"
                 on_release: root.save_custom_name(device_name_input.text)
+
+        Label:
+            text: f"Original Name: {root.device_name}"
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
         Label:
             text: root.device_address
