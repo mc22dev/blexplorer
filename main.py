@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from functools import partial
 import os
+import sys
 
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
@@ -27,11 +28,21 @@ from descriptor_frame_kivy import DescriptorFrameKivy
 from collapsible_frame_kivy import CollapsibleFrameKivy
 from gatt import GATT_SERVICES
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 # Load the kv files for the custom widgets
-Builder.load_file('deviceframekivy.kv')
-Builder.load_file('characteristicframekivy.kv')
-Builder.load_file('descriptorframekivy.kv')
-Builder.load_file('collapsibleframekivy.kv')
+Builder.load_file(resource_path('deviceframekivy.kv'))
+Builder.load_file(resource_path('characteristicframekivy.kv'))
+Builder.load_file(resource_path('descriptorframekivy.kv'))
+Builder.load_file(resource_path('collapsibleframekivy.kv'))
 
 
 class MainLayout(BoxLayout):
