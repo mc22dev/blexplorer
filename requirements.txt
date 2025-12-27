@@ -1,4 +1,4 @@
 bleak
-customtkinter==5.2.2
+kivy
 setuptools
 pytest

@@ -1,0 +1,406 @@
+import platform
+import subprocess
+import re
+from datetime import datetime
+from functools import partial
+import os
+
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.lang import Builder
+from kivy.clock import Clock
+from kivy.properties import ListProperty, StringProperty
+from kivy.uix.popup import Popup
+from kivy.uix.filechooser import FileChooserListView
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+
+from bleak.backends.device import BLEDevice
+from bleak.backends.scanner import AdvertisementData
+
+from ble_manager import BLEManager
+from device_cache import DeviceCache, service_to_dict
+from models import CachedService
+from device_frame_kivy import DeviceFrameKivy
+from characteristic_frame_kivy import CharacteristicFrameKivy
+from descriptor_frame_kivy import DescriptorFrameKivy
+from collapsible_frame_kivy import CollapsibleFrameKivy
+from gatt import GATT_SERVICES
+
+# Load the kv files for the custom widgets
+Builder.load_file('deviceframekivy.kv')
+Builder.load_file('characteristicframekivy.kv')
+Builder.load_file('descriptorframekivy.kv')
+Builder.load_file('collapsibleframekivy.kv')
+
+
+class MainLayout(BoxLayout):
+    pass
+
+class SaveDialog(BoxLayout):
+    def __init__(self, save_callback, dismiss_callback, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = "vertical"
+        self.save_callback = save_callback
+        self.dismiss_callback = dismiss_callback
+        self.file_chooser = FileChooserListView(path=os.getcwd())
+        self.add_widget(self.file_chooser)
+
+        button_box = BoxLayout(size_hint_y=None, height=40)
+        self.save_button = Button(text='Save')
+        self.save_button.bind(on_release=self.on_save)
+        button_box.add_widget(self.save_button)
+        self.cancel_button = Button(text='Cancel')
+        self.cancel_button.bind(on_release=self.on_cancel)
+        button_box.add_widget(self.cancel_button)
+        self.add_widget(button_box)
+
+    def on_save(self, instance):
+        self.save_callback(self.file_chooser.path, self.file_chooser.selection)
+
+    def on_cancel(self, instance):
+        self.dismiss_callback()
+
+
+class BLEScannerApp(App):
+    adapters = ListProperty(["Default"])
+    log_text = StringProperty("")
+
+    def build(self):
+        self.ble_manager = BLEManager(
+            device_discovered_callback=self._on_device_discovered,
+            connection_status_callback=self._on_connection_status_changed,
+            notification_callback=self.notification_handler
+        )
+        self.characteristic_frames = {}
+        self.device_frames = {}
+        self.device_cache = DeviceCache()
+        self.selected_device = None
+        return MainLayout()
+
+    def on_start(self):
+        self.discover_adapters()
+        self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
+        self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
+        self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
+        self.root.ids.clear_log_button.bind(on_release=self.clear_log)
+        self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
+        self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
+
+
+    def on_stop(self):
+        self.ble_manager.shutdown()
+
+    def discover_adapters(self):
+        """Discovers available Bluetooth adapters and populates the dropdown."""
+        adapters = ["Default"]
+        if platform.system() == "Linux":
+            try:
+                result = subprocess.run(['hciconfig'], capture_output=True, text=True, check=True)
+                adapters.extend(re.findall(r'^(hci\d+)', result.stdout, re.MULTILINE))
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                self.log_with_timestamp("hciconfig not found. Could not list Bluetooth adapters.")
+        else:
+            self.log_with_timestamp("Adapter discovery is currently only supported on Linux.")
+        self.root.ids.adapter_spinner.values = adapters
+
+    def on_adapter_selected(self, spinner, text):
+        """
+        Handles the selection of a Bluetooth adapter.
+        """
+        self.log_with_timestamp(f"Adapter selected: {text}")
+        if platform.system() == "Linux" and text != "Default":
+            try:
+                result = subprocess.run(['hciconfig', '-a', text], capture_output=True, text=True, check=True)
+                self.log_with_timestamp(f"--- Adapter Info for {text} ---\n{result.stdout.strip()}\n--------------------")
+            except (FileNotFoundError, subprocess.CalledProcessError) as e:
+                self.log_with_timestamp(f"Could not get info for adapter {text}: {e}")
+
+    def scan_for_devices(self, *args):
+        """Initiates a scan for nearby BLE devices."""
+        self.root.ids.scan_button.disabled = True
+        self.root.ids.scan_button.text = "Scanning..."
+        self.root.ids.device_list.clear_widgets()
+        self.device_frames = {}
+        self.log_with_timestamp("Scan started...")
+        adapter = self.root.ids.adapter_spinner.text
+        adapter = adapter if adapter != "Default" else None
+
+        try:
+            timeout = float(self.root.ids.scan_timeout_input.text)
+        except ValueError:
+            self.log_with_timestamp("Invalid scan timeout. Please enter a number.")
+            self.root.ids.scan_button.disabled = False
+            self.root.ids.scan_button.text = "Scan"
+            return
+
+        self.ble_manager.scan_for_devices(adapter, timeout)
+        Clock.schedule_once(self.on_scan_finished, timeout + 0.5)
+
+    def on_scan_finished(self, *args):
+        self.log_with_timestamp("Scan stopped.")
+        self.root.ids.scan_button.disabled = False
+        self.root.ids.scan_button.text = "Scan"
+
+    def filter_devices(self, search_term):
+        """Filters the device list based on the search term."""
+        search_term = search_term.lower()
+        for address, frame in self.device_frames.items():
+            device_name = (frame.device.name or "Unknown").lower()
+            device_address = frame.device.address.lower()
+            if search_term in device_name or search_term in device_address:
+                if frame.parent is None:
+                    self.root.ids.device_list.add_widget(frame)
+            else:
+                if frame.parent is not None:
+                    self.root.ids.device_list.remove_widget(frame)
+
+    def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
+        """Callback for when a device is discovered."""
+        Clock.schedule_once(lambda dt: self._populate_device_ui(device, adv_data))
+
+    def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
+        """
+        Populates the UI with a discovered BLE device.
+        """
+        self.log_with_timestamp(f"Found device: {device.address} ({device.name or 'Unknown'}) RSSI: {adv_data.rssi}")
+        frame = DeviceFrameKivy(device=device, adv_data=adv_data)
+        self.device_frames[device.address] = frame
+        self.root.ids.device_list.add_widget(frame)
+
+    def connect_to_device(self, device: BLEDevice):
+        """Connects to the selected device."""
+        self.selected_device = device
+        self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...")
+        adapter = self.root.ids.adapter_spinner.text
+        adapter = adapter if adapter != "Default" else None
+        self.ble_manager.connect_to_device(device.address, adapter)
+
+    def disconnect_from_device(self, *args):
+        """Initiates a manual disconnection from the connected device."""
+        self.ble_manager.disconnect_from_device()
+
+    def _on_connection_status_changed(self, is_connected: bool):
+        """Callback for connection status changes."""
+        Clock.schedule_once(lambda dt: self._update_connection_ui(is_connected))
+
+    def _update_connection_ui(self, is_connected: bool):
+        """Updates the UI based on the connection status."""
+        if is_connected:
+            self.log_with_timestamp("Device connected.")
+            self.root.ids.disconnect_button.disabled = False
+            self.root.ids.read_all_button.disabled = False
+            self.discover_attributes()
+        else:
+            self.log_with_timestamp("Device disconnected.")
+            self.root.ids.disconnect_button.disabled = True
+            self.root.ids.read_all_button.disabled = True
+            self.root.ids.characteristic_list.clear_widgets()
+            self.characteristic_frames = {}
+
+    def discover_attributes(self):
+        """Discovers and displays the services and characteristics of the connected device."""
+        self.root.ids.characteristic_list.clear_widgets()
+        self.characteristic_frames = {}
+
+        cached_services_data = None
+        if self.selected_device:
+            cached_services_data = self.device_cache.load_device(self.selected_device.address)
+            if cached_services_data:
+                self.log_with_timestamp("Loading services from cache...")
+                cached_services = [CachedService(s) for s in cached_services_data]
+                all_characteristics = [char for service in cached_services for char in service.characteristics]
+                all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
+                self.populate_characteristic_ui(all_characteristics)
+                self.log_with_timestamp("Finished loading from cache.")
+
+        if self.ble_manager.client:
+            if not cached_services_data:
+                all_characteristics = [char for service in self.ble_manager.client.services for char in service.characteristics]
+                all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
+                self.populate_characteristic_ui(all_characteristics)
+
+            Clock.schedule_once(lambda dt: self._check_for_attribute_diffs(cached_services_data), 0.1)
+
+    def populate_characteristic_ui(self, characteristics):
+        service_frames = {}
+        for char in characteristics:
+            service_uuid = str(char.service_uuid)
+            if service_uuid not in service_frames:
+                service_name = GATT_SERVICES.get(service_uuid.split("-")[0].lstrip("0").lower(), "Unknown Service")
+                sf = CollapsibleFrameKivy(title=f"Service: {service_name} ({service_uuid})")
+                self.root.ids.characteristic_list.add_widget(sf)
+                service_frames[service_uuid] = sf
+
+            char_frame = CharacteristicFrameKivy(characteristic=char)
+            self.characteristic_frames[char.uuid] = char_frame
+            service_frames[service_uuid].add_content(char_frame)
+
+            if "notify" not in char.properties and "indicate" not in char.properties:
+                char_frame.ids.subscribe_button.disabled = True
+
+            char_frame.ids.read_button.bind(on_release=partial(self.read_characteristic, char, char_frame))
+            char_frame.ids.write_button.bind(on_release=partial(self.write_characteristic, char, char_frame))
+            char_frame.ids.subscribe_button.bind(on_state=partial(self.toggle_subscription, char, char_frame))
+
+            user_desc = None
+            for desc in char.descriptors:
+                if desc.uuid == "00002901-0000-1000-8000-00805f9b34fb":
+                    user_desc = desc
+                    continue
+                desc_frame = DescriptorFrameKivy(descriptor=desc)
+                char_frame.add_widget(desc_frame)
+                desc_frame.ids.read_button.bind(on_release=partial(self.read_descriptor, desc, desc_frame))
+                desc_frame.ids.write_button.bind(on_release=partial(self.write_descriptor, desc, desc_frame))
+
+            if user_desc:
+                self.read_descriptor(user_desc, char_frame.ids.user_description_label)
+
+
+    def _check_for_attribute_diffs(self, cached_services):
+        if self.ble_manager.client:
+            self.log_with_timestamp("Checking for attribute differences...")
+            live_services = [service_to_dict(s) for s in self.ble_manager.client.services]
+
+            if cached_services:
+                diffs = self.device_cache.compare_services(cached_services, live_services)
+                if diffs:
+                    self.log_with_timestamp("Differences found between cache and live data:")
+                    for diff in diffs:
+                        self.log_with_timestamp(f"- {diff}")
+                    self.log_with_timestamp("Refreshing UI with live data...")
+                    self.discover_attributes()
+                else:
+                    self.log_with_timestamp("No differences found.")
+
+            self.device_cache.save_device(self.ble_manager.client)
+
+    def read_all_characteristics(self, *args):
+        """Initiates a read operation for all readable characteristics."""
+        self.log_with_timestamp("--- Reading all readable characteristics ---")
+        for char_frame in self.characteristic_frames.values():
+            if "read" in char_frame.characteristic.properties:
+                self.read_characteristic(char_frame.characteristic, char_frame)
+
+    def clear_log(self, *args):
+        """Clears the debug log text box."""
+        self.root.ids.log_view.text = ""
+
+    def show_save_dialog(self, *args):
+        """Shows the save file dialog."""
+        content = SaveDialog(save_callback=self.save_log, dismiss_callback=self.dismiss_popup)
+        self.popup = Popup(title="Save Log", content=content, size_hint=(0.9, 0.9))
+        self.popup.open()
+
+    def dismiss_popup(self):
+        self.popup.dismiss()
+
+    def save_log(self, path, selection):
+        """Saves the content of the debug log to a file."""
+        if not selection:
+            return
+        filepath = os.path.join(path, selection[0])
+        log_content = self.root.ids.log_view.text
+        try:
+            with open(filepath, "w") as f:
+                f.write(log_content)
+            self.log_with_timestamp(f"Log saved to {filepath}")
+        except IOError as e:
+            self.log_with_timestamp(f"Error saving log: {e}")
+        self.dismiss_popup()
+
+    def read_characteristic(self, characteristic, char_frame, *args):
+        self.ble_manager.read_characteristic(characteristic.uuid, lambda value: Clock.schedule_once(lambda dt: self.on_characteristic_read(char_frame, value)))
+
+    def on_characteristic_read(self, char_frame, value):
+        if value is not None:
+            char_frame.raw_value = value
+            self.log_with_timestamp(f"Value read from {char_frame.char_uuid}: {value.hex()}")
+            char_frame.ids.value_input.background_color = (0, 1, 0, 1) # Green for success
+            Clock.schedule_once(lambda dt: self.reset_char_color(char_frame), 0.5)
+        else:
+            self.log_with_timestamp(f"Failed to read from {char_frame.char_uuid}")
+
+    def write_characteristic(self, characteristic, char_frame, *args):
+        value_str = char_frame.ids.value_input.text
+        try:
+            char_frame.ids.value_input.background_color = (1, 1, 1, 1)
+            if char_frame.ids.write_mode_button.state == 'down': # ASCII mode
+                write_value = value_str.encode('utf-8')
+            else: # Hex mode
+                write_value = bytes.fromhex(value_str)
+        except ValueError:
+            self.log_with_timestamp(f"Invalid input for write on {characteristic.uuid}")
+            char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
+            return
+
+        self.ble_manager.write_characteristic(characteristic.uuid, write_value, lambda success: Clock.schedule_once(lambda dt: self.on_characteristic_write(char_frame, success, characteristic)))
+
+    def on_characteristic_write(self, char_frame, success, characteristic):
+        if success:
+            self.log_with_timestamp(f"Value written to {char_frame.char_uuid}")
+            if "read" in characteristic.properties:
+                self.read_characteristic(characteristic, char_frame)
+        else:
+            self.log_with_timestamp(f"Write Error on {char_frame.char_uuid}")
+            char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
+
+    def reset_char_color(self, char_frame):
+        char_frame.ids.value_input.background_color = (1, 1, 1, 1)
+
+    def read_descriptor(self, descriptor, desc_frame, *args):
+        callback = partial(self.on_descriptor_read, descriptor, desc_frame)
+        self.ble_manager.read_descriptor(descriptor.handle, lambda value: Clock.schedule_once(lambda dt: callback(value)))
+
+    def on_descriptor_read(self, descriptor, desc_frame, value):
+        if value is not None:
+            if isinstance(desc_frame, Label):
+                desc_frame.text = f"User Description: {value.decode('utf-8')}"
+            else:
+                desc_frame.desc_value = value.hex()
+            self.log_with_timestamp(f"Value read from {descriptor.uuid}: {value.hex()}")
+        else:
+            self.log_with_timestamp(f"Failed to read from {descriptor.uuid}")
+
+    def write_descriptor(self, descriptor, desc_frame, *args):
+        value_str = desc_frame.ids.value_input.text
+        try:
+            write_value = bytes.fromhex(value_str)
+        except ValueError:
+            self.log_with_timestamp(f"Invalid hex value for write on {descriptor.uuid}")
+            return
+
+        self.ble_manager.write_descriptor(descriptor.handle, write_value, lambda success: Clock.schedule_once(lambda dt: self.on_descriptor_write(desc_frame, success)))
+
+    def on_descriptor_write(self, desc_frame, success):
+        if success:
+            self.log_with_timestamp(f"Value written to {desc_frame.desc_uuid}")
+        else:
+            self.log_with_timestamp(f"Write Error on {desc_frame.desc_uuid}")
+
+    def toggle_subscription(self, characteristic, char_frame, widget, state):
+        if state == 'down':
+            self.ble_manager.subscribe_to_characteristic(characteristic.uuid)
+            self.log_with_timestamp(f"Subscribed to {characteristic.uuid}")
+        else:
+            self.ble_manager.unsubscribe_from_characteristic(characteristic.uuid)
+            self.log_with_timestamp(f"Unsubscribed from {characteristic.uuid}")
+
+    def notification_handler(self, characteristic, data):
+        """Handles incoming notifications."""
+        Clock.schedule_once(lambda dt: self.on_notification(characteristic, data))
+
+    def on_notification(self, characteristic, data):
+        self.log_with_timestamp(f"Notification from {characteristic.uuid}: {data.hex()}")
+        if characteristic.uuid in self.characteristic_frames:
+            self.characteristic_frames[characteristic.uuid].raw_value = data
+
+    def log_with_timestamp(self, message: str):
+        """Logs a message with a timestamp."""
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        log_message = f"[{timestamp}] {message}\n"
+        self.root.ids.log_view.text += log_message
+
+
+if __name__ == '__main__':
+    BLEScannerApp().run()

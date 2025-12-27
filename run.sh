@@ -1,22 +1,8 @@
 #!/bin/bash
-set -e # Exit immediately if a command exits with a non-zero status.
-
-VENV_DIR="venv"
-
-# Create a virtual environment if it doesn't exist
-if [ ! -d "$VENV_DIR" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv "$VENV_DIR"
+if [ ! -d "venv" ]; then
+    python3 -m venv venv
 fi
-
-# Install dependencies using the venv's pip
-echo "Installing dependencies..."
-"$VENV_DIR/bin/pip" install -r requirements.txt
-
-# Run tests using the venv's pytest
-echo "Running tests..."
-"$VENV_DIR/bin/pytest"
-
-# Run the application using the venv's python
-echo "Launching BLE Scanner..."
-"$VENV_DIR/bin/python" main.py
+source venv/bin/activate
+pip install -r requirements.txt
+pytest
+python main_kivy.py

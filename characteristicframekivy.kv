@@ -1,0 +1,87 @@
+#:kivy 2.0.0
+
+<CharacteristicFrameKivy>:
+    orientation: 'vertical'
+    padding: '10dp'
+    spacing: '5dp'
+    size_hint_y: None
+    height: self.minimum_height
+
+    canvas.before:
+        Color:
+            rgba: 0.2, 0.2, 0.2, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        size_hint_y: None
+        height: '30dp'
+        Label:
+            text: f"UUID: {root.char_uuid}"
+            font_size: '16sp'
+            halign: 'left'
+            text_size: self.width, None
+        Button:
+            text: 'Copy'
+            size_hint_x: 0.2
+            on_release: root.copy_to_clipboard(root.char_uuid)
+
+    Label:
+        id: user_description_label
+        text: ""
+        font_size: '14sp'
+        halign: 'left'
+        text_size: self.width, None
+        size_hint_y: None
+        height: 0 if not self.text else '20dp'
+
+    Label:
+        text: f"Properties: {root.char_properties}"
+        font_size: '14sp'
+        halign: 'left'
+        text_size: self.width, None
+
+    BoxLayout:
+        size_hint_y: None
+        height: '30dp'
+        Label:
+            text: 'Value:'
+            size_hint_x: 0.2
+        TextInput:
+            id: value_input
+            text: root.char_value
+            size_hint_x: 0.4
+        Button:
+            text: 'Copy'
+            size_hint_x: 0.1
+            on_release: root.copy_to_clipboard(root.char_value)
+        Spinner:
+            id: format_spinner
+            text: 'Hex'
+            values: ['Hex', 'ASCII', 'JSON', 'Int8', 'UInt8', 'Int16', 'UInt16', 'Int32', 'UInt32', 'Float32', 'Float64']
+            size_hint_x: 0.3
+            on_text: root.on_format_change(self.text)
+
+    BoxLayout:
+        size_hint_y: None
+        height: '30dp'
+        spacing: '5dp'
+        Button:
+            id: read_button
+            text: 'Read'
+        Button:
+            id: write_button
+            text: 'Write'
+        ToggleButton:
+            id: subscribe_button
+            text: 'Subscribe'
+        ToggleButton:
+            id: write_mode_button
+            text: 'ASCII'
+            group: 'write_mode'
+            state: 'down'
+        ToggleButton:
+            id: write_mode_hex_button
+            text: 'Hex'
+            group: 'write_mode'

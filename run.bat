@@ -1,15 +1,8 @@
 @echo off
-
-REM Create a virtual environment if it doesn't exist
-IF NOT EXIST venv (
-    echo "Creating virtual environment..."
-    py -3 -m venv venv
+if not exist "venv" (
+    python -m venv venv
 )
-
-REM Install dependencies
-echo "Installing dependencies..."
-venv\\Scripts\\pip.exe install -r requirements.txt
-
-REM Run the application
-echo "Launching BLE Scanner..."
-venv\\Scripts\\python.exe main.py
+call venv\\Scripts\\activate.bat
+pip install -r requirements.txt
+pytest
+python main_kivy.py
