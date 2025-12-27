@@ -1,8 +1,8 @@
-from kivymd.uix.boxlayout import MDBoxLayout
+from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import StringProperty, BooleanProperty, ListProperty, ObjectProperty
 
 
-class CollapsibleFrameKivy(MDBoxLayout):
+class CollapsibleFrameKivy(BoxLayout):
     title = StringProperty("")
     is_expanded = BooleanProperty(True)
     characteristics = ListProperty()

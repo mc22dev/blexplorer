@@ -5,59 +5,59 @@
     size_hint: 0.6, 0.4
     auto_dismiss: False
 
-    MDBoxLayout:
+    BoxLayout:
         orientation: 'vertical'
         padding: '10dp'
         spacing: '10dp'
 
-        MDBoxLayout:
+        BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
             height: '30dp'
 
-            MDLabel:
+            Label:
                 text: 'Bluetooth Adapter:'
             Spinner:
                 id: adapter_spinner
                 text: 'Default'
                 values: ['Default']
 
-        MDBoxLayout:
+        BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
             height: '30dp'
 
-            MDLabel:
+            Label:
                 text: 'Scan Timeout:'
-            MDTextField:
+            TextInput:
                 id: scan_timeout_input
                 text: '5.0'
                 multiline: False
 
-        MDBoxLayout:
+        BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
             height: '30dp'
 
-            MDLabel:
+            Label:
                 text: 'Theme:'
             Spinner:
                 id: theme_spinner
                 text: 'Dark'
                 values: ['Light', 'Dark']
 
-        MDBoxLayout:
+        BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
             height: '40dp'
             spacing: '10dp'
 
-            MDRaisedButton:
+            Button:
                 text: 'Restore Defaults'
                 on_release: app.restore_default_parameters(root)
-            MDRaisedButton:
+            Button:
                 text: 'OK'
                 on_release: app.update_parameters(root)
-            MDRaisedButton:
+            Button:
                 text: 'Cancel'
                 on_release: root.dismiss()

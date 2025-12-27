@@ -1,76 +1,76 @@
 #:kivy 2.0.0
 
 <DeviceFrameKivy>:
-    orientation: 'vertical'
+    orientation: 'horizontal'
     size_hint_y: None
-    size_hint_x: 1
-    height: self.minimum_height
+    height: '120dp'
+    padding: "8dp"
+    on_release: app.connect_to_device(root)
+    background_color: app.theme.primary if root.is_selected else app.theme.secondary
 
-    MDCard:
-        size_hint_y: None
-        height: self.minimum_height
-        padding: "8dp"
+    Button:
+        text: "Connect"
+        size_hint_x: 0.2
         on_release: app.connect_to_device(root)
-        md_bg_color: app.theme_cls.primary_light if root.is_selected else app.theme_cls.bg_light
 
-        MDBoxLayout:
-            adaptive_height: True
+    BoxLayout:
+        orientation: 'vertical'
+        padding: "8dp"
+        size_hint_x: 0.6
 
-            IconLeftWidget:
-                icon: "bluetooth"
+        Label:
+            text: root.device_name
+            bold: True
+            size_hint_y: None
+            height: self.texture_size[1]
 
-            MDBoxLayout:
-                orientation: 'vertical'
-                adaptive_height: True
-                padding: "8dp"
-                size_hint_x: 0.6
+        Label:
+            text: root.device_address
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
-                MDLabel:
-                    text: root.device_name
-                    bold: True
-                    adaptive_height: True
+        Button:
+            text: root.service_uuids
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
+            on_release: root.show_full_data_popup("Service UUIDs", root.full_service_uuids)
+            background_color: (0,0,0,0)
+            color: app.theme.primary
 
-                MDLabel:
-                    text: root.device_address
-                    font_style: "Caption"
-                    adaptive_height: True
+        Button:
+            text: root.manufacturer_data
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
+            on_release: root.show_full_data_popup("Manufacturer Data", root.full_manufacturer_data)
+            background_color: (0,0,0,0)
+            color: app.theme.primary
 
-                MDFlatButton:
-                    text: root.service_uuids
-                    font_style: "Caption"
-                    adaptive_height: True
-                    on_release: root.show_full_data_popup("Service UUIDs", root.full_service_uuids)
-                    theme_text_color: "Primary"
-                    padding: [0, 0, 0, 0]
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_x: 0.4
 
-                MDFlatButton:
-                    text: root.manufacturer_data
-                    font_style: "Caption"
-                    adaptive_height: True
-                    on_release: root.show_full_data_popup("Manufacturer Data", root.full_manufacturer_data)
-                    theme_text_color: "Primary"
-                    padding: [0, 0, 0, 0]
+        Label:
+            text: root.rssi_info
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
-            MDBoxLayout:
-                orientation: 'vertical'
-                adaptive_height: True
-                size_hint_x: 0.4
+        Label:
+            text: root.period_info
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
-                MDLabel:
-                    text: root.rssi_info
-                    font_style: "Caption"
-                    adaptive_height: True
+        Label:
+            text: root.adv_flags
+            font_size: '12sp'
+            size_hint_y: None
+            height: self.texture_size[1]
 
-                MDLabel:
-                    text: root.period_info
-                    font_style: "Caption"
-                    adaptive_height: True
-
-                MDLabel:
-                    text: root.adv_flags
-                    font_style: "Caption"
-                    adaptive_height: True
-
-            IconRightWidget:
-                icon: "content-copy"
-                on_release: root.copy_to_clipboard(root.device_address)
+    Button:
+        text: "Copy"
+        size_hint_x: 0.2
+        on_release: root.copy_to_clipboard(root.device_address)

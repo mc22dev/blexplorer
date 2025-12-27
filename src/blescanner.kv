@@ -3,93 +3,135 @@
 <MainLayout>:
     orientation: 'vertical'
 
-    MDTopAppBar:
+    BoxLayout:
         id: main_toolbar
-        title: "BLE Scanner"
         size_hint_y: None
         height: "48dp"
-        left_action_items: [["cog-outline", lambda x: app.open_parameter_window()]]
-        right_action_items: [["bluetooth-scan", lambda x: app.scan_for_devices()], ["logout", lambda x: app.disconnect_from_device()]]
+        canvas.before:
+            Color:
+                rgba: app.theme.header_bg
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            text: "BLE Scanner"
+            size_hint_x: 3
+        Button:
+            text: "Settings"
+            on_release: app.open_parameter_window()
+        Button:
+            id: scan_button
+            text: "Scan"
+            on_release: app.scan_for_devices()
+        Button:
+            id: disconnect_button
+            text: "Disconnect"
+            on_release: app.disconnect_from_device()
+            disabled: not app.is_connected
 
-    MDScreen:
-        MDBottomNavigation:
-            id: bottom_nav
-            panel_color: app.theme_cls.bg_light
+    TabbedPanel:
+        id: bottom_nav
+        do_default_tab: False
 
-            MDBottomNavigationItem:
-                name: 'scanner_screen'
-                text: 'Scanner'
-                icon: 'bluetooth'
+        TabbedPanelItem:
+            text: 'Scanner'
+            BoxLayout:
+                orientation: 'vertical'
 
-                MDBoxLayout:
+                TextInput:
+                    id: search_input
+                    hint_text: 'Filter devices'
+                    size_hint_y: None
+                    height: '48dp'
+                    on_text: app.filter_devices(self.text)
+
+                BoxLayout:
                     orientation: 'vertical'
-
-                    MDTextField:
-                        id: search_input
-                        hint_text: 'Filter devices'
+                    size_hint_y: None
+                    height: self.children[0].height
+                    Label:
+                        text: "Connecting..."
+                        halign: "center"
+                        color: app.theme.secondary
+                        opacity: 1 if app.is_connecting else 0
                         size_hint_y: None
-                        height: '48dp'
-                        on_text: app.filter_devices(self.text)
+                        height: self.texture_size[1] if self.opacity else 0
 
-                    MDBoxLayout:
-                        orientation: 'vertical'
-                        adaptive_height: True
-                        MDLabel:
-                            text: "Connecting..."
-                            halign: "center"
-                            theme_text_color: "Secondary"
-                            opacity: 1 if app.is_connecting else 0
-                            size_hint_y: None
-                            height: self.texture_size[1] if self.opacity else 0
+                ScrollView:
+                    id: device_scroll_view
+                    GridLayout:
+                        id: device_list
+                        cols: 1
+                        size_hint_y: None
+                        height: self.minimum_height
 
-                    ScrollView:
-                        id: device_scroll_view
-                        MDBoxLayout:
-                            id: device_list
-                            orientation: 'vertical'
-                            size_hint_y: None
-                            height: self.minimum_height
+        TabbedPanelItem:
+            id: device_screen_tab
+            text: 'Device'
+            disabled: not app.is_connected
 
-            MDBottomNavigationItem:
-                name: 'device_screen'
-                text: 'Device'
-                icon: 'cellphone-link'
-                disabled: not app.is_connected
+            BoxLayout:
+                orientation: 'vertical'
 
-                MDBoxLayout:
-                    orientation: 'vertical'
+                BoxLayout:
+                    id: device_toolbar
+                    size_hint_y: None
+                    height: "48dp"
+                    canvas.before:
+                        Color:
+                            rgba: app.theme.header_bg
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+                    Label:
+                        text: "Device Info"
+                    Button:
+                        id: refresh_button
+                        text: "Read All"
+                        on_release: app.read_all_characteristics()
+                    Button:
+                        id: upload_button
+                        text: "OTA Update"
+                        on_release: app.open_ota_window()
 
-                    MDTopAppBar:
-                        id: device_toolbar
-                        title: "Device Info"
-                        right_action_items: [["refresh", lambda x: app.read_all_characteristics()], ["upload", lambda x: app.open_ota_window()]]
+                ScrollView:
+                    id: char_scroll_view
+                    GridLayout:
+                        id: characteristic_list
+                        cols: 1
+                        size_hint_y: None
+                        height: self.minimum_height
+                        Label:
+                            text: 'Characteristics will appear here'
 
-                    ScrollView:
-                        id: char_scroll_view
-                        MDBoxLayout:
-                            id: characteristic_list
-                            orientation: 'vertical'
-                            size_hint_y: None
-                            height: self.minimum_height
-                            MDLabel:
-                                text: 'Characteristics will appear here'
+        TabbedPanelItem:
+            text: 'Log'
 
-            MDBottomNavigationItem:
-                name: 'log_screen'
-                text: 'Log'
-                icon: 'text-box-outline'
-
-                MDBoxLayout:
-                    orientation: 'vertical'
-                    MDTopAppBar:
-                        id: log_toolbar
-                        title: "Log"
-                        right_action_items: [["delete", lambda x: app.clear_log()], ["content-save", lambda x: app.show_save_dialog()]]
-                    ScrollView:
-                        MDTextField:
-                            id: log_view
-                            text: ''
-                            multiline: True
-                            readonly: True
-                            size_hint_y: None
-                            height: self.minimum_height
+            BoxLayout:
+                orientation: 'vertical'
+                BoxLayout:
+                    id: log_toolbar
+                    size_hint_y: None
+                    height: "48dp"
+                    canvas.before:
+                        Color:
+                            rgba: app.theme.header_bg
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+                    Label:
+                        text: "Log"
+                    Button:
+                        text: "Clear"
+                        on_release: app.clear_log()
+                    Button:
+                        text: "Save"
+                        on_release: app.show_save_dialog()
+                ScrollView:
+                    TextInput:
+                        id: log_view
+                        text: ''
+                        multiline: True
+                        readonly: True
+                        size_hint_y: None
+                        height: self.minimum_height

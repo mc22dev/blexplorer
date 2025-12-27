@@ -33,6 +33,7 @@ class TestKivyApp:
         # This is a hack to allow the test to run without a Kivy App instance
         if not App.get_running_app():
             app = BLEScannerApp()
+            app.build()  # Initialize the theme
             app.root = None # We don't need a root widget for this test
             return app
         return App.get_running_app()
