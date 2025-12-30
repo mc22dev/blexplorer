@@ -36,12 +36,19 @@
             text: 'Scanner'
             BoxLayout:
                 orientation: 'vertical'
-                TextInput:
-                    id: search_input
-                    hint_text: 'Filter devices'
+                BoxLayout:
                     size_hint_y: None
                     height: '48dp'
-                    on_text: app.filter_devices(self.text)
+                    TextInput:
+                        id: search_input
+                        hint_text: 'Filter devices'
+                        on_text: app.filter_devices(self.text)
+                    Button:
+                        id: clear_filter_button
+                        text: 'Clear'
+                        size_hint_x: None
+                        width: '80dp'
+                        on_release: app.clear_device_filter()
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_y: None
@@ -126,7 +133,16 @@
                         font_name: "MaterialIcons"
                         text: "\U000F0193"
                         on_release: app.show_save_dialog()
+                    CheckBox:
+                        id: autoscroll_checkbox
+                        active: True
+                        size_hint_x: None
+                        width: "48dp"
+                    Label:
+                        text: "Auto-scroll"
+                        size_hint_x: 2
                 ScrollView:
+                    id: log_scroll_view
                     TextInput:
                         id: log_view
                         text: ''

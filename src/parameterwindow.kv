@@ -56,6 +56,24 @@
                             id: theme_spinner
                             text: 'Dark'
                             values: ['Light', 'Dark']
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: '30dp'
+                        Label:
+                            text: "Auto-connect to device:"
+                        CheckBox:
+                            id: auto_connect_checkbox
+                            size_hint_x: 0.2
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: '30dp'
+                        Label:
+                            text: "Device name/address filter:"
+                        TextInput:
+                            id: auto_connect_filter_input
+                            multiline: False
 
             TabbedPanelItem:
                 text: 'Versions'
