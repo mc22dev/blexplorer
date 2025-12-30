@@ -89,6 +89,8 @@ class BLEScannerApp(App):
         self.parameter_popup.ids.theme_spinner.text = self.config_manager.get_setting('theme', 'name')
         self.parameter_popup.ids.adapter_spinner.values = self.adapters
         self.parameter_popup.ids.adapter_spinner.text = self.adapter
+        self.parameter_popup.ids.auto_connect_checkbox.active = self.config_manager.get_setting('auto_connect', 'enabled') == 'True'
+        self.parameter_popup.ids.auto_connect_filter_input.text = self.config_manager.get_setting('auto_connect', 'filter')
         self.parameter_popup.open()
 
     def restore_default_parameters(self, popup):
@@ -104,6 +106,9 @@ class BLEScannerApp(App):
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
         popup.ids.adapter_spinner.text = self.adapter
 
+        popup.ids.auto_connect_checkbox.active = self.config_manager.get_setting('auto_connect', 'enabled') == 'True'
+        popup.ids.auto_connect_filter_input.text = self.config_manager.get_setting('auto_connect', 'filter')
+
         self.log_with_timestamp("Default parameters restored.", LogLevel.INFO)
 
     def update_parameters(self, popup):
@@ -111,6 +116,8 @@ class BLEScannerApp(App):
         new_timeout = popup.ids.scan_timeout_input.text
         new_theme = popup.ids.theme_spinner.text
         new_adapter = popup.ids.adapter_spinner.text
+        auto_connect_enabled = popup.ids.auto_connect_checkbox.active
+        auto_connect_filter = popup.ids.auto_connect_filter_input.text
         try:
             # Validate that the input is a valid float before saving
             float(new_timeout)
@@ -125,6 +132,10 @@ class BLEScannerApp(App):
             self.adapter = new_adapter
             self.config_manager.set_setting('bluetooth', 'adapter', self.adapter)
             self.log_with_timestamp(f"Adapter set to {self.adapter}.", LogLevel.INFO)
+
+            self.config_manager.set_setting('auto_connect', 'enabled', str(auto_connect_enabled))
+            self.config_manager.set_setting('auto_connect', 'filter', auto_connect_filter)
+            self.log_with_timestamp(f"Auto-connect set to {auto_connect_enabled} with filter '{auto_connect_filter}'.", LogLevel.INFO)
 
             popup.dismiss()
         except ValueError:
@@ -304,6 +315,10 @@ class BLEScannerApp(App):
                 if frame.parent is not None:
                     self.root.ids.device_list.remove_widget(frame)
 
+    def clear_device_filter(self):
+        """Clears the device filter."""
+        self.root.ids.search_input.text = ""
+
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
         self.discovered_devices_batch.append((device, adv_data))
@@ -374,11 +389,27 @@ class BLEScannerApp(App):
             frame.bind(on_graph_selection_change=self._on_graph_selection_change)
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
+            self._check_auto_connect(frame)
 
         # Assign the color from the graph to the device frame
         if 'global_rssi_graph' in self.root.ids:
             graph = self.root.ids.global_rssi_graph
             frame.indicator_color = graph.get_device_color(device.address)
+
+    def _check_auto_connect(self, device_frame: DeviceFrameKivy):
+        """Checks if the device matches the auto-connect filter and connects if it does."""
+        auto_connect_enabled = self.config_manager.get_setting('auto_connect', 'enabled') == 'True'
+        if not auto_connect_enabled or self.is_connected or self.is_connecting:
+            return
+
+        auto_connect_filter = self.config_manager.get_setting('auto_connect', 'filter').lower()
+        device = device_frame.device
+        device_name = (device.name or "Unknown").lower()
+        device_address = device.address.lower()
+
+        if auto_connect_filter in device_name or auto_connect_filter in device_address:
+            self.log_with_timestamp(f"Auto-connecting to device: {device.address}", LogLevel.INFO)
+            self.connect_to_device(device_frame)
 
     def connect_to_device(self, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""
@@ -667,6 +698,8 @@ class BLEScannerApp(App):
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         log_message = f"[{timestamp}] [{level.value}] {message}\n"
         self.root.ids.log_view.text += log_message
+        if self.root.ids.autoscroll_checkbox.active:
+            self.root.ids.log_scroll_view.scroll_y = 0
 
     def open_ota_window(self):
         """Opens the OTA window."""
