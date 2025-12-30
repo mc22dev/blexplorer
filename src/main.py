@@ -514,7 +514,12 @@ class BLEScannerApp(App):
                     for diff in diffs:
                         self.log_with_timestamp(f"- {diff}", LogLevel.INFO)
                     self.log_with_timestamp("Refreshing UI with live data...", LogLevel.INFO)
-                    self.discover_attributes()
+                    self.root.ids.characteristic_list.clear_widgets()
+                    self.characteristic_frames = {}
+                    all_characteristics = [char for service in self.ble_manager.client.services for char in
+                                           service.characteristics]
+                    all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
+                    self.populate_characteristic_ui(all_characteristics)
                 else:
                     self.log_with_timestamp("No differences found.", LogLevel.DEBUG)
 
