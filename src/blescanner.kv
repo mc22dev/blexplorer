@@ -1,8 +1,6 @@
 #:kivy 2.0.0
-
 <MainLayout>:
     orientation: 'vertical'
-
     BoxLayout:
         id: main_toolbar
         size_hint_y: None
@@ -17,34 +15,33 @@
             text: "BLE Scanner"
             size_hint_x: 3
         Button:
-            text: "Settings"
+            font_name: "MaterialIcons"
+            text: "\U000F0493"
             on_release: app.open_parameter_window()
         Button:
             id: scan_button
-            text: "Scan"
+            font_name: "MaterialIcons"
+            text: "\U000F0349"
             on_release: app.scan_for_devices()
         Button:
             id: disconnect_button
-            text: "Disconnect"
+            font_name: "MaterialIcons"
+            text: "\U000F0338"
             on_release: app.disconnect_from_device()
             disabled: not app.is_connected
-
     TabbedPanel:
         id: bottom_nav
         do_default_tab: False
-
         TabbedPanelItem:
             text: 'Scanner'
             BoxLayout:
                 orientation: 'vertical'
-
                 TextInput:
                     id: search_input
                     hint_text: 'Filter devices'
                     size_hint_y: None
                     height: '48dp'
                     on_text: app.filter_devices(self.text)
-
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_y: None
@@ -56,12 +53,10 @@
                         opacity: 1 if app.is_connecting else 0
                         size_hint_y: None
                         height: self.texture_size[1] if self.opacity else 0
-
                 GlobalRSSIGraph:
                     id: global_rssi_graph
                     size_hint_y: 0.4
                     device_data: app.global_graph_data if app else {}
-
                 ScrollView:
                     id: device_scroll_view
                     size_hint_y: 0.6
@@ -70,15 +65,12 @@
                         cols: 1
                         size_hint_y: None
                         height: self.minimum_height
-
         TabbedPanelItem:
             id: device_screen_tab
             text: 'Device'
             disabled: not app.is_connected
-
             BoxLayout:
                 orientation: 'vertical'
-
                 BoxLayout:
                     id: device_toolbar
                     size_hint_y: None
@@ -93,13 +85,14 @@
                         text: "Device Info"
                     Button:
                         id: refresh_button
-                        text: "Read All"
+                        font_name: "MaterialIcons"
+                        text: "\U000F0450"
                         on_release: app.read_all_characteristics()
                     Button:
                         id: upload_button
-                        text: "OTA Update"
+                        font_name: "MaterialIcons"
+                        text: "\U000F0552"
                         on_release: app.open_ota_window()
-
                 ScrollView:
                     id: char_scroll_view
                     GridLayout:
@@ -109,10 +102,8 @@
                         height: self.minimum_height
                         Label:
                             text: 'Characteristics will appear here'
-
         TabbedPanelItem:
             text: 'Log'
-
             BoxLayout:
                 orientation: 'vertical'
                 BoxLayout:
@@ -128,10 +119,12 @@
                     Label:
                         text: "Log"
                     Button:
-                        text: "Clear"
+                        font_name: "MaterialIcons"
+                        text: "\U000F01B4"
                         on_release: app.clear_log()
                     Button:
-                        text: "Save"
+                        font_name: "MaterialIcons"
+                        text: "\U000F0193"
                         on_release: app.show_save_dialog()
                 ScrollView:
                     TextInput:

@@ -17,6 +17,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.label import Label
+from kivy.core.text import LabelBase
 from kivy.core.window import Window
 
 from file_chooser_dialog import FileChooserDialog
@@ -50,6 +51,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # Load the kv files for the custom widgets
+LabelBase.register(name="MaterialIcons", fn_regular=resource_path("icons/materialdesignicons-webfont.ttf"))
 Builder.load_file(resource_path('deviceframekivy.kv'))
 Builder.load_file(resource_path('characteristicframekivy.kv'))
 Builder.load_file(resource_path('descriptorframekivy.kv'))
