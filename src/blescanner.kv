@@ -1,4 +1,6 @@
 #:kivy 2.0.0
+#:import TooltipButton tooltip.TooltipButton
+
 <MainLayout>:
     orientation: 'vertical'
     BoxLayout:
@@ -14,21 +16,25 @@
         Label:
             text: "BLE Scanner"
             size_hint_x: 3
-        Button:
+        TooltipButton:
             font_name: "MaterialIcons"
             text: "\U000F0493"
             on_release: app.open_parameter_window()
-        Button:
+            tooltip_text: "Settings"
+        TooltipButton:
             id: scan_button
             font_name: "MaterialIcons"
             text: "\U000F0349"
             on_release: app.scan_for_devices()
-        Button:
+            disabled: app.is_scanning
+            tooltip_text: "Scan for devices"
+        TooltipButton:
             id: disconnect_button
             font_name: "MaterialIcons"
             text: "\U000F0338"
             on_release: app.disconnect_from_device()
             disabled: not app.is_connected
+            tooltip_text: "Disconnect"
     TabbedPanel:
         id: bottom_nav
         do_default_tab: False
@@ -90,16 +96,20 @@
                             size: self.size
                     Label:
                         text: "Device Info"
-                    Button:
+                    TooltipButton:
                         id: refresh_button
                         font_name: "MaterialIcons"
                         text: "\U000F0450"
                         on_release: app.read_all_characteristics()
-                    Button:
+                        disabled: not app.is_connected
+                        tooltip_text: "Read all characteristics"
+                    TooltipButton:
                         id: upload_button
                         font_name: "MaterialIcons"
                         text: "\U000F0552"
                         on_release: app.open_ota_window()
+                        disabled: not app.is_connected
+                        tooltip_text: "OTA Upload"
                 ScrollView:
                     id: char_scroll_view
                     GridLayout:
@@ -125,14 +135,16 @@
                             size: self.size
                     Label:
                         text: "Log"
-                    Button:
+                    TooltipButton:
                         font_name: "MaterialIcons"
                         text: "\U000F01B4"
                         on_release: app.clear_log()
-                    Button:
+                        tooltip_text: "Clear log"
+                    TooltipButton:
                         font_name: "MaterialIcons"
                         text: "\U000F0193"
                         on_release: app.show_save_dialog()
+                        tooltip_text: "Save log"
                     CheckBox:
                         id: autoscroll_checkbox
                         active: True

@@ -59,6 +59,7 @@ Builder.load_file(resource_path('collapsibleframekivy.kv'))
 Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
 Builder.load_file(resource_path('globalrssigraph.kv'))
+Builder.load_file(resource_path('tooltip.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -157,19 +158,6 @@ class BLEScannerApp(App):
 
         self.discover_adapters()
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
-        Clock.schedule_once(self._find_and_bind_buttons)
-
-    def _find_and_bind_buttons(self, *args):
-        """Binds the toolbar buttons disabled properties."""
-        self.scan_button = self.root.ids.scan_button
-        self.disconnect_button = self.root.ids.disconnect_button
-        self.refresh_button = self.root.ids.refresh_button
-        self.upload_button = self.root.ids.upload_button
-
-        self.bind(is_scanning=lambda instance, value: setattr(self.scan_button, 'disabled', value))
-        self.bind(is_connected=lambda instance, value: setattr(self.disconnect_button, 'disabled', not value))
-        self.bind(is_connected=lambda instance, value: setattr(self.refresh_button, 'disabled', not value))
-        self.bind(is_connected=lambda instance, value: setattr(self.upload_button, 'disabled', not value))
 
     def _on_permissions_result(self, success: bool, dt=None):
         """
