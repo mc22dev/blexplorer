@@ -1,5 +1,4 @@
 #:kivy 2.0.0
-#:import tooltip tooltip
 
 <MainLayout>:
     orientation: 'vertical'
@@ -16,19 +15,19 @@
         Label:
             text: "BLE Scanner"
             size_hint_x: 3
-        tooltip.TooltipButton:
+        TooltipButton:
             font_name: "MaterialIcons"
             text: "\U000F0493"
             on_release: app.open_parameter_window()
             tooltip_text: "Settings"
-        tooltip.TooltipButton:
+        TooltipButton:
             id: scan_button
             font_name: "MaterialIcons"
             text: "\U000F0349"
             on_release: app.scan_for_devices()
             disabled: app.is_scanning
             tooltip_text: "Scan for devices"
-        tooltip.TooltipButton:
+        TooltipButton:
             id: disconnect_button
             font_name: "MaterialIcons"
             text: "\U000F0338"
@@ -96,14 +95,14 @@
                             size: self.size
                     Label:
                         text: "Device Info"
-                    tooltip.TooltipButton:
+                    TooltipButton:
                         id: refresh_button
                         font_name: "MaterialIcons"
                         text: "\U000F0450"
                         on_release: app.read_all_characteristics()
                         disabled: not app.is_connected
                         tooltip_text: "Read all characteristics"
-                    tooltip.TooltipButton:
+                    TooltipButton:
                         id: upload_button
                         font_name: "MaterialIcons"
                         text: "\U000F0552"
@@ -135,12 +134,12 @@
                             size: self.size
                     Label:
                         text: "Log"
-                    tooltip.TooltipButton:
+                    TooltipButton:
                         font_name: "MaterialIcons"
                         text: "\U000F01B4"
                         on_release: app.clear_log()
                         tooltip_text: "Clear log"
-                    tooltip.TooltipButton:
+                    TooltipButton:
                         font_name: "MaterialIcons"
                         text: "\U000F0193"
                         on_release: app.show_save_dialog()

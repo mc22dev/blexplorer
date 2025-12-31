@@ -20,6 +20,7 @@ from kivy.uix.label import Label
 from kivy.core.text import LabelBase
 from kivy.core.window import Window
 
+from tooltip import TooltipButton
 from file_chooser_dialog import FileChooserDialog
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
