@@ -2,7 +2,7 @@ from kivy.core.window import Window
 from kivy.uix.label import Label
 from kivy.properties import StringProperty
 from kivy.uix.button import Button
-from kivy.uix.behaviors.hover import HoverBehavior
+from kivy.uix.behaviors import HoverBehavior
 
 
 class Tooltip(Label):
