@@ -186,17 +186,20 @@ class BLEScannerApp(App):
     def _on_permissions_result(self, success: bool, dt=None):
         """
         Callback function for permission request results.
-        Enables the scan button if permissions were granted.
+        Schedules the UI update to ensure thread safety.
         """
-        if success:
-            self.log_with_timestamp("Permissions granted.", LogLevel.SUCCESS)
-            if self.root and 'scan_button' in self.root.ids:
-                self.root.ids.scan_button.disabled = False
-            self.scan_for_devices()
-        else:
-            self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
-            if self.root and 'scan_button' in self.root.ids:
-                self.root.ids.scan_button.disabled = True
+        def update_ui(dt):
+            if success:
+                self.log_with_timestamp("Permissions granted.", LogLevel.SUCCESS)
+                if self.root and 'scan_button' in self.root.ids:
+                    self.root.ids.scan_button.disabled = False
+                # Start a scan automatically now that permissions are granted
+                self.scan_for_devices()
+            else:
+                self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
+                if self.root and 'scan_button' in self.root.ids:
+                    self.root.ids.scan_button.disabled = True
+        Clock.schedule_once(update_ui)
 
     def _on_permissions_callback(self, permissions, grants):
         """
