@@ -251,9 +251,9 @@ class BLEScannerApp(App):
         if self.selected_device_frame:
             self.selected_device_frame.is_selected = False
             self.selected_device_frame = None
-        self.root.ids.device_list.clear_widgets()
-        if 'global_rssi_graph' in self.root.ids:
-            self.root.ids.global_rssi_graph.clear_graph()
+        self.root.ids.scanner_screen.ids.device_list.clear_widgets()
+        if 'scanner_screen' in self.root.ids and 'global_rssi_graph' in self.root.ids.scanner_screen.ids:
+            self.root.ids.scanner_screen.ids.global_rssi_graph.clear_graph()
         self.global_graph_data = {}
         self.device_frames = {}
         self.discovered_devices_batch = []
@@ -293,14 +293,14 @@ class BLEScannerApp(App):
             device_address = frame.device.address.lower()
             if search_term in device_name or search_term in device_address:
                 if frame.parent is None:
-                    self.root.ids.device_list.add_widget(frame)
+                    self.root.ids.scanner_screen.ids.device_list.add_widget(frame)
             else:
                 if frame.parent is not None:
-                    self.root.ids.device_list.remove_widget(frame)
+                    self.root.ids.scanner_screen.ids.device_list.remove_widget(frame)
 
     def clear_device_filter(self):
         """Clears the device filter."""
-        self.root.ids.search_input.text = ""
+        self.root.ids.scanner_screen.ids.search_input.text = ""
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
@@ -334,7 +334,7 @@ class BLEScannerApp(App):
             addr: data for addr, data in self.global_graph_data.items()
             if self.graph_selection.get(addr, True)
         }
-        self.root.ids.global_rssi_graph.device_data = filtered_data
+        self.root.ids.scanner_screen.ids.global_rssi_graph.device_data = filtered_data
 
     def _on_graph_selection_change(self, instance, address, is_selected):
         """Callback for when a device's graph selection changes."""
@@ -371,12 +371,12 @@ class BLEScannerApp(App):
             frame = DeviceFrameKivy(device=device, stats=stats)
             frame.bind(on_graph_selection_change=self._on_graph_selection_change)
             self.device_frames[device.address] = frame
-            self.root.ids.device_list.add_widget(frame)
+            self.root.ids.scanner_screen.ids.device_list.add_widget(frame)
             self._check_auto_connect(frame)
 
         # Assign the color from the graph to the device frame
-        if 'global_rssi_graph' in self.root.ids:
-            graph = self.root.ids.global_rssi_graph
+        if 'scanner_screen' in self.root.ids and 'global_rssi_graph' in self.root.ids.scanner_screen.ids:
+            graph = self.root.ids.scanner_screen.ids.global_rssi_graph
             frame.indicator_color = graph.get_device_color(device.address)
 
     def _check_auto_connect(self, device_frame: DeviceFrameKivy):
@@ -441,12 +441,12 @@ class BLEScannerApp(App):
                 self.selected_device_frame = None
             # The BLEManager now logs the disconnection event.
             # We just need to update the UI state.
-            self.root.ids.characteristic_list.clear_widgets()
+            self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
             self.characteristic_frames = {}
 
     def discover_attributes(self):
         """Discovers and displays the services and characteristics of the connected device."""
-        self.root.ids.characteristic_list.clear_widgets()
+        self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
         self.characteristic_frames = {}
 
         cached_services_data = None
@@ -486,7 +486,7 @@ class BLEScannerApp(App):
                 populate_callback=self._create_and_bind_characteristic_frame,
                 is_expanded=False  # Start collapsed
             )
-            self.root.ids.characteristic_list.add_widget(sf)
+            self.root.ids.device_screen.ids.characteristic_list.add_widget(sf)
 
     def _create_and_bind_characteristic_frame(self, char):
         """Creates a characteristic frame, binds its events, and returns the frame."""
@@ -528,7 +528,7 @@ class BLEScannerApp(App):
                     for diff in diffs:
                         self.log_with_timestamp(f"- {diff}", LogLevel.INFO)
                     self.log_with_timestamp("Refreshing UI with live data...", LogLevel.INFO)
-                    self.root.ids.characteristic_list.clear_widgets()
+                    self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
                     self.characteristic_frames = {}
                     all_characteristics = [char for service in self.ble_manager.client.services for char in
                                            service.characteristics]
@@ -549,7 +549,7 @@ class BLEScannerApp(App):
     def clear_log(self, *args):
         """Clears the debug log text box."""
         self.log_with_timestamp("Clearing log...", LogLevel.INFO)
-        self.root.ids.log_view.text = ""
+        self.root.ids.log_screen.ids.log_view.text = ""
 
     def show_save_dialog(self, *args):
         """Shows the save file dialog."""
@@ -567,7 +567,7 @@ class BLEScannerApp(App):
         if not selection:
             return
         filepath = os.path.join(path, selection[0])
-        log_content = self.root.ids.log_view.text
+        log_content = self.root.ids.log_screen.ids.log_view.text
         try:
             with open(filepath, "w") as f:
                 f.write(log_content)
@@ -680,9 +680,9 @@ class BLEScannerApp(App):
         """Logs a message with a timestamp and level."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         log_message = f"[{timestamp}] [{level.value}] {message}\n"
-        self.root.ids.log_view.text += log_message
-        if self.root.ids.autoscroll_checkbox.active:
-            self.root.ids.log_scroll_view.scroll_y = 0
+        self.root.ids.log_screen.ids.log_view.text += log_message
+        if self.root.ids.log_screen.ids.autoscroll_checkbox.active:
+            self.root.ids.log_screen.ids.log_scroll_view.scroll_y = 0
 
     def open_ota_window(self):
         """Opens the OTA window."""
