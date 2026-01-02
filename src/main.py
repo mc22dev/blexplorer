@@ -174,6 +174,10 @@ class BLEScannerApp(App):
         Window.bind(on_keyboard=self._on_keyboard)
 
         if kivy_platform == 'android':
+            def disable_scan_button(dt):
+                if self.root and 'scan_button' in self.root.ids:
+                    self.root.ids.scan_button.disabled = True
+            Clock.schedule_once(disable_scan_button)
             self.request_android_permissions()
 
         self.discover_adapters()
@@ -186,8 +190,13 @@ class BLEScannerApp(App):
         """
         if success:
             self.log_with_timestamp("Permissions granted.", LogLevel.SUCCESS)
+            if self.root and 'scan_button' in self.root.ids:
+                self.root.ids.scan_button.disabled = False
+            self.scan_for_devices()
         else:
             self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
+            if self.root and 'scan_button' in self.root.ids:
+                self.root.ids.scan_button.disabled = True
 
     def _on_permissions_callback(self, permissions, grants):
         """
