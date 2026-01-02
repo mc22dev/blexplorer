@@ -12,7 +12,7 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
-from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty, DictProperty
+from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty, DictProperty, NumericProperty
 from kivy.uix.popup import Popup
 from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserListView
@@ -83,6 +83,8 @@ class BLEScannerApp(App):
     refresh_button = ObjectProperty(None)
     upload_button = ObjectProperty(None)
     global_graph_data = DictProperty({})
+    rssi_min = NumericProperty(-110)
+    rssi_max = NumericProperty(-20)
 
     def open_parameter_window(self):
         """Opens the parameter window."""
@@ -93,6 +95,8 @@ class BLEScannerApp(App):
         self.parameter_popup.ids.adapter_spinner.text = self.adapter
         self.parameter_popup.ids.auto_connect_checkbox.active = self.config_manager.get_setting('auto_connect', 'enabled') == 'True'
         self.parameter_popup.ids.auto_connect_filter_input.text = self.config_manager.get_setting('auto_connect', 'filter')
+        self.parameter_popup.ids.rssi_min_input.text = self.config_manager.get_setting('graph', 'rssi_min')
+        self.parameter_popup.ids.rssi_max_input.text = self.config_manager.get_setting('graph', 'rssi_max')
         self.parameter_popup.open()
 
     def restore_default_parameters(self, popup):
@@ -102,6 +106,8 @@ class BLEScannerApp(App):
         popup.ids.adapter_spinner.text = self.config_manager.get_default_setting('bluetooth', 'adapter')
         popup.ids.auto_connect_checkbox.active = self.config_manager.get_default_setting('auto_connect', 'enabled') == 'True'
         popup.ids.auto_connect_filter_input.text = self.config_manager.get_default_setting('auto_connect', 'filter')
+        popup.ids.rssi_min_input.text = self.config_manager.get_default_setting('graph', 'rssi_min')
+        popup.ids.rssi_max_input.text = self.config_manager.get_default_setting('graph', 'rssi_max')
         self.log_with_timestamp("UI restored to default parameters. Click OK to save.", LogLevel.INFO)
 
     def update_parameters(self, popup):
@@ -111,30 +117,49 @@ class BLEScannerApp(App):
         new_adapter = popup.ids.adapter_spinner.text
         auto_connect_enabled = popup.ids.auto_connect_checkbox.active
         auto_connect_filter = popup.ids.auto_connect_filter_input.text
+        new_rssi_min = popup.ids.rssi_min_input.text
+        new_rssi_max = popup.ids.rssi_max_input.text
         try:
-            # Validate that the input is a valid float before saving
             float(new_timeout)
-            self.scan_timeout = new_timeout
-            self.config_manager.set_setting('scan', 'timeout', self.scan_timeout)
-            self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
-
-            self.config_manager.set_setting('theme', 'name', new_theme)
-            theme_manager.set_theme(new_theme)
-            self.log_with_timestamp(f"Theme set to {new_theme}.", LogLevel.INFO)
-
-            self.adapter = new_adapter
-            self.config_manager.set_setting('bluetooth', 'adapter', self.adapter)
-            self.log_with_timestamp(f"Adapter set to {self.adapter}.", LogLevel.INFO)
-
-            self.config_manager.set_setting('auto_connect', 'enabled', str(auto_connect_enabled))
-            self.config_manager.set_setting('auto_connect', 'filter', auto_connect_filter)
-            self.log_with_timestamp(f"Auto-connect set to {auto_connect_enabled} with filter '{auto_connect_filter}'.", LogLevel.INFO)
-
-            popup.dismiss()
         except ValueError:
             self.log_with_timestamp(f"Invalid scan timeout value: {new_timeout}. Please enter a number.", LogLevel.ERROR)
-            # Optionally, provide visual feedback to the user in the popup
-            popup.ids.scan_timeout_input.background_color = (1, 0.6, 0.6, 1)
+            return
+
+        try:
+            rssi_min_val = int(new_rssi_min)
+        except ValueError:
+            self.log_with_timestamp(f"Invalid RSSI Min value: {new_rssi_min}. Please enter an integer.", LogLevel.ERROR)
+            return
+
+        try:
+            rssi_max_val = int(new_rssi_max)
+        except ValueError:
+            self.log_with_timestamp(f"Invalid RSSI Max value: {new_rssi_max}. Please enter an integer.", LogLevel.ERROR)
+            return
+
+        self.scan_timeout = new_timeout
+        self.config_manager.set_setting('scan', 'timeout', self.scan_timeout)
+        self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
+
+        self.config_manager.set_setting('theme', 'name', new_theme)
+        theme_manager.set_theme(new_theme)
+        self.log_with_timestamp(f"Theme set to {new_theme}.", LogLevel.INFO)
+
+        self.adapter = new_adapter
+        self.config_manager.set_setting('bluetooth', 'adapter', self.adapter)
+        self.log_with_timestamp(f"Adapter set to {self.adapter}.", LogLevel.INFO)
+
+        self.config_manager.set_setting('auto_connect', 'enabled', str(auto_connect_enabled))
+        self.config_manager.set_setting('auto_connect', 'filter', auto_connect_filter)
+        self.log_with_timestamp(f"Auto-connect set to {auto_connect_enabled} with filter '{auto_connect_filter}'.", LogLevel.INFO)
+
+        self.config_manager.set_setting('graph', 'rssi_min', str(rssi_min_val))
+        self.config_manager.set_setting('graph', 'rssi_max', str(rssi_max_val))
+        self.rssi_min = rssi_min_val
+        self.rssi_max = rssi_max_val
+        self.log_with_timestamp(f"RSSI range set to [{rssi_min_val}, {rssi_max_val}].", LogLevel.INFO)
+
+        popup.dismiss()
 
 
     def on_start(self):
@@ -209,6 +234,10 @@ class BLEScannerApp(App):
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
         self.theme = theme_manager
         theme_manager.set_theme(self.config_manager.get_setting('theme', 'name'))
+
+        # Set up the graph with configured RSSI limits
+        self.rssi_min = int(self.config_manager.get_setting('graph', 'rssi_min'))
+        self.rssi_max = int(self.config_manager.get_setting('graph', 'rssi_max'))
 
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,

@@ -37,6 +37,10 @@ class ConfigManager:
                 'enabled': 'False',
                 'filter': ''
             },
+            'graph': {
+                'rssi_min': '-110',
+                'rssi_max': '-20'
+            },
             'device_names': {}
         }
         self._load_or_create_config()

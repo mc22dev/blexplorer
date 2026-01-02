@@ -1,33 +1,52 @@
 from kivy.uix.floatlayout import FloatLayout
-from kivy.properties import DictProperty
+from kivy.properties import DictProperty, NumericProperty
 from kivy.uix.label import Label
-from kivy.graphics import Color, Line, Rectangle
-from kivy.app import App
+from kivy.graphics import Color, Line
+from kivy.clock import Clock
 import colorsys
+import math
 
 class GlobalRSSIGraph(FloatLayout):
     """A widget to display a line graph of RSSI values for multiple devices."""
-    device_data = DictProperty({})  # Format: { 'address': {'rssi': [], 'timestamps': []} }
+    device_data = DictProperty({})
+    rssi_min = NumericProperty(-110)
+    rssi_max = NumericProperty(-20)
     _device_colors = {}
     _hue_iterator = 0.0
+    _y_labels = []
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.bind(pos=self.update_graph, size=self.update_graph, device_data=self.update_graph)
-
-        self.max_label = Label(text="-30", font_size='10sp', size_hint=(None, None), color=(1,1,1,0.5))
-        self.min_label = Label(text="-100", font_size='10sp', size_hint=(None, None), color=(1,1,1,0.5))
-        self.duration_label = Label(text="0s", font_size='10sp', size_hint=(None, None), color=(1,1,1,0.5))
-        self.add_widget(self.max_label)
-        self.add_widget(self.min_label)
+        self.bind(pos=self.update_graph, size=self.update_graph, device_data=self.update_graph,
+                  rssi_min=self.update_graph, rssi_max=self.update_graph)
+        self.duration_label = Label(text="0s", font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
         self.add_widget(self.duration_label)
+        Clock.schedule_once(self.create_y_labels)
+
+    def create_y_labels(self, *args):
+        """Creates the Y-axis labels based on the RSSI range."""
+        for label in self._y_labels:
+            self.remove_widget(label)
+        self._y_labels.clear()
+
+        for i in range(self.rssi_min, self.rssi_max + 1, 10):
+            label = Label(text=str(i), font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
+            self.add_widget(label)
+            self._y_labels.append(label)
+        self.update_graph()
+
+    def on_rssi_min(self, instance, value):
+        self.create_y_labels()
+
+    def on_rssi_max(self, instance, value):
+        self.create_y_labels()
 
     def get_device_color(self, address):
         """Assigns a unique, bright color to each device address."""
         if address not in self._device_colors:
             rgb = colorsys.hsv_to_rgb(self._hue_iterator, 0.9, 1.0)
             self._device_colors[address] = tuple(rgb)
-            self._hue_iterator = (self._hue_iterator + 0.17) % 1.0  # Use a prime fraction to cycle hues
+            self._hue_iterator = (self._hue_iterator + 0.17) % 1.0
         return self._device_colors[address]
 
     def clear_graph(self):
@@ -43,34 +62,27 @@ class GlobalRSSIGraph(FloatLayout):
 
         padding = 2
         label_width = 30
-
-        self.max_label.pos = (self.x + padding, self.top - self.max_label.texture_size[1] - padding)
-        self.min_label.pos = (self.x + padding, self.y + padding)
-
         graph_x = self.x + label_width + padding
-        graph_y = self.y + self.min_label.texture_size[1] + (padding * 2)
+        graph_y = self.y + padding
         graph_width = self.width - label_width - (padding * 2)
-        graph_height = self.height - (self.max_label.texture_size[1] + self.min_label.texture_size[1]) - (padding * 4)
+        graph_height = self.height - (padding * 2)
 
-        if not self.device_data or graph_width <= 0 or graph_height <= 0:
+        if graph_width <= 0 or graph_height <= 0:
+            return
+
+        # Update Y-labels positions
+        for label in self._y_labels:
+            rssi_val = int(label.text)
+            y_ratio = (rssi_val - self.rssi_min) / (self.rssi_max - self.rssi_min)
+            y = graph_y + y_ratio * graph_height
+            label.pos = (self.x + padding, y - label.height / 2)
+
+        all_timestamps = [ts for data in self.device_data.values() for ts in data['timestamps']]
+        if not all_timestamps:
             self.duration_label.text = "0s"
             self.duration_label.texture_update()
             self.duration_label.pos = (self.right - self.duration_label.texture_size[0] - padding, self.y + padding)
-            self.min_label.text = "-100"
-            self.max_label.text = "-30"
             return
-
-        all_timestamps = [ts for data in self.device_data.values() for ts in data['timestamps']]
-        all_rssi = [rssi for data in self.device_data.values() for rssi in data['rssi']]
-
-        if not all_timestamps or not all_rssi:
-            return
-
-        # Dynamic Y-axis calculation
-        min_rssi = min(all_rssi) - 5
-        max_rssi = max(all_rssi) + 5
-        self.min_label.text = f"{min_rssi}"
-        self.max_label.text = f"{max_rssi}"
 
         min_time = min(all_timestamps)
         max_time = max(all_timestamps)
@@ -88,15 +100,12 @@ class GlobalRSSIGraph(FloatLayout):
 
             # Grid lines
             grid_color = (1, 1, 1, 0.1)
-            num_horizontal_lines = 5
-            num_vertical_lines = 10
-
-            for i in range(1, num_horizontal_lines):
-                y = graph_y + (i / num_horizontal_lines) * graph_height
+            for label in self._y_labels:
                 Color(*grid_color)
-                Line(points=[graph_x, y, graph_x + graph_width, y], width=1)
+                Line(points=[graph_x, label.center_y, graph_x + graph_width, label.center_y], width=1)
 
             if total_duration > 0:
+                num_vertical_lines = 10
                 for i in range(1, num_vertical_lines):
                     x = graph_x + (i / num_vertical_lines) * graph_width
                     Color(*grid_color)
@@ -120,7 +129,7 @@ class GlobalRSSIGraph(FloatLayout):
                     x_ratio = time_offset / total_duration
                     x = graph_x + (x_ratio * graph_width)
 
-                    normalized_rssi = (rssi - min_rssi) / (max_rssi - min_rssi)
+                    normalized_rssi = (rssi - self.rssi_min) / (self.rssi_max - self.rssi_min)
                     normalized_rssi = max(0, min(1, normalized_rssi))
                     y = graph_y + normalized_rssi * graph_height
 
