@@ -331,7 +331,7 @@ class BLEScannerApp(App):
     def _update_graph_data(self):
         """Filters and updates the graph data based on selection."""
         filtered_data = {
-            addr: data for addr, data in self.global_graph_data.items()
+            addr: data.copy() for addr, data in self.global_graph_data.items()
             if self.graph_selection.get(addr, True)
         }
         self.root.ids.scanner_screen.ids.global_rssi_graph.device_data = filtered_data
