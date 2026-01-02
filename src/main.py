@@ -227,6 +227,10 @@ class BLEScannerApp(App):
         return MainLayout()
 
     async def on_stop(self):
+        """Called when the application is stopping."""
+        self.is_shutting_down = True
+        if self.is_scanning:
+            await self.stop_scan()
         await self.ble_manager.shutdown()
 
     def discover_adapters(self):
@@ -326,6 +330,7 @@ class BLEScannerApp(App):
 
         # Reassign the dictionary to trigger the update on the Kivy property
         self._update_graph_data()
+        # Reassign to a copy to trigger the Kivy property update, as in-place modification is not detected.
         self.global_graph_data = self.global_graph_data.copy()
         self.discovered_devices_batch = []
 
@@ -724,11 +729,6 @@ class BLEScannerApp(App):
     async def app_func(self):
         """The async main function of the app."""
         await self.async_run(async_lib='asyncio')
-        self.is_shutting_down = True
-        if self.is_scanning:
-            await self.stop_scan()
-        if self.ble_manager.client and self.ble_manager.client.is_connected:
-            await self.ble_manager.disconnect_from_device()
 
 
 if __name__ == '__main__':
