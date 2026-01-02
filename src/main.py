@@ -61,9 +61,6 @@ Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
 Builder.load_file(resource_path('globalrssigraph.kv'))
 Builder.load_file(resource_path('tooltip.kv'))
-Builder.load_file(resource_path('scanner_screen.kv'))
-Builder.load_file(resource_path('device_screen.kv'))
-Builder.load_file(resource_path('log_screen.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -145,7 +142,10 @@ class BLEScannerApp(App):
         Called when the application is starting.
         Requests permissions on Android.
         """
-        self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...", LogLevel.INFO)
+        def log_startup(dt):
+            self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...", LogLevel.INFO)
+
+        Clock.schedule_once(log_startup)
         Window.bind(on_keyboard=self._on_keyboard)
 
         if kivy_platform == 'android':
