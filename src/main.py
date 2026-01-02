@@ -61,6 +61,9 @@ Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
 Builder.load_file(resource_path('globalrssigraph.kv'))
 Builder.load_file(resource_path('tooltip.kv'))
+Builder.load_file(resource_path('scanner_screen.kv'))
+Builder.load_file(resource_path('device_screen.kv'))
+Builder.load_file(resource_path('log_screen.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -96,22 +99,13 @@ class BLEScannerApp(App):
         self.parameter_popup.open()
 
     def restore_default_parameters(self, popup):
-        """Restores the default parameters."""
-        self.config_manager.restore_defaults()
-        self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
-        popup.ids.scan_timeout_input.text = self.scan_timeout
-
-        theme_name = self.config_manager.get_setting('theme', 'name')
-        theme_manager.set_theme(theme_name)
-        popup.ids.theme_spinner.text = theme_name
-
-        self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
-        popup.ids.adapter_spinner.text = self.adapter
-
-        popup.ids.auto_connect_checkbox.active = self.config_manager.get_setting('auto_connect', 'enabled') == 'True'
-        popup.ids.auto_connect_filter_input.text = self.config_manager.get_setting('auto_connect', 'filter')
-
-        self.log_with_timestamp("Default parameters restored.", LogLevel.INFO)
+        """Restores the default parameters in the UI without saving."""
+        popup.ids.scan_timeout_input.text = self.config_manager.get_default_setting('scan', 'timeout')
+        popup.ids.theme_spinner.text = self.config_manager.get_default_setting('theme', 'name')
+        popup.ids.adapter_spinner.text = self.config_manager.get_default_setting('bluetooth', 'adapter')
+        popup.ids.auto_connect_checkbox.active = self.config_manager.get_default_setting('auto_connect', 'enabled') == 'True'
+        popup.ids.auto_connect_filter_input.text = self.config_manager.get_default_setting('auto_connect', 'filter')
+        self.log_with_timestamp("UI restored to default parameters. Click OK to save.", LogLevel.INFO)
 
     def update_parameters(self, popup):
         """Updates the parameters from the parameter window."""

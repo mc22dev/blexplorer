@@ -48,7 +48,7 @@ run-local:
 	./scripts/run.sh
 
 # Clean all build artifacts and virtual environments
-mrproper:
+clean:
 	- . tmp/venv/bin/activate && yes | buildozer distclean
 	-rm -rf tmp
 	-find . -type d -name "__pycache__" -exec rm -r {} +

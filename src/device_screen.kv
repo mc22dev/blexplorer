@@ -1,0 +1,39 @@
+#:kivy 2.0.0
+
+<DeviceScreen@BoxLayout>:
+    orientation: 'vertical'
+    BoxLayout:
+        id: device_toolbar
+        size_hint_y: None
+        height: "48dp"
+        canvas.before:
+            Color:
+                rgba: app.theme.header_bg
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            text: "Device Info"
+        TooltipButton:
+            id: refresh_button
+            font_name: "MaterialIcons"
+            text: "\U000F0450"
+            on_release: app.read_all_characteristics()
+            disabled: not app.is_connected if app else True
+            tooltip_text: "Read all characteristics"
+        TooltipButton:
+            id: upload_button
+            font_name: "MaterialIcons"
+            text: "\U000F0552"
+            on_release: app.open_ota_window()
+            disabled: not app.is_connected if app else True
+            tooltip_text: "OTA Upload"
+    ScrollView:
+        id: char_scroll_view
+        GridLayout:
+            id: characteristic_list
+            cols: 1
+            size_hint_y: None
+            height: self.minimum_height
+            Label:
+                text: 'Characteristics will appear here'

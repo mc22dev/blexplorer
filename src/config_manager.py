@@ -116,6 +116,19 @@ class ConfigManager:
         """
         return self.config.get(section, option, fallback=self.defaults.get(section, {}).get(option))
 
+    def get_default_setting(self, section: str, option: str) -> str:
+        """
+        Gets a default setting value for a given section and option.
+
+        Args:
+            section: The section in the INI file.
+            option: The option within the section.
+
+        Returns:
+            The default value of the setting as a string, or None if not found.
+        """
+        return self.defaults.get(section, {}).get(option)
+
     def set_setting(self, section: str, option: str, value):
         """
         Sets a setting value and saves the configuration.
