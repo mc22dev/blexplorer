@@ -69,6 +69,10 @@ class BLEManager:
     async def scan_for_devices(self, adapter: Optional[str]) -> None:
         """Starts a non-blocking BLE scan."""
         scanner_kwargs = {"adapter": adapter} if adapter else {}
+        # Use "passive" scanning mode on Android to improve reliability
+        if "android" in BleakScanner.__module__:
+            scanner_kwargs["scanning_mode"] = "passive"
+
         self.scanner = BleakScanner(
             detection_callback=self._on_device_found,
             **scanner_kwargs
