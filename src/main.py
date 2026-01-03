@@ -197,39 +197,48 @@ class BLEScannerApp(App):
         """
         Requests BLE scanning permissions on Android using Kivy's built-in APIs.
         """
-        from android.permissions import request_permissions, Permission
-
-        permissions = [
-            Permission.BLUETOOTH_SCAN,
-            Permission.BLUETOOTH_CONNECT,
-            Permission.ACCESS_FINE_LOCATION,
-        ]
-
-        self.log_with_timestamp("Requesting Android permissions...", LogLevel.INFO)
+        from android.permissions import request_permissions
+        permissions = self._get_android_permissions()
+        self.log_with_timestamp(f"Requesting Android permissions: {permissions}", LogLevel.INFO)
         request_permissions(permissions, self._on_permissions_callback)
+
+    def _get_android_permissions(self) -> list[str]:
+        """
+        Returns the appropriate list of Android permissions based on the API level.
+        """
+        from jnius import autoclass
+        Build = autoclass('android.os.Build$VERSION')
+        sdk_int = Build.SDK_INT
+
+        if sdk_int >= 31:  # Android 12 (API 31) and above
+            return [
+                "android.permission.BLUETOOTH_SCAN",
+                "android.permission.BLUETOOTH_CONNECT",
+                "android.permission.ACCESS_FINE_LOCATION",
+            ]
+        else:  # Older Android versions
+            return [
+                "android.permission.BLUETOOTH",
+                "android.permission.BLUETOOTH_ADMIN",
+                "android.permission.ACCESS_FINE_LOCATION",
+            ]
 
     def _check_android_permissions(self) -> bool:
         """
         Checks if the necessary Android permissions for BLE scanning are granted.
         """
         from jnius import autoclass
-
         PythonActivity = autoclass('org.kivy.android.PythonActivity')
         context = PythonActivity.mActivity
-        Permission = autoclass('android.Manifest$permission')
         PackageManager = autoclass('android.content.pm.PackageManager')
 
-        permissions_to_check = [
-            Permission.BLUETOOTH_SCAN,
-            Permission.BLUETOOTH_CONNECT,
-            Permission.ACCESS_FINE_LOCATION,
-        ]
+        permissions_to_check = self._get_android_permissions()
 
         granted = all(
             context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
             for p in permissions_to_check
         )
-        self.log_with_timestamp(f"Permission check result: {granted}", LogLevel.DEBUG)
+        self.log_with_timestamp(f"Permission check for {permissions_to_check}: {granted}", LogLevel.DEBUG)
         return granted
 
     def _on_keyboard(self, window, key, scancode, codepoint, modifier):
