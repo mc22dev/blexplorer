@@ -205,6 +205,7 @@ class BLEScannerApp(App):
         """
         Callback for the permission request. Checks if all permissions were granted.
         """
+        self.log_with_timestamp(f"Permission grants received: {grants}", LogLevel.DEBUG)
         success = all(grant == 0 for grant in grants)
         self._on_permissions_result(success)
 
