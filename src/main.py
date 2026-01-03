@@ -173,33 +173,17 @@ class BLEScannerApp(App):
         Clock.schedule_once(log_startup)
         Window.bind(on_keyboard=self._on_keyboard)
 
-        if kivy_platform == 'android':
-            def disable_scan_button(dt):
-                if self.root and 'scan_button' in self.root.ids:
-                    self.root.ids.scan_button.disabled = True
-            Clock.schedule_once(disable_scan_button)
-            self.request_android_permissions()
-
         self.discover_adapters()
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
 
     def _on_permissions_result(self, success: bool, dt=None):
         """
         Callback function for permission request results.
-        Schedules the UI update to ensure thread safety.
         """
-        def update_ui(dt):
-            if success:
-                self.log_with_timestamp("Permissions granted.", LogLevel.SUCCESS)
-                if self.root and 'scan_button' in self.root.ids:
-                    self.root.ids.scan_button.disabled = False
-                # Start a scan automatically now that permissions are granted
-                self.scan_for_devices()
-            else:
-                self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
-                if self.root and 'scan_button' in self.root.ids:
-                    self.root.ids.scan_button.disabled = True
-        Clock.schedule_once(update_ui)
+        if success:
+            self.log_with_timestamp("Permissions granted. You can now scan for devices.", LogLevel.SUCCESS)
+        else:
+            self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
 
     def _on_permissions_callback(self, permissions, grants):
         """
@@ -223,6 +207,30 @@ class BLEScannerApp(App):
 
         self.log_with_timestamp("Requesting Android permissions...", LogLevel.INFO)
         request_permissions(permissions, self._on_permissions_callback)
+
+    def _check_android_permissions(self) -> bool:
+        """
+        Checks if the necessary Android permissions for BLE scanning are granted.
+        """
+        from jnius import autoclass
+
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        context = PythonActivity.mActivity
+        Permission = autoclass('android.Manifest$permission')
+        PackageManager = autoclass('android.content.pm.PackageManager')
+
+        permissions_to_check = [
+            Permission.BLUETOOTH_SCAN,
+            Permission.BLUETOOTH_CONNECT,
+            Permission.ACCESS_FINE_LOCATION,
+        ]
+
+        granted = all(
+            context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
+            for p in permissions_to_check
+        )
+        self.log_with_timestamp(f"Permission check result: {granted}", LogLevel.DEBUG)
+        return granted
 
     def _on_keyboard(self, window, key, scancode, codepoint, modifier):
         """
@@ -289,7 +297,15 @@ class BLEScannerApp(App):
         self.adapters = adapters
 
     def scan_for_devices(self, *args):
-        """Schedules the asynchronous scan for devices."""
+        """
+        Schedules the asynchronous scan for devices.
+        On Android, it checks for permissions first.
+        """
+        if kivy_platform == 'android':
+            if not self._check_android_permissions():
+                self.request_android_permissions()
+                return
+
         asyncio.create_task(self.async_scan_for_devices())
 
     async def async_scan_for_devices(self):
