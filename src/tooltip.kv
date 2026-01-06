@@ -1,0 +1,12 @@
+#:kivy 2.0.0
+
+<Tooltip>:
+    size_hint: None, None
+    size: self.texture_size
+    padding: '10dp', '5dp'
+    canvas.before:
+        Color:
+            rgba: 0.2, 0.2, 0.2, 0.8
+        Rectangle:
+            pos: self.pos
+            size: self.size
