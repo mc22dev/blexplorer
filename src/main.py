@@ -766,19 +766,25 @@ class BLEScannerApp(App):
         self.log_to_wireshark(f"Notification from {characteristic.uuid}: {data.hex()}")
 
     def log_to_wireshark(self, message: str):
-        """Logs a message to the Wireshark tab."""
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        log_message = f"[{timestamp}] {message}\n"
-        self.root.ids.wireshark_screen.ids.wireshark_log_view.text += log_message
-        self.root.ids.wireshark_screen.ids.wireshark_scroll_view.scroll_y = 0
+        """Logs a message to the Wireshark tab, scheduling it on the main thread."""
+        def _log(dt):
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            log_message = f"[{timestamp}] {message}\n"
+            if 'wireshark_screen' in self.root.ids and 'wireshark_log_view' in self.root.ids.wireshark_screen.ids:
+                self.root.ids.wireshark_screen.ids.wireshark_log_view.text += log_message
+                self.root.ids.wireshark_screen.ids.wireshark_scroll_view.scroll_y = 0
+        Clock.schedule_once(_log)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
-        """Logs a message with a timestamp and level."""
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        log_message = f"[{timestamp}] [{level.value}] {message}\n"
-        self.root.ids.log_screen.ids.log_view.text += log_message
-        if self.root.ids.log_screen.ids.autoscroll_checkbox.active:
-            self.root.ids.log_screen.ids.log_scroll_view.scroll_y = 0
+        """Logs a message with a timestamp and level, scheduling it on the main thread."""
+        def _log(dt):
+            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            log_message = f"[{timestamp}] [{level.value}] {message}\n"
+            if 'log_screen' in self.root.ids and 'log_view' in self.root.ids.log_screen.ids:
+                self.root.ids.log_screen.ids.log_view.text += log_message
+                if self.root.ids.log_screen.ids.autoscroll_checkbox.active:
+                    self.root.ids.log_screen.ids.log_scroll_view.scroll_y = 0
+        Clock.schedule_once(_log)
 
     def open_ota_window(self):
         """Opens the OTA window."""
