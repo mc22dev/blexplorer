@@ -64,15 +64,14 @@
                         title: "Device Info"
                         right_action_items: [["refresh", lambda x: app.read_all_characteristics()], ["upload", lambda x: app.open_ota_window()]]
 
-                    ScrollView:
-                        id: char_scroll_view
-                        MDBoxLayout:
-                            id: characteristic_list
-                            orientation: 'vertical'
+                    RecycleView:
+                        id: characteristic_list_rv
+                        viewclass: 'ListItem'
+                        RecycleBoxLayout:
+                            default_size_hint: 1, None
                             size_hint_y: None
                             height: self.minimum_height
-                            MDLabel:
-                                text: 'Characteristics will appear here'
+                            orientation: 'vertical'
 
             MDBottomNavigationItem:
                 name: 'log_screen'

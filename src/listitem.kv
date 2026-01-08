@@ -1,0 +1,11 @@
+#:kivy 2.0.0
+#:import dp kivy.metrics.dp
+
+<ListItem>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: root.data.get('height', dp(48))
+
+<ServiceHeader>:
+    size_hint_y: None
+    height: '48dp'

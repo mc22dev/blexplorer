@@ -17,6 +17,7 @@ from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
 from kivy.uix.filechooser import FileChooserListView
 from kivymd.uix.button import MDRaisedButton
+from kivy.metrics import dp
 from kivymd.uix.label import MDLabel
 from kivy.core.window import Window
 
@@ -29,8 +30,8 @@ from models import CachedService, LogLevel, DeviceScanStats
 from device_frame_kivy import DeviceFrameKivy
 from characteristic_frame_kivy import CharacteristicFrameKivy
 from descriptor_frame_kivy import DescriptorFrameKivy
-from collapsible_frame_kivy import CollapsibleFrameKivy
 from gatt import GATT_SERVICES
+from list_item import ListItem
 from parameter_window import ParameterWindow
 from config_manager import ConfigManager
 from ota_window import OTAWindow
@@ -52,9 +53,9 @@ def resource_path(relative_path):
 Builder.load_file(resource_path('deviceframekivy.kv'))
 Builder.load_file(resource_path('characteristicframekivy.kv'))
 Builder.load_file(resource_path('descriptorframekivy.kv'))
-Builder.load_file(resource_path('collapsibleframekivy.kv'))
 Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
+Builder.load_file(resource_path('listitem.kv'))
 
 
 class MainLayout(MDBoxLayout):
@@ -436,12 +437,12 @@ class BLEScannerApp(MDApp):
                 self.selected_device_frame = None
             # The BLEManager now logs the disconnection event.
             # We just need to update the UI state.
-            self.root.ids.characteristic_list.clear_widgets()
+            self.root.ids.characteristic_list_rv.data = []
             self.characteristic_frames = {}
 
     def discover_attributes(self):
         """Discovers and displays the services and characteristics of the connected device."""
-        self.root.ids.characteristic_list.clear_widgets()
+        self.root.ids.characteristic_list_rv.data = []
         self.characteristic_frames = {}
 
         cached_services_data = None
@@ -465,23 +466,64 @@ class BLEScannerApp(MDApp):
 
     def populate_characteristic_ui(self, characteristics):
         # Group characteristics by service UUID
-        service_map = {}
+        self.service_map = {}
         for char in characteristics:
             service_uuid = str(char.service_uuid)
-            if service_uuid not in service_map:
-                service_map[service_uuid] = []
-            service_map[service_uuid].append(char)
+            if service_uuid not in self.service_map:
+                self.service_map[service_uuid] = []
+            self.service_map[service_uuid].append(char)
 
-        # Create collapsible frames for each service, passing the characteristics and a creation callback
-        for service_uuid, service_chars in service_map.items():
+        # Create the data for the RecycleView
+        rv_data = []
+        for service_uuid, service_chars in self.service_map.items():
             service_name = GATT_SERVICES.get(service_uuid.split("-")[0].lstrip("0").lower(), "Unknown Service")
-            sf = CollapsibleFrameKivy(
-                title=f"Service: {service_name} ({service_uuid})",
-                characteristics=service_chars,
-                populate_callback=self._create_and_bind_characteristic_frame,
-                is_expanded=False  # Start collapsed
-            )
-            self.root.ids.characteristic_list.add_widget(sf)
+            header_data = {
+                'viewclass': 'ServiceHeader',
+                'text': f"Service: {service_name} ({service_uuid})",
+                'service_uuid': service_uuid,
+                'is_expanded': False,
+                'height': dp(48),
+            }
+            rv_data.append({'data': header_data, 'app': self})
+
+        self.root.ids.characteristic_list_rv.data = rv_data
+
+    def toggle_service_expansion(self, header_data):
+        """Toggles the expansion of a service in the RecycleView."""
+        service_uuid = header_data['data']['service_uuid']
+        is_expanded = not header_data['data']['is_expanded']
+        header_data['data']['is_expanded'] = is_expanded
+
+        # Find the index of the header in the data list
+        header_index = -1
+        for i, item in enumerate(self.root.ids.characteristic_list_rv.data):
+            if item['data'].get('service_uuid') == service_uuid:
+                header_index = i
+                break
+
+        if header_index == -1:
+            return
+
+        # Update the header in the data list
+        self.root.ids.characteristic_list_rv.data[header_index] = header_data
+
+        if is_expanded:
+            # Add characteristics to the list
+            characteristics = self.service_map.get(service_uuid, [])
+            for i, char in enumerate(characteristics):
+                char_data = {
+                    'viewclass': 'CharacteristicFrameKivy',
+                    'characteristic': char,
+                    'height': dp(200),
+                }
+                self.root.ids.characteristic_list_rv.data.insert(header_index + 1 + i, {'data': char_data, 'app': self})
+        else:
+            # Remove characteristics from the list
+            while (header_index + 1 < len(self.root.ids.characteristic_list_rv.data) and
+                   self.root.ids.characteristic_list_rv.data[header_index + 1]['data'].get('viewclass') == 'CharacteristicFrameKivy'):
+                self.root.ids.characteristic_list_rv.data.pop(header_index + 1)
+
+        self.root.ids.characteristic_list_rv.refresh_from_data()
 
     def _create_and_bind_characteristic_frame(self, char):
         """Creates a characteristic frame, binds its events, and returns the frame."""
