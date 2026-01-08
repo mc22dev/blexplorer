@@ -25,6 +25,7 @@ from file_chooser_dialog import FileChooserDialog
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
+from ble_decoder import decode_advertisement
 from ble_manager import BLEManager
 from device_cache import DeviceCache, service_to_dict
 from models import CachedService, LogLevel, DeviceScanStats
@@ -64,6 +65,10 @@ Builder.load_file(resource_path('tooltip.kv'))
 
 
 class MainLayout(BoxLayout):
+    pass
+
+
+class WiresharkScreen(BoxLayout):
     pass
 
 
@@ -375,6 +380,10 @@ class BLEScannerApp(App):
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
+        self.log_to_wireshark(f"Advertisement from {device.address} ({device.name or 'Unknown'}): RSSI: {adv_data.rssi}, Data: {adv_data.manufacturer_data.hex() if adv_data.manufacturer_data else ''}")
+        decoded_info = decode_advertisement(adv_data)
+        if decoded_info:
+            self.log_to_wireshark(decoded_info)
         self.discovered_devices_batch.append((device, adv_data))
 
     async def _process_device_batch_periodically(self):
@@ -650,6 +659,7 @@ class BLEScannerApp(App):
         self.dismiss_popup()
 
     async def read_characteristic(self, characteristic, char_frame, *args):
+        self.log_to_wireshark(f"Reading from {characteristic.uuid}...")
         value = await self.ble_manager.read_characteristic(characteristic.uuid)
         self.on_characteristic_read(char_frame, value)
 
@@ -658,12 +668,15 @@ class BLEScannerApp(App):
             char_frame.raw_value = value
             display_format = char_frame.ids.format_spinner.text
             self.log_with_timestamp(f"Value read from {char_frame.char_uuid} ({display_format}): {char_frame.char_value}", LogLevel.SUCCESS)
+            self.log_to_wireshark(f"Read from {char_frame.char_uuid}: {value.hex()}")
             char_frame.ids.value_input.background_color = (0, 1, 0, 1) # Green for success
             asyncio.create_task(self.async_reset_char_color(char_frame))
         else:
             self.log_with_timestamp(f"Failed to read from {char_frame.char_uuid}", LogLevel.ERROR)
+            self.log_to_wireshark(f"Failed to read from {char_frame.char_uuid}")
 
     def write_characteristic(self, characteristic, char_frame, *args):
+        self.log_to_wireshark(f"Writing to {characteristic.uuid}...")
         asyncio.create_task(self.async_write_characteristic(characteristic, char_frame))
 
     async def async_write_characteristic(self, characteristic, char_frame):
@@ -686,10 +699,12 @@ class BLEScannerApp(App):
     def on_characteristic_write(self, char_frame, success, characteristic, value_written, write_mode):
         if success:
             self.log_with_timestamp(f"Value written to {char_frame.char_uuid} ({write_mode}): {value_written}", LogLevel.SUCCESS)
+            self.log_to_wireshark(f"Wrote to {char_frame.char_uuid}: {value_written}")
             if "read" in characteristic.properties:
                 asyncio.create_task(self.read_characteristic(characteristic, char_frame))
         else:
             self.log_with_timestamp(f"Write Error on {char_frame.char_uuid}", LogLevel.ERROR)
+            self.log_to_wireshark(f"Write Error on {char_frame.char_uuid}")
             char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
 
     async def async_reset_char_color(self, char_frame):
@@ -748,6 +763,14 @@ class BLEScannerApp(App):
             char_frame.raw_value = data
             display_format = char_frame.ids.format_spinner.text
             self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}", LogLevel.INFO)
+        self.log_to_wireshark(f"Notification from {characteristic.uuid}: {data.hex()}")
+
+    def log_to_wireshark(self, message: str):
+        """Logs a message to the Wireshark tab."""
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        log_message = f"[{timestamp}] {message}\n"
+        self.root.ids.wireshark_screen.ids.wireshark_log_view.text += log_message
+        self.root.ids.wireshark_screen.ids.wireshark_scroll_view.scroll_y = 0
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
         """Logs a message with a timestamp and level."""
