@@ -1,3 +1,4 @@
+import asyncio
 import platform
 import subprocess
 import re
@@ -5,7 +6,6 @@ from datetime import datetime
 from functools import partial
 import os
 import sys
-from enum import Enum
 
 from kivy.utils import platform as kivy_platform
 from kivymd.app import MDApp
@@ -280,8 +280,8 @@ class BLEScannerApp(MDApp):
         self.scan_stats = {}
         return MainLayout()
 
-    def on_stop(self):
-        self.ble_manager.shutdown()
+    async def on_stop(self):
+        await self.ble_manager.shutdown()
 
     def discover_adapters(self):
         """Discovers available Bluetooth adapters and populates the dropdown."""
@@ -297,6 +297,10 @@ class BLEScannerApp(MDApp):
         self.adapters = adapters
 
     def scan_for_devices(self, *args):
+        """Schedules the asynchronous scan for devices."""
+        asyncio.create_task(self.async_scan_for_devices())
+
+    async def async_scan_for_devices(self):
         """Initiates a scan for nearby BLE devices."""
         if self.selected_device_frame:
             self.selected_device_frame.is_selected = False
@@ -316,21 +320,21 @@ class BLEScannerApp(MDApp):
             self.is_scanning = False
             return
 
-        Clock.schedule_interval(self._process_device_batch, 0.25)  # Process batch every 250ms
-        self.ble_manager.scan_for_devices(adapter, timeout)
-        Clock.schedule_once(self.on_scan_finished, timeout)
+        self._batch_processing_task = asyncio.create_task(self._process_device_batch_periodically())
+        await self.ble_manager.scan_for_devices(adapter)
+        await asyncio.sleep(timeout)
+        await self.stop_scan()
 
-    def stop_scan(self, *args):
+    async def stop_scan(self, *args):
         """Stops the BLE scan."""
         if self.is_scanning:
-            self.ble_manager.stop_scan()
-            Clock.unschedule(self._process_device_batch)
+            await self.ble_manager.stop_scan()
+            if self._batch_processing_task:
+                self._batch_processing_task.cancel()
+                self._batch_processing_task = None
             self._process_device_batch()  # Process any remaining devices
             self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
             self.is_scanning = False
-
-    def on_scan_finished(self, *args):
-        self.stop_scan()
 
     def filter_devices(self, search_term):
         """Filters the device list based on the search term."""
@@ -348,6 +352,12 @@ class BLEScannerApp(MDApp):
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
         self.discovered_devices_batch.append((device, adv_data))
+
+    async def _process_device_batch_periodically(self):
+        """Periodically processes the batch of discovered devices."""
+        while True:
+            self._process_device_batch()
+            await asyncio.sleep(0.25)
 
     def _process_device_batch(self, *args):
         """Processes the batch of discovered devices and updates the UI."""
@@ -383,8 +393,12 @@ class BLEScannerApp(MDApp):
 
     def connect_to_device(self, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""
+        asyncio.create_task(self.async_connect_to_device(device_frame))
+
+    async def async_connect_to_device(self, device_frame: DeviceFrameKivy):
+        """Connects to the selected device."""
         if self.is_scanning:
-            self.stop_scan()
+            await self.stop_scan()
 
         if self.selected_device_frame:
             self.selected_device_frame.is_selected = False
@@ -396,17 +410,17 @@ class BLEScannerApp(MDApp):
         self.is_connecting = True
         self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...", LogLevel.INFO)
         adapter = self.adapter if self.adapter != "Default" else None
-        self.ble_manager.connect_to_device(device.address, adapter)
+        await self.ble_manager.connect_to_device(device.address, adapter)
 
     def disconnect_from_device(self, *args):
         """Initiates a manual disconnection from the connected device."""
         if self.ble_manager and self.ble_manager.client and self.ble_manager.client.is_connected:
             self.log_with_timestamp("Disconnect button pressed.", LogLevel.INFO)
-            self.ble_manager.disconnect_from_device()
+            asyncio.create_task(self.ble_manager.disconnect_from_device())
 
     def _on_connection_status_changed(self, is_connected: bool):
         """Callback for connection status changes."""
-        Clock.schedule_once(lambda dt: self._update_connection_ui(is_connected))
+        self._update_connection_ui(is_connected)
 
     def _update_connection_ui(self, is_connected: bool):
         """Updates the UI based on the connection status."""
@@ -447,7 +461,7 @@ class BLEScannerApp(MDApp):
                 all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
                 self.populate_characteristic_ui(all_characteristics)
 
-            Clock.schedule_once(lambda dt: self._check_for_attribute_diffs(cached_services_data), 0.1)
+            self._check_for_attribute_diffs(cached_services_data)
 
     def populate_characteristic_ui(self, characteristics):
         # Group characteristics by service UUID
@@ -493,7 +507,7 @@ class BLEScannerApp(MDApp):
 
         if user_desc:
             # Defer the read operation to allow the UI to draw first
-            Clock.schedule_once(lambda dt: self.read_descriptor(user_desc, char_frame.ids.user_description_label), 0.1)
+            asyncio.create_task(self.read_descriptor(user_desc, char_frame.ids.user_description_label))
 
         return char_frame
 
@@ -520,7 +534,7 @@ class BLEScannerApp(MDApp):
         self.log_with_timestamp("--- Reading all readable characteristics ---", LogLevel.INFO)
         for char_frame in self.characteristic_frames.values():
             if "read" in char_frame.characteristic.properties:
-                self.read_characteristic(char_frame.characteristic, char_frame)
+                asyncio.create_task(self.read_characteristic(char_frame.characteristic, char_frame))
 
     def clear_log(self, *args):
         """Clears the debug log text box."""
@@ -552,8 +566,9 @@ class BLEScannerApp(MDApp):
             self.log_with_timestamp(f"Error saving log: {e}", LogLevel.ERROR)
         self.dismiss_popup()
 
-    def read_characteristic(self, characteristic, char_frame, *args):
-        self.ble_manager.read_characteristic(characteristic.uuid, lambda value: Clock.schedule_once(lambda dt: self.on_characteristic_read(char_frame, value)))
+    async def read_characteristic(self, characteristic, char_frame, *args):
+        value = await self.ble_manager.read_characteristic(characteristic.uuid)
+        self.on_characteristic_read(char_frame, value)
 
     def on_characteristic_read(self, char_frame, value):
         if value is not None:
@@ -561,11 +576,14 @@ class BLEScannerApp(MDApp):
             display_format = char_frame.ids.format_spinner.text
             self.log_with_timestamp(f"Value read from {char_frame.char_uuid} ({display_format}): {char_frame.char_value}", LogLevel.SUCCESS)
             char_frame.ids.value_input.background_color = (0, 1, 0, 1) # Green for success
-            Clock.schedule_once(lambda dt: self.reset_char_color(char_frame), 0.5)
+            asyncio.create_task(self.async_reset_char_color(char_frame))
         else:
             self.log_with_timestamp(f"Failed to read from {char_frame.char_uuid}", LogLevel.ERROR)
 
     def write_characteristic(self, characteristic, char_frame, *args):
+        asyncio.create_task(self.async_write_characteristic(characteristic, char_frame))
+
+    async def async_write_characteristic(self, characteristic, char_frame):
         value_str = char_frame.ids.value_input.text
         write_mode = char_frame.ids.write_mode_spinner.text
         try:
@@ -579,29 +597,25 @@ class BLEScannerApp(MDApp):
             char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
             return
 
-        self.ble_manager.write_characteristic(
-            characteristic.uuid,
-            write_value,
-            lambda success: Clock.schedule_once(
-                lambda dt: self.on_characteristic_write(char_frame, success, characteristic, value_str, write_mode)
-            )
-        )
+        success = await self.ble_manager.write_characteristic(characteristic.uuid, write_value)
+        self.on_characteristic_write(char_frame, success, characteristic, value_str, write_mode)
 
     def on_characteristic_write(self, char_frame, success, characteristic, value_written, write_mode):
         if success:
             self.log_with_timestamp(f"Value written to {char_frame.char_uuid} ({write_mode}): {value_written}", LogLevel.SUCCESS)
             if "read" in characteristic.properties:
-                self.read_characteristic(characteristic, char_frame)
+                asyncio.create_task(self.read_characteristic(characteristic, char_frame))
         else:
             self.log_with_timestamp(f"Write Error on {char_frame.char_uuid}", LogLevel.ERROR)
             char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
 
-    def reset_char_color(self, char_frame):
+    async def async_reset_char_color(self, char_frame):
+        await asyncio.sleep(0.5)
         char_frame.ids.value_input.background_color = (1, 1, 1, 1)
 
-    def read_descriptor(self, descriptor, desc_frame, *args):
-        callback = partial(self.on_descriptor_read, descriptor, desc_frame)
-        self.ble_manager.read_descriptor(descriptor.handle, lambda value: Clock.schedule_once(lambda dt: callback(value)))
+    async def read_descriptor(self, descriptor, desc_frame, *args):
+        value = await self.ble_manager.read_descriptor(descriptor.handle)
+        self.on_descriptor_read(descriptor, desc_frame, value)
 
     def on_descriptor_read(self, descriptor, desc_frame, value):
         if value is not None:
@@ -614,6 +628,9 @@ class BLEScannerApp(MDApp):
             self.log_with_timestamp(f"Failed to read from {descriptor.uuid}", LogLevel.ERROR)
 
     def write_descriptor(self, descriptor, desc_frame, *args):
+        asyncio.create_task(self.async_write_descriptor(descriptor, desc_frame))
+
+    async def async_write_descriptor(self, descriptor, desc_frame):
         value_str = desc_frame.ids.value_input.text
         try:
             write_value = bytes.fromhex(value_str)
@@ -621,7 +638,8 @@ class BLEScannerApp(MDApp):
             self.log_with_timestamp(f"Invalid hex value for write on {descriptor.uuid}", LogLevel.ERROR)
             return
 
-        self.ble_manager.write_descriptor(descriptor.handle, write_value, lambda success: Clock.schedule_once(lambda dt: self.on_descriptor_write(desc_frame, success)))
+        success = await self.ble_manager.write_descriptor(descriptor.handle, write_value)
+        self.on_descriptor_write(desc_frame, success)
 
     def on_descriptor_write(self, desc_frame, success):
         if success:
@@ -631,15 +649,15 @@ class BLEScannerApp(MDApp):
 
     def toggle_subscription(self, characteristic, char_frame, widget, active):
         if active:
-            self.ble_manager.subscribe_to_characteristic(characteristic.uuid)
+            asyncio.create_task(self.ble_manager.subscribe_to_characteristic(characteristic.uuid))
             self.log_with_timestamp(f"Subscribed to {characteristic.uuid}", LogLevel.INFO)
         else:
-            self.ble_manager.unsubscribe_from_characteristic(characteristic.uuid)
+            asyncio.create_task(self.ble_manager.unsubscribe_from_characteristic(characteristic.uuid))
             self.log_with_timestamp(f"Unsubscribed from {characteristic.uuid}", LogLevel.INFO)
 
     def notification_handler(self, characteristic, data):
         """Handles incoming notifications."""
-        Clock.schedule_once(lambda dt: self.on_notification(characteristic, data))
+        self.on_notification(characteristic, data)
 
     def on_notification(self, characteristic, data):
         if characteristic.uuid in self.characteristic_frames:
@@ -649,14 +667,7 @@ class BLEScannerApp(MDApp):
             self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}", LogLevel.INFO)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
-        """
-        Logs a message with a timestamp and level in a thread-safe manner.
-        Schedules the actual UI update on the main Kivy thread.
-        """
-        Clock.schedule_once(lambda dt: self._log_on_main_thread(message, level))
-
-    def _log_on_main_thread(self, message: str, level: LogLevel):
-        """Performs the actual log update on the main thread."""
+        """Logs a message with a timestamp and level."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         log_message = f"[{timestamp}] [{level.value}] {message}\n"
         self.root.ids.log_view.text += log_message
@@ -684,7 +695,7 @@ class BLEScannerApp(MDApp):
             return
         filepath = os.path.join(path, selection[0])
         self.log_with_timestamp(f"Starting OTA upload from {filepath}", LogLevel.INFO)
-        self.ble_manager.start_ota_upload(filepath, self.ota_progress_callback)
+        asyncio.create_task(self.ble_manager.start_ota_upload(filepath, self.ota_progress_callback))
         self.dismiss_popup()
         if self.ota_popup:
             self.ota_popup.ids.file_label.text = filepath
@@ -697,5 +708,21 @@ class BLEScannerApp(MDApp):
             self.log_with_timestamp("OTA operation completed.", LogLevel.SUCCESS)
 
 
+    async def app_func(self):
+        """The async main function of the app."""
+        await self.async_run(async_lib='asyncio')
+        if self.is_scanning:
+            await self.stop_scan()
+        if self.ble_manager.client and self.ble_manager.client.is_connected:
+            await self.ble_manager.disconnect_from_device()
+
+
 if __name__ == '__main__':
-    BLEScannerApp().run()
+    try:
+        loop = asyncio.get_event_loop()
+        app = BLEScannerApp()
+        loop.run_until_complete(app.app_func())
+    except asyncio.CancelledError:
+        pass  # Ignore TaskCancelledError when the app is closed
+    except KeyboardInterrupt:
+        pass
