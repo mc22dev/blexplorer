@@ -380,7 +380,8 @@ class BLEScannerApp(App):
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
-        self.log_to_wireshark(f"Advertisement from {device.address} ({device.name or 'Unknown'}): RSSI: {adv_data.rssi}, Data: {adv_data.manufacturer_data.hex() if adv_data.manufacturer_data else ''}")
+        manuf_data_str = ', '.join(f'{k}:{v.hex()}' for k, v in adv_data.manufacturer_data.items()) if adv_data.manufacturer_data else ''
+        self.log_to_wireshark(f"Advertisement from {device.address} ({device.name or 'Unknown'}): RSSI: {adv_data.rssi}, Data: {manuf_data_str}")
         decoded_info = decode_advertisement(adv_data)
         if decoded_info:
             self.log_to_wireshark(decoded_info)
