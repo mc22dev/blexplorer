@@ -380,8 +380,25 @@ class BLEScannerApp(App):
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
-        manuf_data_str = ', '.join(f'{k}:{v.hex()}' for k, v in adv_data.manufacturer_data.items()) if adv_data.manufacturer_data else ''
-        self.log_to_wireshark(f"Advertisement from {device.address} ({device.name or 'Unknown'}): RSSI: {adv_data.rssi}, Data: {manuf_data_str}")
+        log_lines = [
+            f"Advertisement from {device.address} ({device.name or 'Unknown'})",
+            f"  RSSI: {adv_data.rssi}",
+        ]
+        if adv_data.local_name:
+            log_lines.append(f"  Local Name: {adv_data.local_name}")
+        if adv_data.tx_power is not None:
+            log_lines.append(f"  TX Power: {adv_data.tx_power}")
+        if adv_data.service_uuids:
+            log_lines.append(f"  Service UUIDs: [{', '.join(adv_data.service_uuids)}]")
+        if adv_data.service_data:
+            service_data_str = ', '.join(f'"{k}":{v.hex()}' for k, v in adv_data.service_data.items())
+            log_lines.append(f"  Service Data: {{{service_data_str}}}")
+        if adv_data.manufacturer_data:
+            manuf_data_str = ', '.join(f'{k}:{v.hex()}' for k, v in adv_data.manufacturer_data.items())
+            log_lines.append(f"  Manufacturer Data: {{{manuf_data_str}}}")
+
+        self.log_to_wireshark("\n".join(log_lines))
+
         decoded_info = decode_advertisement(adv_data)
         if decoded_info:
             self.log_to_wireshark(decoded_info)
