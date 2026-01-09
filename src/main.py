@@ -793,8 +793,6 @@ class BLEScannerApp(App):
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             log_message = f"[{timestamp}] {message}\n"
             app.wireshark_text += log_message
-            if app.root and 'wireshark_screen' in app.root.ids and 'wireshark_scroll_view' in app.root.ids.wireshark_screen.ids:
-                app.root.ids.wireshark_screen.ids.wireshark_scroll_view.scroll_y = 0
         Clock.schedule_once(_log)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
