@@ -6,11 +6,12 @@ from functools import partial
 import os
 import sys
 
+from kivy.utils import platform as kivy_platform
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
-from kivy.properties import ListProperty, StringProperty
+from kivy.properties import ListProperty, StringProperty, BooleanProperty
 from kivy.uix.popup import Popup
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.button import Button
@@ -77,26 +78,61 @@ class SaveDialog(BoxLayout):
 class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
+    is_scan_button_disabled = BooleanProperty(True)
+
+    def on_start(self):
+        """
+        Called when the application is starting.
+        Binds UI events and requests permissions on Android.
+        """
+        self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
+        self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
+        self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
+        self.root.ids.clear_log_button.bind(on_release=self.clear_log)
+        self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
+        self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
+
+        if kivy_platform == 'android':
+            self.request_android_permissions()
+        else:
+            self.is_scan_button_disabled = False
+
+        self.discover_adapters()
+
+    def _on_permissions_result(self, success: bool, dt=None):
+        """
+        Callback function for permission request results.
+        Enables the scan button if permissions were granted.
+        """
+        if success:
+            self.log_with_timestamp("Permissions granted.")
+            self.is_scan_button_disabled = False
+        else:
+            self.log_with_timestamp("Permissions denied. Scanning is disabled.")
+            self.is_scan_button_disabled = True
+
+    def _on_permissions_callback(self, permissions, grants):
+        """
+        Callback for the permission request. Checks if all permissions were granted.
+        """
+        success = all(grant == 0 for grant in grants)
+        self._on_permissions_result(success)
 
     def request_android_permissions(self):
-        """Requests Android permissions for BLE scanning."""
-        from kivy.utils import platform
-        if platform != 'android':
-            return
-
+        """
+        Requests BLE scanning permissions on Android using Kivy's built-in APIs.
+        """
         from android.permissions import request_permissions, Permission
 
         permissions = [
+            Permission.BLUETOOTH_SCAN,
+            Permission.BLUETOOTH_CONNECT,
             Permission.ACCESS_FINE_LOCATION,
-            'android.permission.BLUETOOTH_SCAN',
-            'android.permission.BLUETOOTH_CONNECT'
         ]
 
-        try:
-            request_permissions(permissions)
-            self.log_with_timestamp("Requested Android permissions.")
-        except Exception as e:
-            self.log_with_timestamp(f"Error requesting permissions: {e}")
+        self.log_with_timestamp("Requesting Android permissions...")
+        request_permissions(permissions, self._on_permissions_callback)
+
 
     def build(self):
         self.ble_manager = BLEManager(
@@ -109,17 +145,6 @@ class BLEScannerApp(App):
         self.device_cache = DeviceCache()
         self.selected_device = None
         return MainLayout()
-
-    def on_start(self):
-        self.request_android_permissions()
-        self.discover_adapters()
-        self.root.ids.scan_button.bind(on_release=self.scan_for_devices)
-        self.root.ids.disconnect_button.bind(on_release=self.disconnect_from_device)
-        self.root.ids.read_all_button.bind(on_release=self.read_all_characteristics)
-        self.root.ids.clear_log_button.bind(on_release=self.clear_log)
-        self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
-        self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
-
 
     def on_stop(self):
         self.ble_manager.shutdown()
@@ -151,7 +176,7 @@ class BLEScannerApp(App):
 
     def scan_for_devices(self, *args):
         """Initiates a scan for nearby BLE devices."""
-        self.root.ids.scan_button.disabled = True
+        self.is_scan_button_disabled = True
         self.root.ids.scan_button.text = "Scanning..."
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
@@ -163,7 +188,7 @@ class BLEScannerApp(App):
             timeout = float(self.root.ids.scan_timeout_input.text)
         except ValueError:
             self.log_with_timestamp("Invalid scan timeout. Please enter a number.")
-            self.root.ids.scan_button.disabled = False
+            self.is_scan_button_disabled = False
             self.root.ids.scan_button.text = "Scan"
             return
 
@@ -172,7 +197,7 @@ class BLEScannerApp(App):
 
     def on_scan_finished(self, *args):
         self.log_with_timestamp("Scan stopped.")
-        self.root.ids.scan_button.disabled = False
+        self.is_scan_button_disabled = False
         self.root.ids.scan_button.text = "Scan"
 
     def filter_devices(self, search_term):
