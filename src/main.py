@@ -793,7 +793,7 @@ class BLEScannerApp(App):
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             log_message = f"[{timestamp}] {message}\n"
             app.wireshark_text += log_message
-            if app.root and 'wireshark_screen' in app.root.ids:
+            if app.root and 'wireshark_screen' in app.root.ids and 'wireshark_scroll_view' in app.root.ids.wireshark_screen.ids:
                 app.root.ids.wireshark_screen.ids.wireshark_scroll_view.scroll_y = 0
         Clock.schedule_once(_log)
 
@@ -807,7 +807,7 @@ class BLEScannerApp(App):
             log_message = f"[{timestamp}] [{level.value}] {message}\n"
             if 'log_screen' in app.root.ids and 'log_view' in app.root.ids.log_screen.ids:
                 app.root.ids.log_screen.ids.log_view.text += log_message
-                if app.root.ids.log_screen.ids.autoscroll_checkbox.active:
+                if app.root.ids.log_screen.ids.autoscroll_checkbox.active and 'log_scroll_view' in app.root.ids.log_screen.ids:
                     app.root.ids.log_screen.ids.log_scroll_view.scroll_y = 0
         Clock.schedule_once(_log)
 
