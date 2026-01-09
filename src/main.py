@@ -75,6 +75,7 @@ class WiresharkScreen(BoxLayout):
 class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
+    wireshark_text = StringProperty("")
     scan_timeout = StringProperty("5.0")
     adapter = StringProperty("Default")
     VERSION = "1.0.0"
@@ -787,12 +788,12 @@ class BLEScannerApp(App):
         """Logs a message to the Wireshark tab, scheduling it on the main thread."""
         def _log(dt):
             app = App.get_running_app()
-            if not app or not app.root:
+            if not app:
                 return
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             log_message = f"[{timestamp}] {message}\n"
-            if 'wireshark_screen' in app.root.ids and 'wireshark_log_view' in app.root.ids.wireshark_screen.ids:
-                app.root.ids.wireshark_screen.ids.wireshark_log_view.text += log_message
+            app.wireshark_text += log_message
+            if app.root and 'wireshark_screen' in app.root.ids:
                 app.root.ids.wireshark_screen.ids.wireshark_scroll_view.scroll_y = 0
         Clock.schedule_once(_log)
 
