@@ -786,22 +786,28 @@ class BLEScannerApp(App):
     def log_to_wireshark(self, message: str):
         """Logs a message to the Wireshark tab, scheduling it on the main thread."""
         def _log(dt):
+            app = App.get_running_app()
+            if not app or not app.root:
+                return
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             log_message = f"[{timestamp}] {message}\n"
-            if 'wireshark_screen' in self.root.ids and 'wireshark_log_view' in self.root.ids.wireshark_screen.ids:
-                self.root.ids.wireshark_screen.ids.wireshark_log_view.text += log_message
-                self.root.ids.wireshark_screen.ids.wireshark_scroll_view.scroll_y = 0
+            if 'wireshark_screen' in app.root.ids and 'wireshark_log_view' in app.root.ids.wireshark_screen.ids:
+                app.root.ids.wireshark_screen.ids.wireshark_log_view.text += log_message
+                app.root.ids.wireshark_screen.ids.wireshark_scroll_view.scroll_y = 0
         Clock.schedule_once(_log)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
         """Logs a message with a timestamp and level, scheduling it on the main thread."""
         def _log(dt):
+            app = App.get_running_app()
+            if not app or not app.root:
+                return
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             log_message = f"[{timestamp}] [{level.value}] {message}\n"
-            if 'log_screen' in self.root.ids and 'log_view' in self.root.ids.log_screen.ids:
-                self.root.ids.log_screen.ids.log_view.text += log_message
-                if self.root.ids.log_screen.ids.autoscroll_checkbox.active:
-                    self.root.ids.log_screen.ids.log_scroll_view.scroll_y = 0
+            if 'log_screen' in app.root.ids and 'log_view' in app.root.ids.log_screen.ids:
+                app.root.ids.log_screen.ids.log_view.text += log_message
+                if app.root.ids.log_screen.ids.autoscroll_checkbox.active:
+                    app.root.ids.log_screen.ids.log_scroll_view.scroll_y = 0
         Clock.schedule_once(_log)
 
     def open_ota_window(self):
