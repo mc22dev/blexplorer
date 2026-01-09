@@ -32,6 +32,7 @@ from collapsible_frame_kivy import CollapsibleFrameKivy
 from gatt import GATT_SERVICES
 from parameter_window import ParameterWindow
 from config_manager import ConfigManager
+from ota_window import OTAWindow
 
 
 def resource_path(relative_path):
@@ -51,6 +52,7 @@ Builder.load_file(resource_path('characteristicframekivy.kv'))
 Builder.load_file(resource_path('descriptorframekivy.kv'))
 Builder.load_file(resource_path('collapsibleframekivy.kv'))
 Builder.load_file(resource_path('parameterwindow.kv'))
+Builder.load_file(resource_path('otawindow.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -76,6 +78,31 @@ class SaveDialog(BoxLayout):
 
     def on_save(self, instance):
         self.save_callback(self.file_chooser.path, self.file_chooser.selection)
+
+    def on_cancel(self, instance):
+        self.dismiss_callback()
+
+
+class LoadDialog(BoxLayout):
+    def __init__(self, load_callback, dismiss_callback, **kwargs):
+        super().__init__(**kwargs)
+        self.orientation = "vertical"
+        self.load_callback = load_callback
+        self.dismiss_callback = dismiss_callback
+        self.file_chooser = FileChooserListView(path=os.getcwd())
+        self.add_widget(self.file_chooser)
+
+        button_box = BoxLayout(size_hint_y=None, height=40)
+        self.load_button = Button(text='Load')
+        self.load_button.bind(on_release=self.on_load)
+        button_box.add_widget(self.load_button)
+        self.cancel_button = Button(text='Cancel')
+        self.cancel_button.bind(on_release=self.on_cancel)
+        button_box.add_widget(self.cancel_button)
+        self.add_widget(button_box)
+
+    def on_load(self, instance):
+        self.load_callback(self.file_chooser.path, self.file_chooser.selection)
 
     def on_cancel(self, instance):
         self.dismiss_callback()
@@ -529,10 +556,51 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}", LogLevel.INFO)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
-        """Logs a message with a timestamp and level."""
+        """
+        Logs a message with a timestamp and level in a thread-safe manner.
+        Schedules the actual UI update on the main Kivy thread.
+        """
+        Clock.schedule_once(lambda dt: self._log_on_main_thread(message, level))
+
+    def _log_on_main_thread(self, message: str, level: LogLevel):
+        """Performs the actual log update on the main thread."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         log_message = f"[{timestamp}] [{level.value}] {message}\n"
         self.root.ids.log_view.text += log_message
+
+    def open_ota_window(self):
+        """Opens the OTA window."""
+        if not self.ble_manager.client or not self.ble_manager.client.is_connected:
+            self.log_with_timestamp("OTA operations require a connected device.", LogLevel.WARNING)
+            return
+        self.ota_popup = OTAWindow()
+        self.ota_popup.ids.upload_button.on_release = self.show_load_dialog
+        self.ota_popup.open()
+
+    def show_load_dialog(self):
+        """Shows the load file dialog for OTA upload."""
+        content = LoadDialog(load_callback=self.upload_firmware, dismiss_callback=self.dismiss_popup)
+        self.popup = Popup(title="Load Firmware", content=content, size_hint=(0.9, 0.9))
+        self.popup.open()
+
+    def upload_firmware(self, path, selection):
+        """Handles the firmware upload process."""
+        if not selection:
+            self.dismiss_popup()
+            return
+        filepath = os.path.join(path, selection[0])
+        self.log_with_timestamp(f"Starting OTA upload from {filepath}", LogLevel.INFO)
+        self.ble_manager.start_ota_upload(filepath, self.ota_progress_callback)
+        self.dismiss_popup()
+        if self.ota_popup:
+            self.ota_popup.ids.file_label.text = filepath
+
+    def ota_progress_callback(self, progress):
+        """Callback for OTA progress updates."""
+        if self.ota_popup:
+            self.ota_popup.ids.progress_bar.value = progress
+        if progress == 100:
+            self.log_with_timestamp("OTA operation completed.", LogLevel.SUCCESS)
 
 
 if __name__ == '__main__':

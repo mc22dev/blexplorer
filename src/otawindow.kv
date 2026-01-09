@@ -1,0 +1,36 @@
+#:kivy 2.0.0
+
+<OTAWindow>:
+    title: "Xiaomi OTA"
+    size_hint: 0.8, 0.6
+    auto_dismiss: False
+
+    BoxLayout:
+        orientation: 'vertical'
+        padding: '10dp'
+        spacing: '10dp'
+
+        Label:
+            id: file_label
+            text: 'No file selected'
+            size_hint_y: None
+            height: '30dp'
+
+        ProgressBar:
+            id: progress_bar
+            max: 100
+            value: 0
+            size_hint_y: None
+            height: '24dp'
+
+        BoxLayout:
+            size_hint_y: None
+            height: '48dp'
+            spacing: '10dp'
+
+            Button:
+                id: upload_button
+                text: 'Upload'
+            Button:
+                text: 'Close'
+                on_release: root.dismiss()
