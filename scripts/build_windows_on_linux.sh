@@ -2,11 +2,11 @@
 set -e
 
 # --- Configuration ---
-export WINEPREFIX="$PWD/.wine"
+export WINEPREFIX="$PWD/tmp/.wine"
 export WINEARCH=win64
 PYTHON_VERSION="3.9.13"
 PYTHON_INSTALLER_URL="https://www.python.org/ftp/python/$PYTHON_VERSION/python-$PYTHON_VERSION-amd64.exe"
-PYTHON_INSTALLER_FILENAME="python-$PYTHON_VERSION-amd64.exe"
+PYTHON_INSTALLER_FILENAME="tmp/python-$PYTHON_VERSION-amd64.exe"
 
 # Construct the Python directory name (e.g., "Python39" from "3.9.13")
 PYTHON_SHORT_VERSION="${PYTHON_VERSION%.*}" # Result: 3.9
@@ -34,7 +34,7 @@ if [ ! -f "$WINE_PYTHON_EXE" ]; then
     # Download Python installer if it doesn't exist
     if [ ! -f "$PYTHON_INSTALLER_FILENAME" ]; then
         echo "--- Downloading Python $PYTHON_VERSION for Windows... ---"
-        wget "$PYTHON_INSTALLER_URL"
+        wget -O "$PYTHON_INSTALLER_FILENAME" "$PYTHON_INSTALLER_URL"
     fi
 
     # Create a fresh Wine prefix and run the installer
@@ -56,7 +56,7 @@ echo "--- Installing dependencies in Wine environment... ---"
 wine "$WINE_PYTHON_EXE" -m pip install -r requirements.txt
 
 echo "--- Building Windows executable with PyInstaller (via Wine)... ---"
-wine "$WINE_PYINSTALLER_EXE" blescanner.spec --noconfirm
+wine "$WINE_PYINSTALLER_EXE" --workpath=tmp/build --distpath=tmp/dist blescanner.spec --noconfirm
 
 echo "--- Build complete! ---"
-echo "The executable can be found in the 'dist/BLEScanner' directory."
+echo "The executable can be found in the 'tmp/dist/BLEScanner' directory."

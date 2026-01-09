@@ -5,14 +5,14 @@ from kivy_deps import sdl2, glew
 block_cipher = None
 
 
-a = Analysis(['main.py'],
+a = Analysis(['src/main.py'],
              pathex=['.'],
              binaries=[],
-             datas=[('blescanner.kv', '.'),
-                    ('characteristicframekivy.kv', '.'),
-                    ('collapsibleframekivy.kv', '.'),
-                    ('descriptorframekivy.kv', '.'),
-                    ('deviceframekivy.kv', '.')],
+             datas=[('src/blescanner.kv', '.'),
+                    ('src/characteristicframekivy.kv', '.'),
+                    ('src/collapsibleframekivy.kv', '.'),
+                    ('src/descriptorframekivy.kv', '.'),
+                    ('src/deviceframekivy.kv', '.')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],

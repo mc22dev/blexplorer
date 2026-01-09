@@ -1,13 +1,9 @@
-# Virtual Environment
-venv/
+# Temporary files and build artifacts
+tmp/
+
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Build artifacts
-.buildozer/
-.wine/
-build/
-dist/
 *.egg-info/
