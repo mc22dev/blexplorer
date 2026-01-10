@@ -21,3 +21,4 @@
         height: 0 if root.collapsed else self.minimum_height
         opacity: 0 if root.collapsed else 1
         disabled: root.collapsed
+        on_minimum_height: root.height = root.ids.header.height + self.height if not root.collapsed else root.ids.header.height

@@ -20,12 +20,45 @@ class CharacteristicFrameKivy(BoxLayout):
         self.char_uuid = characteristic.uuid
         self.char_properties = ", ".join(characteristic.properties)
 
+        if "write" not in self.characteristic.properties and "write-without-response" not in self.characteristic.properties:
+            self.ids.write_button.disabled = True
+            self.ids.value_input.disabled = True
+
+        if "read" not in self.characteristic.properties:
+            self.ids.read_button.disabled = True
+
+        if "notify" not in self.characteristic.properties and "indicate" not in self.characteristic.properties:
+            self.ids.subscribe_button.disabled = True
+
+    def _is_printable_ascii(self, data: bytes) -> bool:
+        """Checks if byte data is empty or contains only printable ASCII characters."""
+        if not data:
+            return True
+        try:
+            decoded = data.decode('ascii')
+            # Check for non-printable characters, allowing common whitespace.
+            return all(32 <= ord(char) < 127 or char in '\n\r\t' for char in decoded)
+        except UnicodeDecodeError:
+            return False
+
     def on_raw_value(self, instance, value):
         """
         When the raw_value is updated, re-format it based on the current
-        selection in the format spinner.
+        selection in the format spinner. Automatically select ASCII if the
+        value is printable.
         """
-        self.on_format_change(self.ids.format_spinner.text)
+        current_format = self.ids.format_spinner.text
+        new_format = current_format
+
+        if self._is_printable_ascii(value):
+            new_format = 'ASCII'
+        elif current_format == 'ASCII':
+            new_format = 'Hex'
+
+        if new_format != current_format:
+            self.ids.format_spinner.text = new_format
+        else:
+            self.on_format_change(new_format)
 
     def on_format_change(self, format_text: str):
         """
