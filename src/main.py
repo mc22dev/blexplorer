@@ -292,13 +292,14 @@ class BLEScannerApp(App):
         self.discovered_devices_batch = []
         self.scan_stats = {}
         self.graph_selection = {}
+        self.scan_task = None
         return MainLayout()
 
     async def on_stop(self):
         """Called when the application is stopping."""
         self.is_shutting_down = True
-        if self.is_scanning:
-            await self.stop_scan()
+        if self.is_scanning and self.scan_task:
+            self.scan_task.cancel()
         await self.ble_manager.shutdown()
 
     def discover_adapters(self):
@@ -324,7 +325,7 @@ class BLEScannerApp(App):
                 self.request_android_permissions()
                 return
 
-        asyncio.create_task(self.async_scan_for_devices())
+        self.scan_task = asyncio.create_task(self.async_scan_for_devices())
 
     async def async_scan_for_devices(self):
         """Initiates a scan for nearby BLE devices."""
@@ -351,18 +352,28 @@ class BLEScannerApp(App):
 
         self._batch_processing_task = asyncio.create_task(self._process_device_batch_periodically())
         await self.ble_manager.scan_for_devices(adapter)
-        await asyncio.sleep(timeout)
-        await self.stop_scan()
+        try:
+            await asyncio.sleep(timeout)
+        except asyncio.CancelledError:
+            self.log_with_timestamp("Scan stopped by user.", LogLevel.INFO)
+        finally:
+            await self.stop_scan()
 
     async def stop_scan(self, *args):
         """Stops the BLE scan."""
+        if self.scan_task and not self.scan_task.done():
+            self.scan_task.cancel()
         if self.is_scanning:
             await self.ble_manager.stop_scan()
             if self._batch_processing_task:
                 self._batch_processing_task.cancel()
+                try:
+                    await self._batch_processing_task
+                except asyncio.CancelledError:
+                    pass
                 self._batch_processing_task = None
             self._process_device_batch()  # Process any remaining devices
-            self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
+            self.log_with_timestamp("Scan finished.", LogLevel.INFO)
             self.is_scanning = False
 
     def filter_devices(self, search_term):
