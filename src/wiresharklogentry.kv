@@ -1,0 +1,55 @@
+#:kivy 2.0.0
+
+<WiresharkLogEntry>:
+    size_hint_y: None
+    height: self.minimum_height
+    padding: '2dp'
+    canvas.before:
+        Color:
+            rgba: app.theme.secondary if app else (0.3, 0.3, 0.3, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    Label:
+        text: root.time
+        size_hint_x: 0.15
+        halign: 'left'
+        valign: 'top'
+        text_size: self.width, None
+        height: self.texture_size[1]
+    Label:
+        text: str(root.rssi)
+        size_hint_x: 0.08
+        halign: 'left'
+        valign: 'top'
+        text_size: self.width, None
+        height: self.texture_size[1]
+    Label:
+        text: root.address
+        size_hint_x: 0.2
+        halign: 'left'
+        valign: 'top'
+        text_size: self.width, None
+        height: self.texture_size[1]
+    Label:
+        text: root.service_uuids
+        size_hint_x: 0.2
+        halign: 'left'
+        valign: 'top'
+        text_size: self.width, None
+        height: self.texture_size[1]
+    Label:
+        text: root.manufacturer_data
+        size_hint_x: 0.2
+        halign: 'left'
+        valign: 'top'
+        text_size: self.width, None
+        height: self.texture_size[1]
+    Label:
+        text: root.decoded_data
+        size_hint_x: 0.17
+        halign: 'left'
+        valign: 'top'
+        text_size: self.width, None
+        height: self.texture_size[1]
