@@ -103,8 +103,7 @@ def decode_advertisement(adv_data: AdvertisementData) -> str:
     raw_packet = _reconstruct_packet(adv_data)
     if raw_packet:
         try:
-            # Use strict=False to be more lenient with packet structures
-            beacons = parse_packet(raw_packet, strict=False)
+            beacons = parse_packet(raw_packet)
             if beacons:
                 # parse_packet can return a single item or a list
                 if not isinstance(beacons, list):
