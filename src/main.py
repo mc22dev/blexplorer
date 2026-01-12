@@ -677,13 +677,13 @@ class BLEScannerApp(App):
     def show_save_dialog(self, *args):
         """Shows the save file dialog for the main log."""
         self.log_with_timestamp("Showing save log dialog...", LogLevel.INFO)
-        content = FileChooserDialog(title="Save Log", callback=self.save_log, dismiss_callback=self.dismiss_popup)
+        content = FileChooserDialog(title="Save Log", callback=self.save_log, dismiss_callback=self.dismiss_popup, mode='save')
         self._open_dialog("Save Log", content)
 
     def show_save_wireshark_dialog(self, *args):
         """Shows the save file dialog for the Wireshark log."""
         self.log_with_timestamp("Showing save Wireshark log dialog...", LogLevel.INFO)
-        content = FileChooserDialog(title="Save Wireshark Log", callback=self.save_wireshark_log, dismiss_callback=self.dismiss_popup)
+        content = FileChooserDialog(title="Save Wireshark Log", callback=self.save_wireshark_log, dismiss_callback=self.dismiss_popup, mode='save')
         self._open_dialog("Save Wireshark Log", content)
 
     def _open_dialog(self, title, content):
@@ -881,7 +881,7 @@ class BLEScannerApp(App):
 
     def show_load_dialog(self):
         """Shows the load file dialog for OTA upload."""
-        content = FileChooserDialog(title="Load", callback=self.upload_firmware, dismiss_callback=self.dismiss_popup)
+        content = FileChooserDialog(title="Load", callback=self.upload_firmware, dismiss_callback=self.dismiss_popup, mode='open')
         self.dialog = Popup(title="Load Firmware", content=content,
                                  size_hint=(0.9, 0.9))
         self.dialog.open()
