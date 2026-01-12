@@ -10,5 +10,6 @@ class WiresharkLogEntry(BoxLayout):
     rssi = NumericProperty(0)
     address = StringProperty('')
     service_uuids = StringProperty('')
+    service_data = StringProperty('')
     manufacturer_data = StringProperty('')
     decoded_data = StringProperty('')

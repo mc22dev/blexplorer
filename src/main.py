@@ -385,6 +385,7 @@ class BLEScannerApp(App):
         """Callback for when a device is discovered."""
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         manufacturer_data_str = ', '.join(f'{k}:{v.hex()}' for k, v in adv_data.manufacturer_data.items())
+        service_data_str = ', '.join(f'"{k}":{v.hex()}' for k, v in adv_data.service_data.items())
         decoded_info = decode_advertisement(adv_data)
 
         entry = {
@@ -392,6 +393,7 @@ class BLEScannerApp(App):
             'rssi': adv_data.rssi,
             'address': device.address,
             'service_uuids': ', '.join(adv_data.service_uuids),
+            'service_data': service_data_str,
             'manufacturer_data': manufacturer_data_str,
             'decoded_data': decoded_info
         }
@@ -777,6 +779,7 @@ class BLEScannerApp(App):
             'rssi': 'N/A',
             'address': self.ble_manager.client.address if self.ble_manager.client else 'Unknown',
             'service_uuids': f"Notification: {characteristic.uuid}",
+            'service_data': '',
             'manufacturer_data': data.hex(),
             'decoded_data': ''  # No specific decoding for notifications yet
         }
