@@ -298,8 +298,14 @@ class BLEScannerApp(App):
     async def on_stop(self):
         """Called when the application is stopping."""
         self.is_shutting_down = True
-        if self.is_scanning and self.scan_task:
+        if self.is_scanning and self.scan_task and not self.scan_task.done():
             self.scan_task.cancel()
+            try:
+                # Wait for the scan task to finish its cleanup
+                await self.scan_task
+            except asyncio.CancelledError:
+                # This is expected when we cancel it
+                pass
         await self.ble_manager.shutdown()
 
     def discover_adapters(self):
@@ -357,12 +363,15 @@ class BLEScannerApp(App):
         except asyncio.CancelledError:
             self.log_with_timestamp("Scan stopped by user.", LogLevel.INFO)
         finally:
-            await self.stop_scan()
+            await self.async_stop_scan()
 
-    async def stop_scan(self, *args):
-        """Stops the BLE scan."""
+    def stop_scan(self, *args):
+        """Stops the BLE scan task."""
         if self.scan_task and not self.scan_task.done():
             self.scan_task.cancel()
+
+    async def async_stop_scan(self):
+        """Async helper to perform the actual cleanup after a scan stops."""
         if self.is_scanning:
             await self.ble_manager.stop_scan()
             if self._batch_processing_task:
