@@ -16,7 +16,7 @@ if sys.platform == 'win32':
 a = Analysis(['src/main.py'],
              pathex=['.'],
              binaries=[],
-             datas=[('src/blescanner.kv', '.'),
+             datas=[('src/main.kv', '.'),
                     ('src/scanner_screen.kv', '.'),
                     ('src/device_screen.kv', '.'),
                     ('src/log_screen.kv', '.'),

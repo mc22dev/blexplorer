@@ -294,7 +294,7 @@ class BLEScannerApp(App):
         self.scan_stats = {}
         self.graph_selection = {}
         self.scan_task = None
-        return Builder.load_file(resource_path('blescanner.kv'))
+        return Builder.load_file(resource_path('main.kv'))
 
     async def on_stop(self):
         """Called when the application is stopping."""
