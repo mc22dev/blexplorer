@@ -112,6 +112,7 @@ class BLEScannerApp(App):
         self.parameter_popup.ids.auto_connect_filter_input.text = self.config_manager.get_setting('auto_connect', 'filter')
         self.parameter_popup.ids.rssi_min_input.text = self.config_manager.get_setting('graph', 'rssi_min')
         self.parameter_popup.ids.rssi_max_input.text = self.config_manager.get_setting('graph', 'rssi_max')
+        self.parameter_popup.ids.ble_library_spinner.text = self.config_manager.get_setting('ble', 'library')
         self.parameter_popup.open()
 
     def restore_default_parameters(self, popup):
@@ -123,6 +124,7 @@ class BLEScannerApp(App):
         popup.ids.auto_connect_filter_input.text = self.config_manager.get_default_setting('auto_connect', 'filter')
         popup.ids.rssi_min_input.text = self.config_manager.get_default_setting('graph', 'rssi_min')
         popup.ids.rssi_max_input.text = self.config_manager.get_default_setting('graph', 'rssi_max')
+        popup.ids.ble_library_spinner.text = self.config_manager.get_default_setting('ble', 'library')
         self.log_with_timestamp("UI restored to default parameters. Click OK to save.", LogLevel.INFO)
 
     def update_parameters(self, popup):
@@ -134,6 +136,7 @@ class BLEScannerApp(App):
         auto_connect_filter = popup.ids.auto_connect_filter_input.text
         new_rssi_min = popup.ids.rssi_min_input.text
         new_rssi_max = popup.ids.rssi_max_input.text
+        new_ble_library = popup.ids.ble_library_spinner.text
         try:
             float(new_timeout)
         except ValueError:
@@ -173,6 +176,9 @@ class BLEScannerApp(App):
         self.rssi_min = rssi_min_val
         self.rssi_max = rssi_max_val
         self.log_with_timestamp(f"RSSI range set to [{rssi_min_val}, {rssi_max_val}].", LogLevel.INFO)
+
+        self.config_manager.set_setting('ble', 'library', new_ble_library)
+        self.log_with_timestamp(f"BLE library set to {new_ble_library}. Please restart the app for the change to take effect.", LogLevel.INFO)
 
         popup.dismiss()
 
