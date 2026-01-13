@@ -29,6 +29,9 @@ class ConfigManager:
             'bluetooth': {
                 'adapter': 'Default'
             },
+            'ble': {
+                'library': 'bleak'
+            },
             'ota': {
                 'service_uuid': '00010203-0405-0607-0809-0a0b0c0d1912',
                 'characteristic_uuid': '00010203-0405-0607-0809-0a0b0c0d2b12'
