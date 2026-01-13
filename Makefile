@@ -41,7 +41,9 @@ packages:
 
 # Build the Android debug APK and package it
 android: setup packages
-	. $(VENV_ACTIVATE_UNIX); buildozer android debug
+	. $(VENV_ACTIVATE_UNIX); \
+	export JAVA_HOME="$$(dirname $$(dirname $$(readlink -f $$(which java))) | sed 's/java-[^-]*/java-17/')"; \
+	buildozer android debug
 	cp tmp/bin/*.apk tmp/packages/$(PACKAGE_NAME)-$(VERSION)-android.apk
 
 # Build the Windows executable (must be run on a Windows machine)
@@ -98,7 +100,7 @@ run-windows-on-linux: windows-on-linux
 
 # Clean all build artifacts and virtual environments
 clean:
-	- . $(VENV_ACTIVATE_UNIX); buildozer distclean || true
+	- . $(VENV_ACTIVATE_UNIX); yes | buildozer distclean || true
 	-rm -rf tmp
 	-find . -type d -name "__pycache__" -exec rm -r {} +
 
