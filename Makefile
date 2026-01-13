@@ -54,6 +54,7 @@ windows: setup-windows packages
 # Build the Windows executable on Linux using Wine and package it
 windows-on-linux: setup packages
 	. $(VENV_ACTIVATE_UNIX); \
+	rm -rf tmp/build tmp/dist; \
 	export WINEPREFIX="$(PWD)/tmp/.wine"; \
 	export WINEARCH=win64; \
 	PYTHON_VERSION="3.9.13"; \
