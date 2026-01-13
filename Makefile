@@ -60,7 +60,7 @@ windows-on-linux: setup packages
 	PYTHON_INSTALLER_URL="https://www.python.org/ftp/python/$${PYTHON_VERSION}/python-$${PYTHON_VERSION}-amd64.exe"; \
 	PYTHON_INSTALLER_FILENAME="tmp/python-$${PYTHON_VERSION}-amd64.exe"; \
 	PYTHON_SHORT_VERSION="$${PYTHON_VERSION%.*}"; \
-	PYTHON_DIR_VERSION="$${PYTHON_SHORT_VERSION/./}"; \
+	PYTHON_DIR_VERSION="$$(echo $$PYTHON_SHORT_VERSION | sed 's/\.//')"; \
 	WINE_PYTHON_PATH="$$WINEPREFIX/drive_c/users/$$USER/AppData/Local/Programs/Python/Python$$PYTHON_DIR_VERSION"; \
 	WINE_PYTHON_EXE="$$WINE_PYTHON_PATH/python.exe"; \
 	WINE_PYINSTALLER_EXE="$$WINE_PYTHON_PATH/Scripts/pyinstaller.exe"; \
