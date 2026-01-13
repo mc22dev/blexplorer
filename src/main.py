@@ -57,6 +57,10 @@ def resource_path(relative_path):
 
 # Load the kv files for the custom widgets
 LabelBase.register(name="MaterialIcons", fn_regular=resource_path("icons/materialdesignicons-webfont.ttf"))
+Builder.load_file(resource_path('scanner_screen.kv'))
+Builder.load_file(resource_path('device_screen.kv'))
+Builder.load_file(resource_path('log_screen.kv'))
+Builder.load_file(resource_path('wireshark_screen.kv'))
 Builder.load_file(resource_path('deviceframekivy.kv'))
 Builder.load_file(resource_path('characteristicframekivy.kv'))
 Builder.load_file(resource_path('descriptorframekivy.kv'))
@@ -294,7 +298,7 @@ class BLEScannerApp(App):
         self.scan_stats = {}
         self.graph_selection = {}
         self.scan_task = None
-        return Builder.load_file(resource_path('main.kv'))
+        return MainLayout()
 
     async def on_stop(self):
         """Called when the application is stopping."""
