@@ -64,7 +64,7 @@ windows-on-linux: setup packages
 	WINE_PYTHON_PATH="$$WINEPREFIX/drive_c/users/$$USER/AppData/Local/Programs/Python/Python$$PYTHON_DIR_VERSION"; \
 	WINE_PYTHON_EXE="$$WINE_PYTHON_PATH/python.exe"; \
 	WINE_PYINSTALLER_EXE="$$WINE_PYTHON_PATH/Scripts/pyinstaller.exe"; \
-	if ! command -v wine &> /dev/null; then \
+	if ! command -v wine > /dev/null 2>&1; then \
 		echo "Error: 'wine' command not found."; \
 		exit 1; \
 	fi; \
