@@ -24,6 +24,8 @@ a = Analysis(['src/main.py'],
                     ('src/parameterwindow.kv', '.'),
                     ('src/otawindow.kv', '.'),
                     ('src/globalrssigraph.kv', '.'),
+                    ('src/tooltip.kv', '.'),
+                    ('src/wiresharklogentry.kv', '.'),
                     ('src/icons/materialdesignicons-webfont.ttf', 'icons')],
              hiddenimports=[
                  'kivy.core.image.img_sdl2',
