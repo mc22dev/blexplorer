@@ -5,8 +5,8 @@
     size_hint_y: None
     height: '120dp'
     padding: "8dp"
-    on_release: app.connect_to_device(root)
-    background_color: app.theme.primary if root.is_selected else app.theme.secondary
+    on_release: root.dispatch('on_connect_request', root)
+    background_color: root.primary_color if root.is_selected else root.secondary_color
 
     Button:
         id: graph_toggle
@@ -28,7 +28,7 @@
     Button:
         text: "Connect"
         size_hint_x: 0.2
-        on_release: app.connect_to_device(root)
+        on_release: root.dispatch('on_connect_request', root)
 
     BoxLayout:
         orientation: 'vertical'
@@ -72,7 +72,7 @@
             height: self.texture_size[1]
             on_release: root.show_full_data_popup("Service UUIDs", root.full_service_uuids)
             background_color: (0,0,0,0)
-            color: app.theme.primary
+            color: root.primary_color
 
         Button:
             text: root.manufacturer_data
@@ -81,7 +81,7 @@
             height: self.texture_size[1]
             on_release: root.show_full_data_popup("Manufacturer Data", root.full_manufacturer_data)
             background_color: (0,0,0,0)
-            color: app.theme.primary
+            color: root.primary_color
 
     BoxLayout:
         orientation: 'vertical'

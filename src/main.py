@@ -44,6 +44,7 @@ from global_rssi_graph import GlobalRSSIGraph
 from wireshark_log_entry import WiresharkLogEntry
 from platform_utils import PlatformUtils
 from ui_manager import UIManager
+from device_manager import DeviceManager
 
 
 def resource_path(relative_path):
@@ -108,7 +109,12 @@ class BLEScannerApp(App):
     def build(self):
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
-        self.ui_manager = UIManager(self)
+        self.ui_manager = UIManager(
+            log_callback=self.log_with_timestamp,
+            discover_attributes_callback=self.discover_attributes,
+            read_characteristic_callback=self.read_characteristic,
+            reset_char_color_callback=self.reset_char_color
+        )
         self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
         self.theme = theme_manager
@@ -118,6 +124,8 @@ class BLEScannerApp(App):
         self.rssi_min = int(self.config_manager.get_setting('graph', 'rssi_min'))
         self.rssi_max = int(self.config_manager.get_setting('graph', 'rssi_max'))
 
+        self.device_manager = DeviceManager(self, None, self.config_manager, theme_manager)
+
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
             connection_status_callback=self._on_connection_status_changed,
@@ -126,12 +134,8 @@ class BLEScannerApp(App):
             config_manager=self.config_manager
         )
         self.characteristic_frames = {}
-        self.device_frames = {}
         self.device_cache = DeviceCache()
         self.selected_device_frame = None
-        self.discovered_devices_batch = []
-        self.scan_stats = {}
-        self.graph_selection = {}
         self.scan_task = None
         return MainLayout()
 
@@ -145,6 +149,9 @@ class BLEScannerApp(App):
 
         Clock.schedule_once(log_startup)
         Window.bind(on_keyboard=self._on_keyboard)
+
+        self.device_manager.ui_container = self.root.ids.scanner_screen.ids.device_list
+        self.ui_manager.root = self.root
 
         self.discover_adapters()
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
@@ -363,13 +370,8 @@ class BLEScannerApp(App):
         if self.selected_device_frame:
             self.selected_device_frame.is_selected = False
             self.selected_device_frame = None
-        self.root.ids.scanner_screen.ids.device_list.clear_widgets()
-        if 'scanner_screen' in self.root.ids and 'global_rssi_graph' in self.root.ids.scanner_screen.ids:
-            self.root.ids.scanner_screen.ids.global_rssi_graph.clear_graph()
+        self.device_manager.clear()
         self.global_graph_data = {}
-        self.device_frames = {}
-        self.discovered_devices_batch = []
-        self.scan_stats = {}
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
         self.is_scanning = True
         adapter = self.adapter if self.adapter != "Default" else None
@@ -406,22 +408,13 @@ class BLEScannerApp(App):
                 except asyncio.CancelledError:
                     pass
                 self._batch_processing_task = None
-            self._process_device_batch()  # Process any remaining devices
+            self.device_manager.process_device_batch()  # Process any remaining devices
             self.log_with_timestamp("Scan finished.", LogLevel.INFO)
             self.is_scanning = False
 
     def filter_devices(self, search_term):
         """Filters the device list based on the search term."""
-        search_term = search_term.lower()
-        for address, frame in self.device_frames.items():
-            device_name = (frame.device.name or "Unknown").lower()
-            device_address = frame.device.address.lower()
-            if search_term in device_name or search_term in device_address:
-                if frame.parent is None:
-                    self.root.ids.scanner_screen.ids.device_list.add_widget(frame)
-            else:
-                if frame.parent is not None:
-                    self.root.ids.scanner_screen.ids.device_list.remove_widget(frame)
+        self.device_manager.filter_devices(search_term)
 
     def clear_device_filter(self):
         """Clears the device filter."""
@@ -445,82 +438,28 @@ class BLEScannerApp(App):
         }
         self.log_to_wireshark(entry)
 
-        self.discovered_devices_batch.append((device, adv_data))
+        self.device_manager.add_discovered_device(device, adv_data)
 
     async def _process_device_batch_periodically(self):
         """Periodically processes the batch of discovered devices."""
         while True:
-            self._process_device_batch()
+            self.device_manager.process_device_batch()
             await asyncio.sleep(1.0)
 
-    def _process_device_batch(self, *args):
-        """Processes the batch of discovered devices and updates the UI."""
-        if self.is_shutting_down:
-            return
-        # Sort by RSSI to show the strongest signals first
-        sorted_batch = sorted(self.discovered_devices_batch, key=lambda x: x[1].rssi, reverse=True)
-        if not sorted_batch:
-            return
-
-        for device, adv_data in sorted_batch:
-            self._populate_device_ui(device, adv_data)
-
-        # Reassign the dictionary to trigger the update on the Kivy property
-        self._update_graph_data()
-        # Reassign to a copy to trigger the Kivy property update, as in-place modification is not detected.
-        self.global_graph_data = self.global_graph_data.copy()
-        self.discovered_devices_batch = []
-
-    def _update_graph_data(self):
+    def update_graph_data(self):
         """Filters and updates the graph data based on selection."""
         filtered_data = {
-            addr: data for addr, data in self.global_graph_data.items()
-            if self.graph_selection.get(addr, True)
+            addr: data for addr, data in self.device_manager.global_graph_data.items()
+            if self.device_manager.graph_selection.get(addr, True)
         }
         self.root.ids.scanner_screen.ids.global_rssi_graph.device_data = filtered_data
+        # Reassign to a copy to trigger the Kivy property update, as in-place modification is not detected.
+        self.global_graph_data = self.device_manager.global_graph_data.copy()
 
-    def _on_graph_selection_change(self, instance, address, is_selected):
+    def on_graph_selection_change(self, instance, address, is_selected):
         """Callback for when a device's graph selection changes."""
-        self.graph_selection[address] = is_selected
-        self._update_graph_data()
-
-    def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
-        """
-        Populates the UI with a discovered BLE device, updating if it already exists.
-        """
-        if device.address not in self.scan_stats:
-            self.scan_stats[device.address] = DeviceScanStats()
-            self.graph_selection[device.address] = True  # Default to selected
-
-        stats = self.scan_stats[device.address]
-        stats.update(adv_data)
-
-        # Update the global graph data
-        self.global_graph_data[device.address] = {
-            'rssi': stats.rssi_values,
-            'timestamps': stats.timestamps
-        }
-
-        if device.address in self.device_frames:
-            # Update existing frame only if data has changed to avoid unnecessary UI redraws
-            frame = self.device_frames[device.address]
-            frame.stats = stats
-            frame.property('stats').dispatch(frame)
-            if frame.device.name != device.name:
-                frame.device = device
-        else:
-            # Create a new frame for a new device
-            self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.INFO)
-            frame = DeviceFrameKivy(device=device, stats=stats)
-            frame.bind(on_graph_selection_change=self._on_graph_selection_change)
-            self.device_frames[device.address] = frame
-            self.root.ids.scanner_screen.ids.device_list.add_widget(frame)
-            self._check_auto_connect(frame)
-
-        # Assign the color from the graph to the device frame
-        if 'scanner_screen' in self.root.ids and 'global_rssi_graph' in self.root.ids.scanner_screen.ids:
-            graph = self.root.ids.scanner_screen.ids.global_rssi_graph
-            frame.indicator_color = graph.get_device_color(device.address)
+        self.device_manager.graph_selection[address] = is_selected
+        self.update_graph_data()
 
     def _check_auto_connect(self, device_frame: DeviceFrameKivy):
         """Checks if the device matches the auto-connect filter and connects if it does."""
@@ -537,7 +476,7 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Auto-connecting to device: {device.address}", LogLevel.INFO)
             self.connect_to_device(device_frame)
 
-    def connect_to_device(self, device_frame: DeviceFrameKivy):
+    def connect_to_device(self, instance, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""
         asyncio.create_task(self.async_connect_to_device(device_frame))
 
@@ -570,7 +509,18 @@ class BLEScannerApp(App):
         """Callback for connection status changes."""
         if self.is_shutting_down:
             return
-        self.ui_manager.update_connection_ui(is_connected)
+        self.is_connected = is_connected
+        self.is_connecting = False
+        if is_connected:
+            self.log_with_timestamp("Device connected.", LogLevel.SUCCESS)
+            self.discover_attributes()
+            self.ui_manager.switch_to_device_tab()
+        else:
+            if self.selected_device_frame:
+                self.selected_device_frame.is_selected = False
+                self.selected_device_frame = None
+            self.ui_manager.clear_characteristic_list()
+            self.characteristic_frames = {}
 
     # Attribute Discovery and UI Population
     # -------------------------------------
