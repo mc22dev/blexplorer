@@ -42,6 +42,8 @@ from ota_window import OTAWindow
 from theme import theme_manager
 from global_rssi_graph import GlobalRSSIGraph
 from wireshark_log_entry import WiresharkLogEntry
+from platform_utils import PlatformUtils
+from ui_manager import UIManager
 
 
 def resource_path(relative_path):
@@ -82,6 +84,7 @@ class WiresharkScreen(BoxLayout):
 
 
 class BLEScannerApp(App):
+    # App properties
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
     wireshark_data = ListProperty([])
@@ -92,7 +95,6 @@ class BLEScannerApp(App):
     is_connected = BooleanProperty(False)
     is_connecting = BooleanProperty(False)
     is_shutting_down = BooleanProperty(False)
-
     scan_button = ObjectProperty(None)
     disconnect_button = ObjectProperty(None)
     refresh_button = ObjectProperty(None)
@@ -101,6 +103,67 @@ class BLEScannerApp(App):
     rssi_min = NumericProperty(-110)
     rssi_max = NumericProperty(-20)
 
+    # Lifecycle Methods
+    # -----------------
+    def build(self):
+        config_path = os.path.join(self.user_data_dir, 'config.ini')
+        self.config_manager = ConfigManager(config_path)
+        self.ui_manager = UIManager(self)
+        self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
+        self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
+        self.theme = theme_manager
+        theme_manager.set_theme(self.config_manager.get_setting('theme', 'name'))
+
+        # Set up the graph with configured RSSI limits
+        self.rssi_min = int(self.config_manager.get_setting('graph', 'rssi_min'))
+        self.rssi_max = int(self.config_manager.get_setting('graph', 'rssi_max'))
+
+        self.ble_manager = BLEManager(
+            device_discovered_callback=self._on_device_discovered,
+            connection_status_callback=self._on_connection_status_changed,
+            notification_callback=self.notification_handler,
+            logger_callback=self.log_with_timestamp,
+            config_manager=self.config_manager
+        )
+        self.characteristic_frames = {}
+        self.device_frames = {}
+        self.device_cache = DeviceCache()
+        self.selected_device_frame = None
+        self.discovered_devices_batch = []
+        self.scan_stats = {}
+        self.graph_selection = {}
+        self.scan_task = None
+        return MainLayout()
+
+    def on_start(self):
+        """
+        Called when the application is starting.
+        Requests permissions on Android.
+        """
+        def log_startup(dt):
+            self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...", LogLevel.INFO)
+
+        Clock.schedule_once(log_startup)
+        Window.bind(on_keyboard=self._on_keyboard)
+
+        self.discover_adapters()
+        self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
+
+    async def on_stop(self):
+        """Called when the application is stopping."""
+        self.is_shutting_down = True
+        if self.is_scanning and self.scan_task and not self.scan_task.done():
+            self.scan_task.cancel()
+            try:
+                # Wait for the scan task to finish its cleanup
+                await self.scan_task
+            except asyncio.CancelledError:
+                # This is expected when we cancel it
+                pass
+        await self.ble_manager.shutdown()
+
+    # Parameter and Settings Management
+    # ---------------------------------
     def open_parameter_window(self):
         """Opens the parameter window."""
         self.parameter_popup = ParameterWindow()
@@ -129,139 +192,85 @@ class BLEScannerApp(App):
 
     def update_parameters(self, popup):
         """Updates the parameters from the parameter window."""
-        new_timeout = popup.ids.scan_timeout_input.text
-        new_theme = popup.ids.theme_spinner.text
-        new_adapter = popup.ids.adapter_spinner.text
-        auto_connect_enabled = popup.ids.auto_connect_checkbox.active
-        auto_connect_filter = popup.ids.auto_connect_filter_input.text
-        new_rssi_min = popup.ids.rssi_min_input.text
-        new_rssi_max = popup.ids.rssi_max_input.text
-        new_ble_library = popup.ids.ble_library_spinner.text
+        settings = {
+            'scan_timeout': popup.ids.scan_timeout_input.text,
+            'theme': popup.ids.theme_spinner.text,
+            'adapter': popup.ids.adapter_spinner.text,
+            'auto_connect_enabled': popup.ids.auto_connect_checkbox.active,
+            'auto_connect_filter': popup.ids.auto_connect_filter_input.text,
+            'rssi_min': popup.ids.rssi_min_input.text,
+            'rssi_max': popup.ids.rssi_max_input.text,
+            'ble_library': popup.ids.ble_library_spinner.text
+        }
+        if self._validate_and_apply_settings(settings):
+            popup.dismiss()
+
+    def _validate_and_apply_settings(self, settings):
+        """Validates and applies all settings."""
+        if not self._validate_and_set_scan_timeout(settings['scan_timeout']):
+            return False
+        if not self._validate_and_set_rssi_range(settings['rssi_min'], settings['rssi_max']):
+            return False
+
+        self._set_theme(settings['theme'])
+        self._set_adapter(settings['adapter'])
+        self._set_auto_connect(settings['auto_connect_enabled'], settings['auto_connect_filter'])
+        self._set_ble_library(settings['ble_library'])
+        return True
+
+    def _validate_and_set_scan_timeout(self, timeout_str):
+        """Validates and sets the scan timeout."""
         try:
-            float(new_timeout)
+            float(timeout_str)
+            self.scan_timeout = timeout_str
+            self.config_manager.set_setting('scan', 'timeout', self.scan_timeout)
+            self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
+            return True
         except ValueError:
-            self.log_with_timestamp(f"Invalid scan timeout value: {new_timeout}. Please enter a number.", LogLevel.ERROR)
-            return
+            self.log_with_timestamp(f"Invalid scan timeout value: {timeout_str}. Please enter a number.", LogLevel.ERROR)
+            return False
 
+    def _validate_and_set_rssi_range(self, min_str, max_str):
+        """Validates and sets the RSSI graph range."""
         try:
-            rssi_min_val = int(new_rssi_min)
+            min_val = int(min_str)
+            max_val = int(max_str)
+            self.rssi_min = min_val
+            self.rssi_max = max_val
+            self.config_manager.set_setting('graph', 'rssi_min', str(min_val))
+            self.config_manager.set_setting('graph', 'rssi_max', str(max_val))
+            self.log_with_timestamp(f"RSSI range set to [{min_val}, {max_val}].", LogLevel.INFO)
+            return True
         except ValueError:
-            self.log_with_timestamp(f"Invalid RSSI Min value: {new_rssi_min}. Please enter an integer.", LogLevel.ERROR)
-            return
+            self.log_with_timestamp(f"Invalid RSSI range. Please enter integers for min and max.", LogLevel.ERROR)
+            return False
 
-        try:
-            rssi_max_val = int(new_rssi_max)
-        except ValueError:
-            self.log_with_timestamp(f"Invalid RSSI Max value: {new_rssi_max}. Please enter an integer.", LogLevel.ERROR)
-            return
+    def _set_theme(self, theme_name):
+        """Sets the application theme."""
+        self.config_manager.set_setting('theme', 'name', theme_name)
+        theme_manager.set_theme(theme_name)
+        self.log_with_timestamp(f"Theme set to {theme_name}.", LogLevel.INFO)
 
-        self.scan_timeout = new_timeout
-        self.config_manager.set_setting('scan', 'timeout', self.scan_timeout)
-        self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
-
-        self.config_manager.set_setting('theme', 'name', new_theme)
-        theme_manager.set_theme(new_theme)
-        self.log_with_timestamp(f"Theme set to {new_theme}.", LogLevel.INFO)
-
-        self.adapter = new_adapter
+    def _set_adapter(self, adapter_name):
+        """Sets the Bluetooth adapter."""
+        self.adapter = adapter_name
         self.config_manager.set_setting('bluetooth', 'adapter', self.adapter)
         self.log_with_timestamp(f"Adapter set to {self.adapter}.", LogLevel.INFO)
 
-        self.config_manager.set_setting('auto_connect', 'enabled', str(auto_connect_enabled))
-        self.config_manager.set_setting('auto_connect', 'filter', auto_connect_filter)
-        self.log_with_timestamp(f"Auto-connect set to {auto_connect_enabled} with filter '{auto_connect_filter}'.", LogLevel.INFO)
+    def _set_auto_connect(self, enabled, filter_text):
+        """Sets the auto-connect settings."""
+        self.config_manager.set_setting('auto_connect', 'enabled', str(enabled))
+        self.config_manager.set_setting('auto_connect', 'filter', filter_text)
+        self.log_with_timestamp(f"Auto-connect set to {enabled} with filter '{filter_text}'.", LogLevel.INFO)
 
-        self.config_manager.set_setting('graph', 'rssi_min', str(rssi_min_val))
-        self.config_manager.set_setting('graph', 'rssi_max', str(rssi_max_val))
-        self.rssi_min = rssi_min_val
-        self.rssi_max = rssi_max_val
-        self.log_with_timestamp(f"RSSI range set to [{rssi_min_val}, {rssi_max_val}].", LogLevel.INFO)
-
-        self.config_manager.set_setting('ble', 'library', new_ble_library)
-        self.log_with_timestamp(f"BLE library set to {new_ble_library}. Please restart the app for the change to take effect.", LogLevel.INFO)
-
-        popup.dismiss()
+    def _set_ble_library(self, library_name):
+        """Sets the BLE library."""
+        self.config_manager.set_setting('ble', 'library', library_name)
+        self.log_with_timestamp(f"BLE library set to {library_name}. Please restart the app for the change to take effect.", LogLevel.INFO)
 
 
-    def on_start(self):
-        """
-        Called when the application is starting.
-        Requests permissions on Android.
-        """
-        def log_startup(dt):
-            self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...", LogLevel.INFO)
-
-        Clock.schedule_once(log_startup)
-        Window.bind(on_keyboard=self._on_keyboard)
-
-        self.discover_adapters()
-        self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
-
-    def _on_permissions_result(self, success: bool, dt=None):
-        """
-        Callback function for permission request results.
-        """
-        if success:
-            self.log_with_timestamp("Permissions granted. You can now scan for devices.", LogLevel.SUCCESS)
-        else:
-            self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
-
-    def _on_permissions_callback(self, permissions, grants):
-        """
-        Callback for the permission request. Checks if all permissions were granted.
-        """
-        self.log_with_timestamp(f"Permission grants received: {grants}", LogLevel.DEBUG)
-        success = all(grant == 0 for grant in grants)
-        self._on_permissions_result(success)
-
-    def request_android_permissions(self):
-        """
-        Requests BLE scanning permissions on Android using Kivy's built-in APIs.
-        """
-        from android.permissions import request_permissions
-        permissions = self._get_android_permissions()
-        self.log_with_timestamp(f"Requesting Android permissions: {permissions}", LogLevel.INFO)
-        request_permissions(permissions, self._on_permissions_callback)
-
-    def _get_android_permissions(self) -> list[str]:
-        """
-        Returns the appropriate list of Android permissions based on the API level.
-        """
-        from jnius import autoclass
-        Build = autoclass('android.os.Build$VERSION')
-        sdk_int = Build.SDK_INT
-
-        if sdk_int >= 31:  # Android 12 (API 31) and above
-            return [
-                "android.permission.BLUETOOTH_SCAN",
-                "android.permission.BLUETOOTH_CONNECT",
-                "android.permission.ACCESS_FINE_LOCATION",
-            ]
-        else:  # Older Android versions
-            return [
-                "android.permission.BLUETOOTH",
-                "android.permission.BLUETOOTH_ADMIN",
-                "android.permission.ACCESS_FINE_LOCATION",
-            ]
-
-    def _check_android_permissions(self) -> bool:
-        """
-        Checks if the necessary Android permissions for BLE scanning are granted.
-        """
-        from jnius import autoclass
-        PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        context = PythonActivity.mActivity
-        PackageManager = autoclass('android.content.pm.PackageManager')
-
-        permissions_to_check = self._get_android_permissions()
-
-        granted = all(
-            context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
-            for p in permissions_to_check
-        )
-        self.log_with_timestamp(f"Permission check for {permissions_to_check}: {granted}", LogLevel.DEBUG)
-        return granted
-
+    # Keyboard Shortcuts
+    # ------------------
     def _on_keyboard(self, window, key, scancode, codepoint, modifier):
         """
         Handles keyboard shortcuts.
@@ -278,47 +287,21 @@ class BLEScannerApp(App):
             elif codepoint == 'l':
                 self.clear_log()
 
-    def build(self):
-        config_path = os.path.join(self.user_data_dir, 'config.ini')
-        self.config_manager = ConfigManager(config_path)
-        self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
-        self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
-        self.theme = theme_manager
-        theme_manager.set_theme(self.config_manager.get_setting('theme', 'name'))
+    # Android Permissions
+    # -------------------
+    def _on_android_permissions_callback(self, permissions, grants):
+        """
+        Callback for the permission request. Checks if all permissions were granted.
+        """
+        self.log_with_timestamp(f"Permission grants received: {grants}", LogLevel.DEBUG)
+        success = all(grant == 0 for grant in grants)
+        if success:
+            self.log_with_timestamp("Permissions granted. You can now scan for devices.", LogLevel.SUCCESS)
+        else:
+            self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
 
-        # Set up the graph with configured RSSI limits
-        self.rssi_min = int(self.config_manager.get_setting('graph', 'rssi_min'))
-        self.rssi_max = int(self.config_manager.get_setting('graph', 'rssi_max'))
-
-        self.ble_manager = BLEManager(
-            device_discovered_callback=self._on_device_discovered,
-            connection_status_callback=self._on_connection_status_changed,
-            notification_callback=self.notification_handler,
-            logger_callback=self.log_with_timestamp,
-            config_manager=self.config_manager
-        )
-        self.characteristic_frames = {}
-        self.device_frames = {}
-        self.device_cache = DeviceCache()
-        self.selected_device_frame = None
-        self.discovered_devices_batch = []
-        self.scan_stats = {}
-        self.graph_selection = {}
-        self.scan_task = None
-        return MainLayout()
-
-    async def on_stop(self):
-        """Called when the application is stopping."""
-        self.is_shutting_down = True
-        if self.is_scanning and self.scan_task and not self.scan_task.done():
-            self.scan_task.cancel()
-            try:
-                # Wait for the scan task to finish its cleanup
-                await self.scan_task
-            except asyncio.CancelledError:
-                # This is expected when we cancel it
-                pass
-        await self.ble_manager.shutdown()
+    # BLE Scanning and Device Handling
+    # --------------------------------
 
     def discover_adapters(self):
         """Discovers available Bluetooth adapters and populates the dropdown."""
@@ -339,8 +322,8 @@ class BLEScannerApp(App):
         On Android, it checks for permissions first.
         """
         if kivy_platform == 'android':
-            if not self._check_android_permissions():
-                self.request_android_permissions()
+            if not PlatformUtils.check_android_permissions():
+                PlatformUtils.request_android_permissions(self._on_android_permissions_callback)
                 return
 
         self.scan_task = asyncio.create_task(self.async_scan_for_devices())
@@ -551,29 +534,16 @@ class BLEScannerApp(App):
             self.log_with_timestamp("Disconnect button pressed.", LogLevel.INFO)
             asyncio.create_task(self.ble_manager.disconnect_from_device())
 
+    # BLE Callbacks
+    # -------------
     def _on_connection_status_changed(self, is_connected: bool):
         """Callback for connection status changes."""
         if self.is_shutting_down:
             return
-        self._update_connection_ui(is_connected)
+        self.ui_manager.update_connection_ui(is_connected)
 
-    def _update_connection_ui(self, is_connected: bool):
-        """Updates the UI based on the connection status."""
-        self.is_connected = is_connected
-        self.is_connecting = False
-        if is_connected:
-            self.log_with_timestamp("Device connected.", LogLevel.SUCCESS)
-            self.discover_attributes()
-            self.root.ids.bottom_nav.switch_to(self.root.ids.device_screen_tab)
-        else:
-            if self.selected_device_frame:
-                self.selected_device_frame.is_selected = False
-                self.selected_device_frame = None
-            # The BLEManager now logs the disconnection event.
-            # We just need to update the UI state.
-            self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
-            self.characteristic_frames = {}
-
+    # Attribute Discovery and UI Population
+    # -------------------------------------
     def discover_attributes(self):
         """Discovers and displays the services and characteristics of the connected device."""
         self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
@@ -676,6 +646,8 @@ class BLEScannerApp(App):
             if "read" in char_frame.characteristic.properties:
                 asyncio.create_task(self.read_characteristic(char_frame.characteristic, char_frame))
 
+    # Logging and File Operations
+    # ---------------------------
     def clear_log(self, *args):
         """Clears the debug log text box."""
         self.log_with_timestamp("Clearing log...", LogLevel.INFO)
@@ -688,30 +660,20 @@ class BLEScannerApp(App):
 
     def show_save_dialog(self, *args):
         """Shows the save file dialog for the main log."""
-        self.log_with_timestamp("Showing save log dialog...", LogLevel.INFO)
-        content = FileChooserDialog(title="Save Log", callback=self.save_log, dismiss_callback=self.dismiss_popup, mode='save')
-        self._open_dialog("Save Log", content)
+        self.ui_manager.show_save_dialog("Save Log", self.save_log)
 
     def show_save_wireshark_dialog(self, *args):
         """Shows the save file dialog for the Wireshark log."""
-        self.log_with_timestamp("Showing save Wireshark log dialog...", LogLevel.INFO)
-        content = FileChooserDialog(title="Save Wireshark Log", callback=self.save_wireshark_log, dismiss_callback=self.dismiss_popup, mode='save')
-        self._open_dialog("Save Wireshark Log", content)
-
-    def _open_dialog(self, title, content):
-        """Helper to create and open a dialog popup."""
-        self.dialog = Popup(title=title, content=content, size_hint=(0.9, 0.9))
-        self.dialog.open()
+        self.ui_manager.show_save_dialog("Save Wireshark Log", self.save_wireshark_log)
 
     def dismiss_popup(self):
         """Dismisses the currently open dialog."""
-        if self.dialog:
-            self.dialog.dismiss()
+        self.ui_manager.dismiss_popup()
 
     def save_log(self, path, selection):
         """Saves the content of the debug log to a file."""
         if not selection:
-            self.dismiss_popup()
+            self.ui_manager.dismiss_popup()
             return
         filepath = os.path.join(path, selection[0])
         log_content = self.root.ids.log_screen.ids.log_view.text
@@ -721,12 +683,12 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Log saved to {filepath}", LogLevel.SUCCESS)
         except IOError as e:
             self.log_with_timestamp(f"Error saving log: {e}", LogLevel.ERROR)
-        self.dismiss_popup()
+        self.ui_manager.dismiss_popup()
 
     def save_wireshark_log(self, path, selection):
         """Saves the content of the Wireshark log to a CSV file."""
         if not selection:
-            self.dismiss_popup()
+            self.ui_manager.dismiss_popup()
             return
         filepath = os.path.join(path, selection[0])
         if not filepath.lower().endswith('.csv'):
@@ -741,21 +703,13 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Wireshark log saved to {filepath}", LogLevel.SUCCESS)
         except (IOError, csv.Error) as e:
             self.log_with_timestamp(f"Error saving Wireshark log: {e}", LogLevel.ERROR)
-        self.dismiss_popup()
+        self.ui_manager.dismiss_popup()
 
+    # BLE Characteristic and Descriptor Operations
+    # --------------------------------------------
     async def read_characteristic(self, characteristic, char_frame, *args):
         value = await self.ble_manager.read_characteristic(characteristic.uuid)
-        self.on_characteristic_read(char_frame, value)
-
-    def on_characteristic_read(self, char_frame, value):
-        if value is not None:
-            char_frame.raw_value = value
-            display_format = char_frame.ids.format_spinner.text
-            self.log_with_timestamp(f"Value read from {char_frame.char_uuid} ({display_format}): {char_frame.char_value}", LogLevel.SUCCESS)
-            char_frame.ids.value_input.background_color = (0, 1, 0, 1) # Green for success
-            asyncio.create_task(self.async_reset_char_color(char_frame))
-        else:
-            self.log_with_timestamp(f"Failed to read from {char_frame.char_uuid}", LogLevel.ERROR)
+        self.ui_manager.on_characteristic_read(char_frame, value)
 
     def write_characteristic(self, characteristic, char_frame, *args):
         asyncio.create_task(self.async_write_characteristic(characteristic, char_frame))
@@ -775,34 +729,20 @@ class BLEScannerApp(App):
             return
 
         success = await self.ble_manager.write_characteristic(characteristic.uuid, write_value)
-        self.on_characteristic_write(char_frame, success, characteristic, value_str, write_mode)
+        self.ui_manager.on_characteristic_write(char_frame, success, characteristic, value_str, write_mode)
 
-    def on_characteristic_write(self, char_frame, success, characteristic, value_written, write_mode):
-        if success:
-            self.log_with_timestamp(f"Value written to {char_frame.char_uuid} ({write_mode}): {value_written}", LogLevel.SUCCESS)
-            if "read" in characteristic.properties:
-                asyncio.create_task(self.read_characteristic(characteristic, char_frame))
-        else:
-            self.log_with_timestamp(f"Write Error on {char_frame.char_uuid}", LogLevel.ERROR)
-            char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
+    def reset_char_color(self, char_frame):
+        """Schedules the color reset for a characteristic's value input."""
+        asyncio.create_task(self.async_reset_char_color(char_frame))
 
     async def async_reset_char_color(self, char_frame):
+        """Resets the background color of a characteristic's value input after a delay."""
         await asyncio.sleep(0.5)
         char_frame.ids.value_input.background_color = (1, 1, 1, 1)
 
     async def read_descriptor(self, descriptor, desc_frame, *args):
         value = await self.ble_manager.read_descriptor(descriptor.uuid)
-        self.on_descriptor_read(descriptor, desc_frame, value)
-
-    def on_descriptor_read(self, descriptor, desc_frame, value):
-        if value is not None:
-            if isinstance(desc_frame, Label):
-                desc_frame.text = f"{value.decode('utf-8')}"
-            else:
-                desc_frame.desc_value = value.hex()
-            self.log_with_timestamp(f"Value read from {descriptor.uuid}: {value.hex()}", LogLevel.SUCCESS)
-        else:
-            self.log_with_timestamp(f"Failed to read from {descriptor.uuid}", LogLevel.ERROR)
+        self.ui_manager.on_descriptor_read(descriptor, desc_frame, value)
 
     def write_descriptor(self, descriptor, desc_frame, *args):
         asyncio.create_task(self.async_write_descriptor(descriptor, desc_frame))
@@ -816,13 +756,7 @@ class BLEScannerApp(App):
             return
 
         success = await self.ble_manager.write_descriptor(descriptor.uuid, write_value)
-        self.on_descriptor_write(desc_frame, success)
-
-    def on_descriptor_write(self, desc_frame, success):
-        if success:
-            self.log_with_timestamp(f"Value written to {desc_frame.desc_uuid}", LogLevel.SUCCESS)
-        else:
-            self.log_with_timestamp(f"Write Error on {desc_frame.desc_uuid}", LogLevel.ERROR)
+        self.ui_manager.on_descriptor_write(desc_frame, success)
 
     def toggle_subscription(self, characteristic, char_frame, widget, active):
         if active:
@@ -882,6 +816,8 @@ class BLEScannerApp(App):
                     app.root.ids.log_screen.ids.log_scroll_view.scroll_y = 0
         Clock.schedule_once(_log)
 
+    # OTA (Over-the-Air) Update Methods
+    # ---------------------------------
     def open_ota_window(self):
         """Opens the OTA window."""
         if not self.ble_manager.client or not self.ble_manager.client.is_connected:
