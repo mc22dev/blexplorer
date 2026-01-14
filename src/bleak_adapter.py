@@ -192,25 +192,37 @@ class BleakAdapter(BLEAdapter):
         else:
             self.notification_callback(characteristic, data)
 
-    async def read_descriptor(self, descriptor_handle: int) -> Optional[bytes]:
+    def get_descriptor(self, descriptor_uuid: str):
+        for service in self.client.services:
+            for characteristic in service.characteristics:
+                for descriptor in characteristic.descriptors:
+                    if descriptor.uuid == descriptor_uuid:
+                        return descriptor
+        return None
+
+    async def read_descriptor(self, descriptor_uuid: str) -> Optional[bytes]:
         """Reads the value of a descriptor."""
         value = None
         if self.client:
             try:
-                value = await self.client.read_gatt_descriptor(descriptor_handle)
+                descriptor = self.get_descriptor(descriptor_uuid)
+                if descriptor:
+                    value = await self.client.read_gatt_descriptor(descriptor.handle)
             except BleakError as e:
-                self.logger_callback(f"Read Error on descriptor handle {descriptor_handle}: {e}", LogLevel.ERROR)
+                self.logger_callback(f"Read Error on descriptor uuid {descriptor_uuid}: {e}", LogLevel.ERROR)
         return value
 
-    async def write_descriptor(self, descriptor_handle: int, value: bytes) -> bool:
+    async def write_descriptor(self, descriptor_uuid: str, value: bytes) -> bool:
         """Writes a value to a descriptor."""
         success = False
         if self.client:
             try:
-                await self.client.write_gatt_descriptor(descriptor_handle, value)
-                success = True
+                descriptor = self.get_descriptor(descriptor_uuid)
+                if descriptor:
+                    await self.client.write_gatt_descriptor(descriptor.handle, value)
+                    success = True
             except BleakError as e:
-                self.logger_callback(f"Write Error on descriptor handle {descriptor_handle}: {e}", LogLevel.ERROR)
+                self.logger_callback(f"Write Error on descriptor uuid {descriptor_uuid}: {e}", LogLevel.ERROR)
         return success
 
     async def start_ota_upload(self, filepath: str, progress_callback: Callable[[int], Any]) -> None:

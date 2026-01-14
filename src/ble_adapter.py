@@ -48,11 +48,11 @@ class BLEAdapter(ABC):
         pass
 
     @abstractmethod
-    async def read_descriptor(self, descriptor_handle: int) -> Optional[bytes]:
+    async def read_descriptor(self, descriptor_uuid: str) -> Optional[bytes]:
         pass
 
     @abstractmethod
-    async def write_descriptor(self, descriptor_handle: int, value: bytes) -> bool:
+    async def write_descriptor(self, descriptor_uuid: str, value: bytes) -> bool:
         pass
 
     @abstractmethod

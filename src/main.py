@@ -791,7 +791,7 @@ class BLEScannerApp(App):
         char_frame.ids.value_input.background_color = (1, 1, 1, 1)
 
     async def read_descriptor(self, descriptor, desc_frame, *args):
-        value = await self.ble_manager.read_descriptor(descriptor.handle)
+        value = await self.ble_manager.read_descriptor(descriptor.uuid)
         self.on_descriptor_read(descriptor, desc_frame, value)
 
     def on_descriptor_read(self, descriptor, desc_frame, value):
@@ -815,7 +815,7 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Invalid hex value for write on {descriptor.uuid}", LogLevel.ERROR)
             return
 
-        success = await self.ble_manager.write_descriptor(descriptor.handle, write_value)
+        success = await self.ble_manager.write_descriptor(descriptor.uuid, write_value)
         self.on_descriptor_write(desc_frame, success)
 
     def on_descriptor_write(self, desc_frame, success):

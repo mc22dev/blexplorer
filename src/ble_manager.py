@@ -73,3 +73,6 @@ class BLEManager:
 
     async def write_descriptor(self, descriptor_handle: int, value: bytes) -> bool:
         return await self.adapter.write_descriptor(descriptor_handle, value)
+
+    async def start_ota_upload(self, filepath: str, progress_callback: Callable[[int], Any]) -> None:
+        await self.adapter.start_ota_upload(filepath, progress_callback)
