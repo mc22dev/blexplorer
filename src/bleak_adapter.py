@@ -98,18 +98,18 @@ class BleakAdapter(BLEAdapter):
                     LogLevel.WARNING
                 )
 
-    async def connect_to_device(self, device_address: str, adapter: Optional[str]) -> None:
+    async def connect_to_device(self, device_address: str, adapter: Optional[str]) -> Optional[BleakClient]:
         """Connects to a specified device by its address."""
         if self.client and self.client.is_connected and self.selected_device_address == device_address:
             self.logger_callback(f"Already connected to {device_address}. Ignoring.", LogLevel.DEBUG)
-            return
+            return self.client
 
         self.selected_device_address = device_address
         self.adapter = adapter
         self._manual_disconnect = False
 
         if not self.selected_device_address:
-            return
+            return None
 
         # Disconnect from any existing connection
         if self.client and self.client.is_connected:
@@ -120,10 +120,11 @@ class BleakAdapter(BLEAdapter):
 
         try:
             await self.client.connect()
-            self.connection_status_callback(True)
+            return self.client
         except (BleakError, asyncio.TimeoutError) as e:
             self.logger_callback(f"Connection Error: {e}", LogLevel.ERROR)
             self.connection_status_callback(False)
+            return None
 
     async def disconnect_from_device(self) -> None:
         """Disconnects from the currently connected device."""
