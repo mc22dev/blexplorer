@@ -2,7 +2,7 @@
 
 <ParameterWindow>:
     title: 'Parameters'
-    size_hint: 0.6, 0.4
+    size_hint: 0.8, 0.8
     auto_dismiss: False
 
     BoxLayout:
@@ -16,108 +16,115 @@
             TabbedPanelItem:
                 text: 'Settings'
 
-                BoxLayout:
-                    orientation: 'vertical'
-                    padding: '10dp'
-                    spacing: '10dp'
-
-                    BoxLayout:
-                        orientation: 'horizontal'
+                ScrollView:
+                    GridLayout:
+                        cols: 1
                         size_hint_y: None
-                        height: '30dp'
+                        height: self.minimum_height
+                        padding: '10dp'
+                        spacing: '10dp'
 
-                        Label:
-                            text: 'Bluetooth Adapter:'
-                        Spinner:
-                            id: adapter_spinner
-                            text: 'Default'
-                            values: ['Default']
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            size_hint_y: None
+                            height: '30dp'
 
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        size_hint_y: None
-                        height: '30dp'
+                            Label:
+                                text: 'Bluetooth Adapter:'
+                            Spinner:
+                                id: adapter_spinner
+                                text: 'Default'
+                                values: ['Default']
 
-                        Label:
-                            text: 'Scan Timeout:'
-                        TextInput:
-                            id: scan_timeout_input
-                            text: '5.0'
-                            multiline: False
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            size_hint_y: None
+                            height: '30dp'
 
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        size_hint_y: None
-                        height: '30dp'
+                            Label:
+                                text: 'Scan Timeout:'
+                            TextInput:
+                                id: scan_timeout_input
+                                text: '5.0'
+                                multiline: False
 
-                        Label:
-                            text: 'Theme:'
-                        Spinner:
-                            id: theme_spinner
-                            text: 'Dark'
-                            values: ['Light', 'Dark']
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        size_hint_y: None
-                        height: '30dp'
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            size_hint_y: None
+                            height: '30dp'
 
-                        Label:
-                            text: 'BLE library:'
-                        Spinner:
-                            id: ble_library_spinner
-                            text: 'bleak'
-                            values: ['bleak', 'able']
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        size_hint_y: None
-                        height: '30dp'
+                            Label:
+                                text: 'Theme:'
+                            Spinner:
+                                id: theme_spinner
+                                text: 'Dark'
+                                values: ['Light', 'Dark']
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            size_hint_y: None
+                            height: '30dp'
 
-                        Label:
-                            text: 'RSSI Min:'
-                        TextInput:
-                            id: rssi_min_input
-                            multiline: False
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        size_hint_y: None
-                        height: '30dp'
-                        Label:
-                            text: 'RSSI Max:'
-                        TextInput:
-                            id: rssi_max_input
-                            multiline: False
+                            Label:
+                                text: 'BLE library:'
+                            Spinner:
+                                id: ble_library_spinner
+                                text: 'bleak'
+                                values: ['bleak', 'able']
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            size_hint_y: None
+                            height: '30dp'
 
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        size_hint_y: None
-                        height: '30dp'
-                        Label:
-                            text: "Auto-connect to device:"
-                        CheckBox:
-                            id: auto_connect_checkbox
-                            size_hint_x: 0.2
-                    BoxLayout:
-                        orientation: 'horizontal'
-                        size_hint_y: None
-                        height: '30dp'
-                        Label:
-                            text: "Device name/address filter:"
-                        TextInput:
-                            id: auto_connect_filter_input
-                            multiline: False
+                            Label:
+                                text: 'RSSI Min:'
+                            TextInput:
+                                id: rssi_min_input
+                                multiline: False
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            size_hint_y: None
+                            height: '30dp'
+                            Label:
+                                text: 'RSSI Max:'
+                            TextInput:
+                                id: rssi_max_input
+                                multiline: False
+
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            size_hint_y: None
+                            height: '30dp'
+                            Label:
+                                text: "Auto-connect to device:"
+                            CheckBox:
+                                id: auto_connect_checkbox
+                                size_hint_x: 0.2
+                        BoxLayout:
+                            orientation: 'horizontal'
+                            size_hint_y: None
+                            height: '30dp'
+                            Label:
+                                text: "Device name/address filter:"
+                            TextInput:
+                                id: auto_connect_filter_input
+                                multiline: False
 
             TabbedPanelItem:
                 text: 'Versions'
 
-                BoxLayout:
-                    orientation: 'vertical'
-                    padding: '10dp'
-
-                    Label:
-                        id: versions_label
-                        text: root.versions_info
+                ScrollView:
+                    GridLayout:
+                        cols: 1
                         size_hint_y: None
-                        height: self.texture_size[1]
+                        height: self.minimum_height
+                        padding: '10dp'
+                        spacing: '10dp'
+
+                        Label:
+                            id: versions_label
+                            text: root.versions_info
+                            size_hint_y: None
+                            height: self.texture_size[1]
 
 
         BoxLayout:
