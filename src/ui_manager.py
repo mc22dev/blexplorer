@@ -18,8 +18,27 @@ class UIManager:
         self.discover_attributes_callback = discover_attributes_callback
         self.read_characteristic_callback = read_characteristic_callback
         self.reset_char_color_callback = reset_char_color_callback
-        self.root = None  # To be set by the main app after build
+        self.root = None
         self.dialog = None
+        self.app_state = None
+
+    def set_app_state(self, app_state):
+        self.app_state = app_state
+
+    def update_connection_ui(self, is_connected: bool):
+        """Updates the UI based on the connection status."""
+        self.app_state.is_connected = is_connected
+        self.app_state.is_connecting = False
+        if is_connected:
+            self.log_callback("Device connected.", LogLevel.SUCCESS)
+            self.discover_attributes_callback()
+            self.switch_to_device_tab()
+        else:
+            if self.app_state.selected_device_frame:
+                self.app_state.selected_device_frame.is_selected = False
+                self.app_state.selected_device_frame = None
+            self.clear_characteristic_list()
+            self.app_state.characteristic_frames = {}
 
     def switch_to_device_tab(self):
         """Switches the main view to the device screen tab."""

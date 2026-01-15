@@ -5,7 +5,7 @@
     size_hint_y: None
     height: '120dp'
     padding: "8dp"
-    on_release: root.dispatch('on_connect_request', root)
+    on_release: root.dispatch('on_connect_request')
     background_color: root.primary_color if root.is_selected else root.secondary_color
 
     Button:
@@ -28,7 +28,7 @@
     Button:
         text: "Connect"
         size_hint_x: 0.2
-        on_release: root.dispatch('on_connect_request', root)
+        on_release: root.dispatch('on_connect_request')
 
     BoxLayout:
         orientation: 'vertical'

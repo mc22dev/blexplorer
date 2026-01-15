@@ -113,8 +113,9 @@ class BLEScannerApp(App):
             log_callback=self.log_with_timestamp,
             discover_attributes_callback=self.discover_attributes,
             read_characteristic_callback=self.read_characteristic,
-            reset_char_color_callback=self.reset_char_color
+            reset_char_color_callback=self.reset_char_color,
         )
+        self.ui_manager.set_app_state(self)
         self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
         self.theme = theme_manager
@@ -476,7 +477,7 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Auto-connecting to device: {device.address}", LogLevel.INFO)
             self.connect_to_device(device_frame)
 
-    def connect_to_device(self, instance, device_frame: DeviceFrameKivy):
+    def connect_to_device(self, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""
         asyncio.create_task(self.async_connect_to_device(device_frame))
 
@@ -509,18 +510,7 @@ class BLEScannerApp(App):
         """Callback for connection status changes."""
         if self.is_shutting_down:
             return
-        self.is_connected = is_connected
-        self.is_connecting = False
-        if is_connected:
-            self.log_with_timestamp("Device connected.", LogLevel.SUCCESS)
-            self.discover_attributes()
-            self.ui_manager.switch_to_device_tab()
-        else:
-            if self.selected_device_frame:
-                self.selected_device_frame.is_selected = False
-                self.selected_device_frame = None
-            self.ui_manager.clear_characteristic_list()
-            self.characteristic_frames = {}
+        self.ui_manager.update_connection_ui(is_connected)
 
     # Attribute Discovery and UI Population
     # -------------------------------------

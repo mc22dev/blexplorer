@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from src.ui_manager import UIManager
+from ui_manager import UIManager
 
 class TestUIManager(unittest.TestCase):
     def setUp(self):
