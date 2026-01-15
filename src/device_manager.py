@@ -40,12 +40,15 @@ class DeviceManager:
         if not self.discovered_devices_batch:
             return
 
-        sorted_batch = sorted(self.discovered_devices_batch, key=lambda x: x[1].rssi, reverse=True)
+        # Atomically swap the batch to prevent race conditions.
+        batch_to_process = self.discovered_devices_batch
+        self.discovered_devices_batch = []
+
+        sorted_batch = sorted(batch_to_process, key=lambda x: x[1].rssi, reverse=True)
         for device, adv_data in sorted_batch:
             self._update_device_ui(device, adv_data)
 
         self.app_callback.update_graph_data()
-        self.discovered_devices_batch.clear()
 
     def _update_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
         """Updates or creates a UI frame for a discovered device."""
