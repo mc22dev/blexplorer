@@ -7,6 +7,7 @@ from datetime import datetime
 from functools import partial
 import os
 import sys
+from functools import partial
 
 from kivy.utils import platform as kivy_platform
 from kivy.app import App
@@ -125,7 +126,18 @@ class BLEScannerApp(App):
         self.rssi_min = int(self.config_manager.get_setting('graph', 'rssi_min'))
         self.rssi_max = int(self.config_manager.get_setting('graph', 'rssi_max'))
 
-        self.device_manager = DeviceManager(self, None, self.config_manager, theme_manager)
+        self.device_manager = DeviceManager(
+            ui_container=None,
+            config_manager=self.config_manager,
+            theme_manager=theme_manager,
+            log_callback=self.log_with_timestamp,
+            on_graph_selection_change_callback=self.on_graph_selection_change,
+            connect_callback=self.connect_to_device,
+            auto_connect_callback=self._check_auto_connect,
+            update_graph_data_callback=self.update_graph_data,
+            get_graph_device_color_callback=lambda addr: self.root.ids.scanner_screen.ids.global_rssi_graph.get_device_color(addr),
+            clear_graph_callback=lambda: self.root.ids.scanner_screen.ids.global_rssi_graph.clear_graph()
+        )
 
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
@@ -444,7 +456,7 @@ class BLEScannerApp(App):
     async def _process_device_batch_periodically(self):
         """Periodically processes the batch of discovered devices."""
         while True:
-            self.device_manager.process_device_batch()
+            Clock.schedule_once(lambda dt: self.device_manager.process_device_batch())
             await asyncio.sleep(1.0)
 
     def update_graph_data(self):
@@ -778,6 +790,16 @@ class BLEScannerApp(App):
             app = App.get_running_app()
             if not app or not app.root:
                 return
+
+            log_level_str = self.config_manager.get_setting('logging', 'level')
+            try:
+                log_level = LogLevel[log_level_str]
+            except KeyError:
+                log_level = LogLevel.INFO
+
+            if level.value < log_level.value:
+                return
+
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             log_message = f"[{timestamp}] [{level.value}] {message}\n"
             if 'log_screen' in app.root.ids and 'log_view' in app.root.ids.log_screen.ids:

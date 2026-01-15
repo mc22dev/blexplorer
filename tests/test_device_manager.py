@@ -8,14 +8,32 @@ from models import DeviceScanStats
 
 class TestDeviceManager(unittest.TestCase):
     def setUp(self):
-        self.app_callback = MagicMock()
         self.ui_container = Mock(spec=BoxLayout)
         self.config_manager = MagicMock()
         self.config_manager.get_device_name.return_value = "Test Device"
         self.theme_manager = MagicMock()
         self.theme_manager.primary = [1, 1, 1, 1]
         self.theme_manager.secondary = [0, 0, 0, 0]
-        self.device_manager = DeviceManager(self.app_callback, self.ui_container, self.config_manager, self.theme_manager)
+        self.log_callback = MagicMock()
+        self.on_graph_selection_change_callback = MagicMock()
+        self.connect_callback = MagicMock()
+        self.auto_connect_callback = MagicMock()
+        self.update_graph_data_callback = MagicMock()
+        self.get_graph_device_color_callback = MagicMock(return_value=(1, 1, 1, 1))
+        self.clear_graph_callback = MagicMock()
+
+        self.device_manager = DeviceManager(
+            ui_container=self.ui_container,
+            config_manager=self.config_manager,
+            theme_manager=self.theme_manager,
+            log_callback=self.log_callback,
+            on_graph_selection_change_callback=self.on_graph_selection_change_callback,
+            connect_callback=self.connect_callback,
+            auto_connect_callback=self.auto_connect_callback,
+            update_graph_data_callback=self.update_graph_data_callback,
+            get_graph_device_color_callback=self.get_graph_device_color_callback,
+            clear_graph_callback=self.clear_graph_callback,
+        )
 
     def test_clear(self):
         self.device_manager.clear()
@@ -29,12 +47,19 @@ class TestDeviceManager(unittest.TestCase):
         self.assertEqual(len(self.device_manager.discovered_devices_batch), 1)
 
     def test_process_device_batch(self):
-        device = BLEDevice("address", "name", details={})
-        adv_data = AdvertisementData(local_name="", manufacturer_data={}, service_data={}, service_uuids=[], tx_power=0, rssi=-60, platform_data=())
-        self.device_manager.add_discovered_device(device, adv_data)
+        device1 = BLEDevice("address1", "name1", details={})
+        adv_data1 = AdvertisementData(local_name="", manufacturer_data={}, service_data={}, service_uuids=[], tx_power=0, rssi=-60, platform_data=())
+        device2 = BLEDevice("address2", "name2", details={})
+        adv_data2 = AdvertisementData(local_name="", manufacturer_data={}, service_data={}, service_uuids=[], tx_power=0, rssi=-70, platform_data=())
+
+        self.device_manager.add_discovered_device(device1, adv_data1)
+        self.device_manager.add_discovered_device(device2, adv_data2)
+
         self.device_manager.process_device_batch()
-        self.assertEqual(len(self.device_manager.device_frames), 1)
-        self.app_callback.update_graph_data.assert_called_once()
+
+        self.assertEqual(len(self.device_manager.device_frames), 2)
+        self.assertEqual(self.ui_container.add_widget.call_count, 2)
+        self.update_graph_data_callback.assert_called_once()
 
     def test_filter_devices(self):
         # This test requires a more complex setup to mock Kivy widgets and properties

@@ -6,11 +6,11 @@ from bleak.backends.scanner import AdvertisementData
 
 
 class LogLevel(Enum):
-    DEBUG = "DEBUG"
-    INFO = "INFO"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    SUCCESS = "SUCCESS"
+    DEBUG = 1
+    INFO = 2
+    WARNING = 3
+    ERROR = 4
+    SUCCESS = 5
 
 
 class CachedDescriptor:

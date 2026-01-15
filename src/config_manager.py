@@ -44,6 +44,9 @@ class ConfigManager:
                 'rssi_min': '-110',
                 'rssi_max': '-20'
             },
+            'logging': {
+                'level': 'DEBUG'
+            },
             'device_names': {}
         }
         self._load_or_create_config()
