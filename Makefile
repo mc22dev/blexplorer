@@ -1,4 +1,4 @@
-.PHONY: all android install run-android run run-windows clean logcat windows windows-on-linux linux packages run-windows-on-linux
+.PHONY: all android install run-android run-android-emulator run run-windows clean logcat windows windows-on-linux linux packages run-windows-on-linux
 
 # Extract package metadata from the buildozer.spec and _version.py files
 PACKAGE_NAME := $(shell grep '^package.name =' buildozer.spec | cut -d' ' -f3)
@@ -94,6 +94,10 @@ install: android
 # Run the app on a connected device (will also install if needed)
 run-android: android
 	. $(VENV_ACTIVATE_UNIX); buildozer android run
+
+# Run the app on an emulator (will also install if needed)
+run-android-emulator: android
+	. $(VENV_ACTIVATE_UNIX); export BUILDOZER_OVERRIDE_ANDROID_ADB_ARGS="-e"; buildozer android run
 
 # Run the Windows executable on Linux using Wine
 run-windows-on-linux: windows-on-linux
