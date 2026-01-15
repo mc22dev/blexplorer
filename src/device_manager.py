@@ -4,7 +4,7 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from kivy.uix.boxlayout import BoxLayout
 from device_frame_kivy import DeviceFrameKivy
-from models import DeviceScanStats
+from models import DeviceScanStats, LogLevel
 
 class DeviceManager:
     """Manages discovered BLE devices and their UI representation."""
@@ -69,7 +69,7 @@ class DeviceManager:
             if frame.device.name != device.name:
                 frame.device = device
         else:
-            self.app_callback.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", "INFO")
+            self.app_callback.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.INFO)
             frame = DeviceFrameKivy(
                 device=device,
                 stats=stats,
