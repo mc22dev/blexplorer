@@ -169,17 +169,23 @@ class BLEScannerApp(App):
         self.discover_adapters()
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
 
-    async def on_stop(self):
+    def on_stop(self):
         """Called when the application is stopping."""
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.async_shutdown())
+        except RuntimeError:  # This can happen if the loop is already closed
+            pass
+
+    async def async_shutdown(self):
+        """Performs asynchronous cleanup."""
         self.is_shutting_down = True
         if self.is_scanning and self.scan_task and not self.scan_task.done():
             self.scan_task.cancel()
             try:
-                # Wait for the scan task to finish its cleanup
                 await self.scan_task
             except asyncio.CancelledError:
-                # This is expected when we cancel it
-                pass
+                pass  # Expected
         await self.ble_manager.shutdown()
 
     # Parameter and Settings Management
