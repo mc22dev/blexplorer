@@ -8,28 +8,59 @@ if [ ! -d "$SDK_PATH" ]; then
   exit 1
 fi
 
-# Find necessary tools
+# --- Helper Functions ---
+# Locates a tool within the SDK paths or exits if not found.
+find_sdk_tool() {
+  local tool_name=$1
+  local tool_path=""
+
+  # The path for cmdline-tools might vary, look for 'latest' first
+  if [ -d "$SDK_PATH/cmdline-tools/latest/bin" ]; then
+    tool_path="$SDK_PATH/cmdline-tools/latest/bin/$tool_name"
+  # Fallback to the older 'tools' path
+  elif [ -f "$SDK_PATH/tools/bin/$tool_name" ]; then
+    tool_path="$SDK_PATH/tools/bin/$tool_name"
+  fi
+
+  if [ -f "$tool_path" ]; then
+    echo "$tool_path"
+    return 0
+  else
+    return 1
+  fi
+}
+
+# --- Main Script ---
+
+# 1. Locate SDK command-line tools
+SDKMANAGER_PATH=$(find_sdk_tool "sdkmanager")
+if [ $? -ne 0 ]; then
+  echo "Android SDK command-line tools (sdkmanager) not found."
+  echo "The SDK installation may be incomplete or corrupted."
+  echo "Try running 'buildozer android clean' and then 'buildozer android debug'."
+  exit 1
+fi
+
+AVDMANAGER_PATH=$(find_sdk_tool "avdmanager")
+if [ $? -ne 0 ]; then
+  echo "Android SDK command-line tools (avdmanager) not found."
+  echo "The SDK installation may be incomplete or corrupted."
+  exit 1
+fi
+
+# 2. Check for the Emulator executable and install it if missing
 EMULATOR_PATH="$SDK_PATH/emulator/emulator"
 if [ ! -f "$EMULATOR_PATH" ]; then
-  echo "Emulator executable not found at $EMULATOR_PATH"
-  exit 1
+  echo "Emulator executable not found. Attempting to install it..."
+  yes | "$SDKMANAGER_PATH" --install "emulator" > /dev/null
+  if [ ! -f "$EMULATOR_PATH" ]; then
+    echo "Failed to install the emulator. Please try installing it manually."
+    exit 1
+  fi
+  echo "Emulator installed successfully."
 fi
 
-# The path for cmdline-tools might vary, look for the 'latest' first
-if [ -d "$SDK_PATH/cmdline-tools/latest/bin" ]; then
-  SDKMANAGER_PATH="$SDK_PATH/cmdline-tools/latest/bin/sdkmanager"
-  AVDMANAGER_PATH="$SDK_PATH/cmdline-tools/latest/bin/avdmanager"
-# Fallback to the older 'tools' path
-elif [ -f "$SDK_PATH/tools/bin/sdkmanager" ]; then
-  SDKMANAGER_PATH="$SDK_PATH/tools/bin/sdkmanager"
-  AVDMANAGER_PATH="$SDK_PATH/tools/bin/avdmanager"
-else
-  echo "Android SDK command-line tools (sdkmanager, avdmanager) not found."
-  echo "Please install them via Android Studio or the 'tools' package."
-  exit 1
-fi
-
-# Get the list of AVDs
+# 3. Get the list of AVDs
 AVDS=($("$EMULATOR_PATH" -list-avds))
 
 # If no AVDs are found, create a default one
