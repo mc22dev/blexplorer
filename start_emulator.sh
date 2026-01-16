@@ -4,6 +4,7 @@ set -e
 # Set ANDROID_SDK_HOME to prevent sdkmanager from failing in certain environments.
 # This ensures a consistent, writable location for tool configuration files.
 export ANDROID_SDK_HOME="$HOME/.buildozer/android/"
+mkdir -p "$ANDROID_SDK_HOME"
 
 # Find the Android SDK path
 SDK_PATH="$HOME/.buildozer/android/platform/android-sdk"
