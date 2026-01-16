@@ -65,7 +65,19 @@ if [ ! -f "$EMULATOR_PATH" ]; then
   echo "Emulator installed successfully."
 fi
 
-# 3. Get the list of AVDs
+# 3. Check for Platform Tools and install if missing
+PLATFORM_TOOLS_PATH="$SDK_PATH/platform-tools"
+if [ ! -d "$PLATFORM_TOOLS_PATH" ]; then
+  echo "Android Platform Tools not found. Attempting to install..."
+  yes | "$SDKMANAGER_PATH" --install "platform-tools" > /dev/null
+  if [ ! -d "$PLATFORM_TOOLS_PATH" ]; then
+    echo "Failed to install Platform Tools. Please try installing them manually."
+    exit 1
+  fi
+  echo "Platform Tools installed successfully."
+fi
+
+# 4. Get the list of AVDs
 AVDS=($("$EMULATOR_PATH" -list-avds))
 
 # If no AVDs are found, create a default one
@@ -110,4 +122,4 @@ fi
 
 # Start the emulator
 echo "Starting emulator with AVD: $TARGET_AVD"
-nohup "$EMULATOR_PATH" -avd "$TARGET_AVD" >/dev/null 2>&1 &
+nohup "$EMULATOR_PATH" -avd "$TARGET_AVD" -no-snapshot-load -no-boot-anim >/dev/null 2>&1 &
