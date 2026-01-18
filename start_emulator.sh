@@ -13,9 +13,6 @@ if [ ! -d "$SDK_PATH" ]; then
   exit 1
 fi
 
-# Set ANDROID_SDK_ROOT to tell the emulator where to find system images.
-export ANDROID_SDK_ROOT="$SDK_PATH"
-
 # --- Helper Functions ---
 # Locates a tool within the SDK paths or exits if not found.
 find_sdk_tool() {
@@ -125,4 +122,4 @@ fi
 
 # Start the emulator
 echo "Starting emulator with AVD: $TARGET_AVD"
-nohup "$EMULATOR_PATH" -avd "$TARGET_AVD" -no-snapshot-load -no-boot-anim >/dev/null 2>&1 &
+nohup env ANDROID_SDK_ROOT="$SDK_PATH" "$EMULATOR_PATH" -avd "$TARGET_AVD" -no-snapshot-load -no-boot-anim >/dev/null 2>&1 &
