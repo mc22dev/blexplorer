@@ -62,8 +62,8 @@
                     on_release: root.copy_to_clipboard(root.char_value)
                 Spinner:
                     id: format_spinner
-                    text: 'Hex'
-                    values: ['Hex', 'ASCII', 'JSON', 'Int8', 'UInt8', 'Int16', 'UInt16', 'Int32', 'UInt32', 'Float32', 'Float64']
+                    text: 'ASCII'
+                    values: ['ASCII', 'Hex', 'JSON', 'Int8', 'UInt8', 'Int16', 'UInt16', 'Int32', 'UInt32', 'Float32', 'Float64']
                     size_hint_x: 0.3
                     on_text: root.on_format_change(self.text)
 
