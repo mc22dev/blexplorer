@@ -30,16 +30,6 @@ elif kivy_platform == 'linux':
     BluetoothAdapter = None
     BluetoothDevice = None
     LocationManager = None
-else:
-    # Create mock classes for non-Android platforms to avoid import errors
-    PythonActivity = None
-    Build = None
-    PackageManager = None
-    android_request_permissions = None
-    Context = None
-    BluetoothAdapter = None
-    BluetoothDevice = None
-    LocationManager = None
 
 
 @dataclass
@@ -213,6 +203,9 @@ class PlatformUtils:
                             )
                         )
         except Exception as e:
-            logger.error(f"Error getting bonded devices on Linux: {e}")
+            if "org.freedesktop.DBus.Error.ServiceUnknown" in str(e):
+                logger.warning("Could not find BlueZ service. Make sure Bluetooth is enabled and the service is running.")
+            else:
+                logger.error(f"Error getting bonded devices on Linux: {e}")
 
         return devices

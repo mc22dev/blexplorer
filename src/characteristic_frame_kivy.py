@@ -9,6 +9,7 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
+from gatt import GATT_CHARACTERISTICS
 
 
 class InfoPopup(Popup):
