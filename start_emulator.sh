@@ -57,7 +57,7 @@ fi
 EMULATOR_PATH="$SDK_PATH/emulator/emulator"
 if [ ! -f "$EMULATOR_PATH" ]; then
   echo "Emulator executable not found. Attempting to install it..."
-  yes | "$SDKMANAGER_PATH" --install "emulator" > /dev/null
+  yes | "$SDKMANAGER_PATH" --sdk_root="$SDK_PATH" --install "emulator" > /dev/null
   if [ ! -f "$EMULATOR_PATH" ]; then
     echo "Failed to install the emulator. Please try installing it manually."
     exit 1
@@ -69,7 +69,7 @@ fi
 PLATFORM_TOOLS_PATH="$SDK_PATH/platform-tools"
 if [ ! -d "$PLATFORM_TOOLS_PATH" ]; then
   echo "Android Platform Tools not found. Attempting to install..."
-  yes | "$SDKMANAGER_PATH" --install "platform-tools" > /dev/null
+  yes | "$SDKMANAGER_PATH" --sdk_root="$SDK_PATH" --install "platform-tools" > /dev/null
   if [ ! -d "$PLATFORM_TOOLS_PATH" ]; then
     echo "Failed to install Platform Tools. Please try installing them manually."
     exit 1
@@ -92,7 +92,7 @@ if [ ${#AVDS[@]} -eq 0 ]; then
 
   # 1. Install the system image if not present. The `yes` command handles license agreement prompts.
   echo "Downloading system image: $SYSTEM_IMAGE"
-  yes | "$SDKMANAGER_PATH" --install "$SYSTEM_IMAGE" > /dev/null
+  yes | "$SDKMANAGER_PATH" --sdk_root="$SDK_PATH" --install "$SYSTEM_IMAGE" > /dev/null
 
   # 2. Create the AVD. Piping "no" answers the question "Do you wish to create a custom hardware profile?".
   echo "Creating AVD..."
