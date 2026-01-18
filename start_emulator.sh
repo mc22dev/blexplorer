@@ -13,6 +13,9 @@ if [ ! -d "$SDK_PATH" ]; then
   exit 1
 fi
 
+# Set ANDROID_SDK_ROOT to tell the emulator where to find system images.
+export ANDROID_SDK_ROOT="$SDK_PATH"
+
 # --- Helper Functions ---
 # Locates a tool within the SDK paths or exits if not found.
 find_sdk_tool() {
