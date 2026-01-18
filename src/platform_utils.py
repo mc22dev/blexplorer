@@ -1,5 +1,7 @@
 
 import logging
+from dataclasses import dataclass
+from typing import List
 
 from kivy.utils import platform as kivy_platform
 
@@ -13,6 +15,7 @@ if kivy_platform == 'android':
     PackageManager = autoclass('android.content.pm.PackageManager')
     Context = autoclass('android.content.Context')
     BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+    BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
     LocationManager = autoclass('android.location.LocationManager')
 else:
     # Create mock classes for non-Android platforms to avoid import errors
@@ -22,7 +25,16 @@ else:
     android_request_permissions = None
     Context = None
     BluetoothAdapter = None
+    BluetoothDevice = None
     LocationManager = None
+
+
+@dataclass
+class BondedDevice:
+    """A class to represent a bonded Bluetooth device."""
+    name: str
+    address: str
+    bond_state: str
 
 
 class PlatformUtils:
@@ -116,3 +128,40 @@ class PlatformUtils:
         except Exception as e:
             logger.error(f"Error checking location status: {e}")
             return False
+
+    @staticmethod
+    def get_bonded_devices() -> List[BondedDevice]:
+        """
+        Retrieves a list of bonded Bluetooth devices on Android.
+        """
+        if kivy_platform != 'android':
+            return []
+
+        adapter = BluetoothAdapter.getDefaultAdapter()
+        if not adapter:
+            return []
+
+        bonded_devices = adapter.getBondedDevices()
+        if not bonded_devices:
+            return []
+
+        devices = []
+        for device in bonded_devices.toArray():
+            bond_state_int = device.getBondState()
+            bond_state = "Unknown"
+            if bond_state_int == BluetoothDevice.BOND_BONDED:
+                bond_state = "Bonded"
+            elif bond_state_int == BluetoothDevice.BOND_BONDING:
+                bond_state = "Bonding"
+            elif bond_state_int == BluetoothDevice.BOND_NONE:
+                bond_state = "Not Bonded"
+
+            devices.append(
+                BondedDevice(
+                    name=device.getName() or "Unnamed",
+                    address=device.getAddress(),
+                    bond_state=bond_state,
+                )
+            )
+
+        return devices

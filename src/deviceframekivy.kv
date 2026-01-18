@@ -53,11 +53,21 @@
                 width: "50dp"
                 on_release: root.save_custom_name(device_name_input.text)
 
-        Label:
-            text: f"Original Name: {root.device_name}"
-            font_size: '12sp'
+        BoxLayout:
             size_hint_y: None
-            height: self.texture_size[1]
+            height: self.minimum_height
+            Label:
+                text: f"Original Name: {root.device_name}"
+                font_size: '12sp'
+                size_hint_y: None
+                height: self.texture_size[1]
+            Label:
+                text: root.bond_state
+                font_size: '12sp'
+                color: (0, 1, 0, 1) # Green color for bonded status
+                size_hint_x: None
+                width: self.texture_size[0]
+                opacity: 1 if root.bond_state else 0
 
         Label:
             text: root.device_address

@@ -25,6 +25,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     manufacturer_data = StringProperty("")
     full_service_uuids = StringProperty("")
     full_manufacturer_data = StringProperty("")
+    bond_state = StringProperty("")
 
 
     def on_device(self, instance, value):
@@ -84,9 +85,10 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
                 self.manufacturer_data = self.full_manufacturer_data
 
 
-    def __init__(self, config_manager=None, **kwargs):
+    def __init__(self, config_manager=None, bond_state="", **kwargs):
         self.config_manager = config_manager
         super().__init__(**kwargs)
+        self.bond_state = bond_state
         self.register_event_type('on_graph_selection_change')
         self.register_event_type('on_connect_request')
         # Trigger the on_... methods to populate the UI initially

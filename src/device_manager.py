@@ -6,6 +6,8 @@ from kivy.uix.boxlayout import BoxLayout
 from functools import partial
 from device_frame_kivy import DeviceFrameKivy
 from models import DeviceScanStats, LogLevel
+from platform_utils import PlatformUtils, BondedDevice
+
 
 class DeviceManager:
     """Manages discovered BLE devices and their UI representation."""
@@ -42,6 +44,39 @@ class DeviceManager:
         self.graph_selection.clear()
         self.global_graph_data.clear()
         self.discovered_devices_batch.clear()
+
+        # Add bonded devices first
+        bonded_devices = PlatformUtils.get_bonded_devices()
+        for bonded_device in bonded_devices:
+            # Create a mock BLEDevice for UI representation
+            mock_ble_device = BLEDevice(
+                address=bonded_device.address,
+                name=bonded_device.name,
+                details={},
+                rssi=0
+            )
+            self._update_bonded_device_ui(mock_ble_device, bonded_device.bond_state)
+
+    def _update_bonded_device_ui(self, device: BLEDevice, bond_state: str):
+        """Creates a UI frame for a bonded device."""
+        if device.address in self.device_frames:
+            return  # Already displayed
+
+        self.log_callback(f"Found bonded device: {device.address} ({device.name or 'Unknown'})", LogLevel.INFO)
+        stats = DeviceScanStats()
+        frame = DeviceFrameKivy(
+            device=device,
+            stats=stats,
+            config_manager=self.config_manager,
+            primary_color=self.theme_manager.primary,
+            secondary_color=self.theme_manager.secondary,
+            bond_state=bond_state
+        )
+        frame.bind(on_graph_selection_change=self.on_graph_selection_change_callback)
+        frame.bind(on_connect_request=self.connect_callback)
+        self.device_frames[device.address] = frame
+        self.scan_stats[device.address] = stats
+        self.ui_container.add_widget(frame)
 
     def add_discovered_device(self, device: BLEDevice, adv_data: AdvertisementData):
         """Adds a discovered device to the batch for processing."""
