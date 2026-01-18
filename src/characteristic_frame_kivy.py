@@ -61,6 +61,14 @@ class CharacteristicFrameKivy(BoxLayout):
         if "notify" not in self.characteristic.properties and "indicate" not in self.characteristic.properties:
             self.ids.subscribe_button.disabled = True
 
+        # Set user description if available
+        short_uuid = self.char_uuid.split('-')[0].lstrip('0')
+        if len(short_uuid) == 3:
+            short_uuid = "0" + short_uuid
+        user_description = GATT_CHARACTERISTICS.get(short_uuid.lower())
+        if user_description:
+            self.ids.user_description_label.text = user_description
+
     def _is_printable_ascii(self, data: bytes) -> bool:
         """Checks if byte data is empty or contains only printable ASCII characters."""
         if not data:
