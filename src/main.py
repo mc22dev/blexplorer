@@ -502,7 +502,11 @@ class BLEScannerApp(App):
     async def async_connect_to_device(self, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""
         if self.is_scanning:
-            await self.stop_scan()
+            self.stop_scan()
+            try:
+                await self.scan_task
+            except asyncio.CancelledError:
+                pass  # Scan task is expected to be cancelled
 
         if self.selected_device_frame:
             self.selected_device_frame.is_selected = False
