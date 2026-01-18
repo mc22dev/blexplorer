@@ -389,7 +389,7 @@ class BLEScannerApp(App):
         if self.selected_device_frame:
             self.selected_device_frame.is_selected = False
             self.selected_device_frame = None
-        self.device_manager.clear()
+        await self.device_manager.clear()
         self.global_graph_data = {}
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
         self.is_scanning = True

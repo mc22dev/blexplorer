@@ -17,6 +17,19 @@ if kivy_platform == 'android':
     BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
     BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
     LocationManager = autoclass('android.location.LocationManager')
+elif kivy_platform == 'linux':
+    import asyncio
+    from dbus_fast.aio import MessageBus
+    from dbus_fast import Variant
+    # Mock classes for non-Android platforms to avoid import errors
+    PythonActivity = None
+    Build = None
+    PackageManager = None
+    android_request_permissions = None
+    Context = None
+    BluetoothAdapter = None
+    BluetoothDevice = None
+    LocationManager = None
 else:
     # Create mock classes for non-Android platforms to avoid import errors
     PythonActivity = None
@@ -130,13 +143,22 @@ class PlatformUtils:
             return False
 
     @staticmethod
-    def get_bonded_devices() -> List[BondedDevice]:
+    async def get_bonded_devices() -> List[BondedDevice]:
+        """
+        Retrieves a list of bonded Bluetooth devices.
+        This feature is currently implemented for Android and Linux only.
+        """
+        if kivy_platform == 'android':
+            return PlatformUtils._get_bonded_devices_android()
+        elif kivy_platform == 'linux':
+            return await PlatformUtils._get_bonded_devices_linux()
+        return []
+
+    @staticmethod
+    def _get_bonded_devices_android() -> List[BondedDevice]:
         """
         Retrieves a list of bonded Bluetooth devices on Android.
         """
-        if kivy_platform != 'android':
-            return []
-
         adapter = BluetoothAdapter.getDefaultAdapter()
         if not adapter:
             return []
@@ -163,5 +185,34 @@ class PlatformUtils:
                     bond_state=bond_state,
                 )
             )
+
+        return devices
+
+    @staticmethod
+    async def _get_bonded_devices_linux() -> List[BondedDevice]:
+        """
+        Retriees a list of bonded Bluetooth devices on Linux via D-Bus.
+        """
+        devices = []
+        try:
+            bus = await MessageBus().connect()
+            introspection = await bus.introspect('org.bluez', '/')
+            obj = bus.get_proxy_object('org.bluez', '/', introspection)
+            iface = obj.get_interface('org.freedesktop.DBus.ObjectManager')
+            managed_objects = await iface.call_get_managed_objects()
+
+            for path, interfaces in managed_objects.items():
+                if 'org.bluez.Device1' in interfaces:
+                    device_props = interfaces['org.bluez.Device1']
+                    if device_props.get('Paired', Variant('b', False)).value:
+                        devices.append(
+                            BondedDevice(
+                                name=device_props.get('Name', Variant('s', 'Unknown')).value,
+                                address=device_props.get('Address', Variant('s', '')).value,
+                                bond_state="Bonded",
+                            )
+                        )
+        except Exception as e:
+            logger.error(f"Error getting bonded devices on Linux: {e}")
 
         return devices

@@ -35,7 +35,7 @@ class DeviceManager:
         self.get_graph_device_color_callback = get_graph_device_color_callback
         self.clear_graph_callback = clear_graph_callback
 
-    def clear(self):
+    async def clear(self):
         """Clears all device data and UI elements."""
         self.ui_container.clear_widgets()
         self.clear_graph_callback()
@@ -46,7 +46,7 @@ class DeviceManager:
         self.discovered_devices_batch.clear()
 
         # Add bonded devices first
-        bonded_devices = PlatformUtils.get_bonded_devices()
+        bonded_devices = await PlatformUtils.get_bonded_devices()
         for bonded_device in bonded_devices:
             # Create a mock BLEDevice for UI representation
             mock_ble_device = BLEDevice(

@@ -8,3 +8,4 @@ pyjnius
 typing-extensions
 pyinstaller
 beacontools
+dbus-fast
