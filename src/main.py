@@ -600,7 +600,7 @@ class BLEScannerApp(App):
 
         if user_desc:
             # Defer the read operation to allow the UI to draw first
-            asyncio.create_task(self.read_descriptor(user_desc, char_frame.ids.user_description_label))
+            asyncio.create_task(self.read_descriptor(user_desc, char_frame))
 
         return char_frame
 
@@ -728,9 +728,9 @@ class BLEScannerApp(App):
         await asyncio.sleep(0.5)
         char_frame.ids.value_input.background_color = (1, 1, 1, 1)
 
-    async def read_descriptor(self, descriptor, desc_frame, *args):
+    async def read_descriptor(self, descriptor, frame, *args):
         value = await self.ble_manager.read_descriptor(descriptor.uuid)
-        self.ui_manager.on_descriptor_read(descriptor, desc_frame, value)
+        self.ui_manager.on_descriptor_read(descriptor, frame, value)
 
     def write_descriptor(self, descriptor, desc_frame, *args):
         asyncio.create_task(self.async_write_descriptor(descriptor, desc_frame))
