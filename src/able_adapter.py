@@ -59,10 +59,17 @@ if platform == 'android':
         def on_connection_state_change(self, status, state):
             if state == 'connected':
                 self.dispatcher.discover_services()
-            self.connection_status_callback(state == 'connected')
+            else:
+                self.connection_status_callback(False)
+                future = self.futures.pop('connect', None)
+                if future and not future.done():
+                    future.set_result(None)
 
         def on_services(self, services, status):
             self.services = services
+            future = self.futures.pop('connect', None)
+            if future and not future.done():
+                future.set_result(self.dispatcher.gatt)
 
         def on_characteristic_read(self, characteristic, status):
             future = self.futures.pop(f'read_{characteristic.getUuid()}', None)
@@ -96,8 +103,16 @@ if platform == 'android':
         async def stop_scan(self) -> None:
             self.dispatcher.stop_scan()
 
-        async def connect_to_device(self, device_address: str, adapter: Optional[str]) -> None:
+        async def connect_to_device(self, device_address: str, adapter: Optional[str]) -> Optional[Any]:
+            future = asyncio.Future()
+            self.futures['connect'] = future
             self.dispatcher.connect_by_device_address(device_address)
+            try:
+                return await asyncio.wait_for(future, timeout=10.0)
+            except asyncio.TimeoutError:
+                self.logger_callback("Connection timed out.", LogLevel.ERROR)
+                self.connection_status_callback(False)
+                return None
 
         async def disconnect_from_device(self) -> None:
             self.dispatcher.close_gatt()
