@@ -32,10 +32,9 @@
         TooltipButton:
             id: scan_button
             font_name: "MaterialIcons"
-            text: "\U000F0349"
-            on_release: app.scan_for_devices()
-            disabled: app.is_scanning if app else True
-            tooltip_text: "Scan for devices"
+            text: "\U000F04DB" if app.is_scanning else "\U000F0349"
+            on_release: app.stop_scan() if app.is_scanning else app.scan_for_devices()
+            tooltip_text: "Stop scan" if app.is_scanning else "Scan for devices"
 
         TooltipButton:
             id: disconnect_button

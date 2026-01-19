@@ -1,19 +1,80 @@
 import struct
-from typing import Dict, Optional, Tuple
+import logging
+from typing import Optional, Tuple
+
 from bleak.backends.scanner import AdvertisementData
+from beacontools import (
+    parse_packet,
+    EddystoneUIDFrame,
+    EddystoneURLFrame,
+    EddystoneTLMFrame,
+    IBeaconAdvertisement,
+    EstimoteTelemetryFrameA,
+    EstimoteTelemetryFrameB
+)
+
+
+def _reconstruct_packet(adv_data: AdvertisementData) -> bytes:
+    """
+    Tries to reconstruct a raw BLE advertisement packet from bleak's AdvertisementData.
+    This is a best-effort reconstruction as bleak does not provide the raw packet.
+    """
+    packet = bytearray()
+
+    # Add Manufacturer Data (for iBeacon, Estimote, etc.)
+    for mfg_id, data in adv_data.manufacturer_data.items():
+        payload = mfg_id.to_bytes(2, 'little') + data
+        # AD Structure: Length byte, AD Type byte, Payload
+        packet += (len(payload) + 1).to_bytes(1, 'little')
+        packet += b'\xff'  # AD Type: Manufacturer Specific Data
+        packet += payload
+
+    # Add Service Data (for Eddystone)
+    for uuid, data in adv_data.service_data.items():
+        try:
+            # Get the 16-bit part if it's a standard UUID, e.g., "0000feaa-..." -> 0xfeaa
+            uuid_short = int(uuid.split('-')[0], 16)
+            payload = uuid_short.to_bytes(2, 'little') + data
+            # AD Structure: Length byte, AD Type byte, Payload
+            packet += (len(payload) + 1).to_bytes(1, 'little')
+            packet += b'\x16'  # AD Type: Service Data - 16-bit UUID
+            packet += payload
+        except (ValueError, IndexError):
+            logging.warning(f"Could not parse service UUID for packet reconstruction: {uuid}")
+            continue
+
+    return bytes(packet)
+
+
+def _format_beacon(beacon) -> str:
+    """Formats a beacon object from beacontools into a human-readable string."""
+    if isinstance(beacon, IBeaconAdvertisement):
+        return (f"[iBeacon] UUID: {beacon.uuid}, "
+                f"Major: {beacon.major}, Minor: {beacon.minor}, "
+                f"TX Power: {beacon.tx_power} dBm")
+    elif isinstance(beacon, EddystoneUIDFrame):
+        return (f"[Eddystone-UID] Namespace: {beacon.namespace}, "
+                f"Instance: {beacon.instance}, "
+                f"TX Power: {beacon.tx_power} dBm")
+    elif isinstance(beacon, EddystoneURLFrame):
+        return f"[Eddystone-URL] URL: {beacon.url}, TX Power: {beacon.tx_power} dBm"
+    elif isinstance(beacon, EddystoneTLMFrame):
+        # sec_cnt is in 0.1s increments
+        uptime_s = beacon.sec_cnt / 10.0 if beacon.sec_cnt is not None else 0.0
+        return (f"[Eddystone-TLM] v{beacon.version}, Batt: {beacon.voltage}mV, "
+                f"Temp: {beacon.temperature:.2f}°C, ADV Cnt: {beacon.adv_cnt}, "
+                f"Uptime: {uptime_s:.1f}s")
+    elif isinstance(beacon, (EstimoteTelemetryFrameA, EstimoteTelemetryFrameB)):
+        return f"[Estimote] {beacon}"  # The default __str__ is informative enough
+    return ""
+
 
 def _decode_xiaomi_temp_humidity(data: bytes) -> Optional[Tuple[float, float]]:
     """
     Decodes temperature and humidity from Xiaomi Mijia LYWSD03MMC sensor data.
     """
-    if len(data) < 5:
+    if len(data) < 4:
         return None
-
-    # This is a simplified check. A more robust implementation would parse the full frame.
-    # The event type for temp+humidity is often 0x0D.
-    # Let's assume the data passed here is just the payload for temp/humidity.
-    # Temp: 2 bytes, signed int, little-endian, scaled by 0.01
-    # Humidity: 2 bytes, unsigned int, little-endian, scaled by 0.01
     try:
         temp = int.from_bytes(data[0:2], byteorder='little', signed=True) / 100.0
         humidity = int.from_bytes(data[2:4], byteorder='little', signed=False) / 100.0
@@ -21,116 +82,39 @@ def _decode_xiaomi_temp_humidity(data: bytes) -> Optional[Tuple[float, float]]:
     except (IndexError, struct.error):
         return None
 
-def _decode_ibeacon(data: bytes) -> Optional[str]:
-    """
-    Decodes iBeacon advertisement data.
-    """
-    if len(data) < 25 or data[0:2] != b'\x02\x15':
-        return None
-
-    uuid = data[2:18].hex()
-    major = int.from_bytes(data[18:20], 'big')
-    minor = int.from_bytes(data[20:22], 'big')
-    tx_power = int.from_bytes(data[22:23], 'big', signed=True)
-
-    return f"[iBeacon] UUID: {uuid}, Major: {major}, Minor: {minor}, TX Power: {tx_power} dBm"
-
-
-def _decode_eddystone_uid(data: bytes) -> Optional[str]:
-    """
-    Decodes Eddystone-UID frame.
-    """
-    if len(data) < 18:
-        return None
-
-    tx_power = int.from_bytes(data[1:2], 'big', signed=True)
-    namespace = data[2:12].hex()
-    instance = data[12:18].hex()
-
-    return f"[Eddystone-UID] Namespace: {namespace}, Instance: {instance}, TX Power: {tx_power} dBm"
-
-
-def _decode_eddystone_url(data: bytes) -> Optional[str]:
-    """
-    Decodes Eddystone-URL frame.
-    """
-    if len(data) < 4:
-        return None
-
-    tx_power = int.from_bytes(data[1:2], 'big', signed=True)
-    url_scheme_prefixes = ["http://www.", "https://www.", "http://", "https://"]
-    url_scheme = url_scheme_prefixes[data[2]]
-
-    encoded_url = data[3:]
-    decoded_url = ""
-    for char_code in encoded_url:
-        if 0 < char_code < 14:
-            decoded_url += [".com/", ".org/", ".edu/", ".net/", ".info/", ".biz/", ".gov/",
-                            ".com", ".org", ".edu", ".net", ".info", ".biz", ".gov"][char_code - 1]
-        else:
-            decoded_url += chr(char_code)
-
-    return f"[Eddystone-URL] URL: {url_scheme}{decoded_url}, TX Power: {tx_power} dBm"
-
-
-def _decode_eddystone(data: bytes) -> Optional[str]:
-    """
-    Decodes Eddystone frames (UID, URL, TLM).
-    """
-    frame_type = data[0]
-    if frame_type == 0x00:
-        return _decode_eddystone_uid(data)
-    elif frame_type == 0x10:
-        return _decode_eddystone_url(data)
-    elif frame_type == 0x20:
-        return _decode_eddystone_tlm(data)
-    return None
-
-
-def _decode_eddystone_tlm(data: bytes) -> Optional[str]:
-    """
-    Decodes Eddystone-TLM frame.
-    """
-    if len(data) < 14:
-        return None
-
-    version = data[1]
-    voltage = int.from_bytes(data[2:4], 'big')
-    temp_fixed = int.from_bytes(data[4:6], 'big', signed=True)
-    temp = temp_fixed / 256.0
-    adv_count = int.from_bytes(data[6:10], 'big')
-    uptime = int.from_bytes(data[10:14], 'big') * 0.1
-
-    return f"[Eddystone-TLM] v{version}, Batt: {voltage}mV, Temp: {temp:.2f}°C, ADV Cnt: {adv_count}, Uptime: {uptime:.1f}s"
-
 
 def decode_advertisement(adv_data: AdvertisementData) -> str:
     """
-    Decodes BLE advertisement data into a human-readable string.
+    Decodes BLE advertisement data into a human-readable string using custom decoders
+    and the beacontools library.
     """
     decoded_output = []
 
+    # --- Custom Decoders ---
     # Xiaomi Temperature/Humidity Sensor
     if "0000fe95-0000-1000-8000-00805f9b34fb" in adv_data.service_data:
         xiaomi_data = adv_data.service_data["0000fe95-0000-1000-8000-00805f9b34fb"]
-        if len(xiaomi_data) >= 4:
-            result = _decode_xiaomi_temp_humidity(xiaomi_data)
-            if result:
-                temp, humidity = result
-                decoded_output.append(f"[Xiaomi Sensor] Temp: {temp:.2f}°C, Humidity: {humidity:.2f}%")
-
-    # iBeacon
-    if 76 in adv_data.manufacturer_data:
-        ibeacon_data = adv_data.manufacturer_data[76]
-        result = _decode_ibeacon(ibeacon_data)
+        result = _decode_xiaomi_temp_humidity(xiaomi_data)
         if result:
-            decoded_output.append(result)
+            temp, humidity = result
+            decoded_output.append(f"[Xiaomi Sensor] Temp: {temp:.2f}°C, Humidity: {humidity:.2f}%")
 
-    # Eddystone
-    if "0000feaa-0000-1000-8000-00805f9b34fb" in adv_data.service_data:
-        eddystone_data = adv_data.service_data["0000feaa-0000-1000-8000-00805f9b34fb"]
-        result = _decode_eddystone(eddystone_data)
-        if result:
-            decoded_output.append(result)
+    # --- BeaconTools Decoder ---
+    raw_packet = _reconstruct_packet(adv_data)
+    if raw_packet:
+        try:
+            beacons = parse_packet(raw_packet)
+            if beacons:
+                # parse_packet can return a single item or a list
+                if not isinstance(beacons, list):
+                    beacons = [beacons]
+
+                for beacon in beacons:
+                    formatted_beacon = _format_beacon(beacon)
+                    if formatted_beacon:
+                        decoded_output.append(formatted_beacon)
+        except Exception as e:
+            # beacontools can raise various exceptions if the packet is malformed or not a beacon.
+            logging.debug(f"beacontools could not parse advertisement packet: {e}")
 
     return "\n".join(decoded_output)

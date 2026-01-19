@@ -1,4 +1,5 @@
 import asyncio
+import csv
 import platform
 import subprocess
 import re
@@ -291,13 +292,20 @@ class BLEScannerApp(App):
         self.discovered_devices_batch = []
         self.scan_stats = {}
         self.graph_selection = {}
+        self.scan_task = None
         return MainLayout()
 
     async def on_stop(self):
         """Called when the application is stopping."""
         self.is_shutting_down = True
-        if self.is_scanning:
-            await self.stop_scan()
+        if self.is_scanning and self.scan_task and not self.scan_task.done():
+            self.scan_task.cancel()
+            try:
+                # Wait for the scan task to finish its cleanup
+                await self.scan_task
+            except asyncio.CancelledError:
+                # This is expected when we cancel it
+                pass
         await self.ble_manager.shutdown()
 
     def discover_adapters(self):
@@ -323,7 +331,7 @@ class BLEScannerApp(App):
                 self.request_android_permissions()
                 return
 
-        asyncio.create_task(self.async_scan_for_devices())
+        self.scan_task = asyncio.create_task(self.async_scan_for_devices())
 
     async def async_scan_for_devices(self):
         """Initiates a scan for nearby BLE devices."""
@@ -350,18 +358,31 @@ class BLEScannerApp(App):
 
         self._batch_processing_task = asyncio.create_task(self._process_device_batch_periodically())
         await self.ble_manager.scan_for_devices(adapter)
-        await asyncio.sleep(timeout)
-        await self.stop_scan()
+        try:
+            await asyncio.sleep(timeout)
+        except asyncio.CancelledError:
+            self.log_with_timestamp("Scan stopped by user.", LogLevel.INFO)
+        finally:
+            await self.async_stop_scan()
 
-    async def stop_scan(self, *args):
-        """Stops the BLE scan."""
+    def stop_scan(self, *args):
+        """Stops the BLE scan task."""
+        if self.scan_task and not self.scan_task.done():
+            self.scan_task.cancel()
+
+    async def async_stop_scan(self):
+        """Async helper to perform the actual cleanup after a scan stops."""
         if self.is_scanning:
             await self.ble_manager.stop_scan()
             if self._batch_processing_task:
                 self._batch_processing_task.cancel()
+                try:
+                    await self._batch_processing_task
+                except asyncio.CancelledError:
+                    pass
                 self._batch_processing_task = None
             self._process_device_batch()  # Process any remaining devices
-            self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
+            self.log_with_timestamp("Scan finished.", LogLevel.INFO)
             self.is_scanning = False
 
     def filter_devices(self, search_term):
@@ -648,20 +669,37 @@ class BLEScannerApp(App):
         self.log_with_timestamp("Clearing log...", LogLevel.INFO)
         self.root.ids.log_screen.ids.log_view.text = ""
 
+    def clear_wireshark_log(self, *args):
+        """Clears the Wireshark log."""
+        self.log_with_timestamp("Clearing Wireshark log...", LogLevel.INFO)
+        self.wireshark_data = []
+
     def show_save_dialog(self, *args):
-        """Shows the save file dialog."""
+        """Shows the save file dialog for the main log."""
         self.log_with_timestamp("Showing save log dialog...", LogLevel.INFO)
-        content = FileChooserDialog(title="Save", callback=self.save_log, dismiss_callback=self.dismiss_popup)
-        self.dialog = Popup(title="Save Log", content=content,
-                               size_hint=(0.9, 0.9))
+        content = FileChooserDialog(title="Save Log", callback=self.save_log, dismiss_callback=self.dismiss_popup)
+        self._open_dialog("Save Log", content)
+
+    def show_save_wireshark_dialog(self, *args):
+        """Shows the save file dialog for the Wireshark log."""
+        self.log_with_timestamp("Showing save Wireshark log dialog...", LogLevel.INFO)
+        content = FileChooserDialog(title="Save Wireshark Log", callback=self.save_wireshark_log, dismiss_callback=self.dismiss_popup)
+        self._open_dialog("Save Wireshark Log", content)
+
+    def _open_dialog(self, title, content):
+        """Helper to create and open a dialog popup."""
+        self.dialog = Popup(title=title, content=content, size_hint=(0.9, 0.9))
         self.dialog.open()
 
     def dismiss_popup(self):
-        self.dialog.dismiss()
+        """Dismisses the currently open dialog."""
+        if self.dialog:
+            self.dialog.dismiss()
 
     def save_log(self, path, selection):
         """Saves the content of the debug log to a file."""
         if not selection:
+            self.dismiss_popup()
             return
         filepath = os.path.join(path, selection[0])
         log_content = self.root.ids.log_screen.ids.log_view.text
@@ -671,6 +709,26 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Log saved to {filepath}", LogLevel.SUCCESS)
         except IOError as e:
             self.log_with_timestamp(f"Error saving log: {e}", LogLevel.ERROR)
+        self.dismiss_popup()
+
+    def save_wireshark_log(self, path, selection):
+        """Saves the content of the Wireshark log to a CSV file."""
+        if not selection:
+            self.dismiss_popup()
+            return
+        filepath = os.path.join(path, selection[0])
+        if not filepath.lower().endswith('.csv'):
+            filepath += '.csv'
+
+        try:
+            with open(filepath, "w", newline="", encoding="utf-8") as f:
+                if self.wireshark_data:
+                    writer = csv.DictWriter(f, fieldnames=self.wireshark_data[0].keys())
+                    writer.writeheader()
+                    writer.writerows(self.wireshark_data)
+            self.log_with_timestamp(f"Wireshark log saved to {filepath}", LogLevel.SUCCESS)
+        except (IOError, csv.Error) as e:
+            self.log_with_timestamp(f"Error saving Wireshark log: {e}", LogLevel.ERROR)
         self.dismiss_popup()
 
     async def read_characteristic(self, characteristic, char_frame, *args):
@@ -792,9 +850,10 @@ class BLEScannerApp(App):
             if not app:
                 return
             app.wireshark_data.append(entry)
-            # Optional: Scroll to the bottom
-            if 'wireshark_log_view' in app.root.ids.wireshark_screen.ids:
-                app.root.ids.wireshark_screen.ids.wireshark_log_view.scroll_y = 0
+            if 'wireshark_screen' in app.root.ids and 'autoscroll_checkbox' in app.root.ids.wireshark_screen.ids:
+                if app.root.ids.wireshark_screen.ids.autoscroll_checkbox.active:
+                    if 'wireshark_log_view' in app.root.ids.wireshark_screen.ids:
+                        app.root.ids.wireshark_screen.ids.wireshark_log_view.scroll_y = 0
         Clock.schedule_once(_log)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
