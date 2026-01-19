@@ -6,6 +6,7 @@ import asyncio
 
 if platform == 'android':
     from able import BluetoothDispatcher
+    from able.scan_settings import ScanSettingsBuilder, ScanSettings
 
     class BLEDevice:
         def __init__(self, device):
@@ -98,7 +99,10 @@ if platform == 'android':
             self.dispatcher.stop_scan()
 
         async def scan_for_devices(self, adapter: Optional[str]) -> None:
-            self.dispatcher.start_scan()
+            settings = ScanSettingsBuilder().setScanMode(
+                ScanSettings.SCAN_MODE_LOW_LATENCY
+            )
+            self.dispatcher.start_scan(settings=settings)
 
         async def stop_scan(self) -> None:
             self.dispatcher.stop_scan()

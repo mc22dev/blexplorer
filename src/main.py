@@ -300,6 +300,29 @@ class BLEScannerApp(App):
         else:
             self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
 
+    def show_android_system_check_popup(self, bluetooth_enabled, location_enabled):
+        """
+        Shows a popup if Bluetooth or Location services are not enabled on Android.
+        """
+        missing_services = []
+        if not bluetooth_enabled:
+            missing_services.append("Bluetooth")
+        if not location_enabled:
+            missing_services.append("Location Services")
+
+        message = "To scan for BLE devices, please enable the following services in your device settings:\n\n" + "\n".join(missing_services)
+
+        popup_content = BoxLayout(orientation='vertical', padding=10, spacing=10)
+        popup_content.add_widget(Label(text=message, size_hint_y=None, height=100))
+        ok_button = Button(text="OK", size_hint_y=None, height=50)
+        popup_content.add_widget(ok_button)
+
+        popup = Popup(title="System Services Disabled",
+                      content=popup_content,
+                      size_hint=(0.8, 0.4))
+        ok_button.bind(on_release=popup.dismiss)
+        popup.open()
+
     # BLE Scanning and Device Handling
     # --------------------------------
 
@@ -324,6 +347,13 @@ class BLEScannerApp(App):
         if kivy_platform == 'android':
             if not PlatformUtils.check_android_permissions():
                 PlatformUtils.request_android_permissions(self._on_android_permissions_callback)
+                return
+
+            bluetooth_enabled = PlatformUtils.is_bluetooth_enabled()
+            location_enabled = PlatformUtils.is_location_enabled()
+
+            if not bluetooth_enabled or not location_enabled:
+                self.show_android_system_check_popup(bluetooth_enabled, location_enabled)
                 return
 
         self.scan_task = asyncio.create_task(self.async_scan_for_devices())
