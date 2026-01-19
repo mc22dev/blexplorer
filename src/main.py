@@ -166,6 +166,10 @@ class BLEScannerApp(App):
         self.device_manager.ui_container = self.root.ids.scanner_screen.ids.device_list
         self.ui_manager.root = self.root
 
+        def set_initial_device_tab_state(dt):
+            self.ui_manager.display_message_in_device_tab("No connected device")
+        Clock.schedule_once(set_initial_device_tab_state)
+
         self.discover_adapters()
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
 
@@ -517,6 +521,10 @@ class BLEScannerApp(App):
         device = device_frame.device
         self.is_connecting = True
         self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...", LogLevel.INFO)
+
+        self.ui_manager.switch_to_device_tab()
+        self.ui_manager.display_message_in_device_tab(f"Connecting to device {device.address}...")
+
         adapter = self.adapter if self.adapter != "Default" else None
         await self.ble_manager.connect_to_device(device.address, adapter)
 
