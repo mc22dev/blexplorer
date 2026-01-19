@@ -37,7 +37,7 @@ class UIManager:
             if self.app_state.selected_device_frame:
                 self.app_state.selected_device_frame.is_selected = False
                 self.app_state.selected_device_frame = None
-            self.clear_characteristic_list()
+            self.display_message_in_device_tab("No connected device")
             self.app_state.characteristic_frames = {}
 
     def switch_to_device_tab(self):
@@ -47,6 +47,13 @@ class UIManager:
     def clear_characteristic_list(self):
         """Clears the characteristic list in the device screen."""
         self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
+
+    def display_message_in_device_tab(self, message: str):
+        """Displays a message in the device tab (e.g., 'No connected device')."""
+        self.clear_characteristic_list()
+        self.root.ids.device_screen.ids.characteristic_list.add_widget(
+            Label(text=message)
+        )
 
     def on_characteristic_read(self, char_frame, value):
         """Handles the UI update after a characteristic read."""
