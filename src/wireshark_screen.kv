@@ -4,16 +4,54 @@
     orientation: 'vertical'
     padding: "5dp"
 
-    ScrollView:
-        id: wireshark_scroll_view
-        bar_width: '10dp'
-        scroll_type: ['bars', 'content']
+    BoxLayout:
+        size_hint_y: None
+        height: "24dp"
+        canvas.before:
+            Color:
+                rgba: app.theme.header_bg if app else (0.2, 0.2, 0.2, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        Label:
+            text: "Time"
+            size_hint_x: 0.15
+            bold: True
+        Label:
+            text: "RSSI"
+            size_hint_x: 0.08
+            bold: True
+        Label:
+            text: "Address"
+            size_hint_x: 0.17
+            bold: True
+        Label:
+            text: "Service UUIDs"
+            size_hint_x: 0.15
+            bold: True
+        Label:
+            text: "Service Data"
+            size_hint_x: 0.15
+            bold: True
+        Label:
+            text: "Manufacturer Data"
+            size_hint_x: 0.15
+            bold: True
+        Label:
+            text: "Decoded Data"
+            size_hint_x: 0.15
+            bold: True
 
-        TextInput:
-            id: wireshark_log_view
-            text: app.wireshark_text
-            readonly: True
+    RecycleView:
+        id: wireshark_log_view
+        data: app.wireshark_data if app else []
+        viewclass: 'WiresharkLogEntry'
+        scroll_type: ['bars', 'content']
+        bar_width: '10dp'
+
+        RecycleBoxLayout:
+            default_size: None, dp(48)
+            default_size_hint: 1, None
             size_hint_y: None
             height: self.minimum_height
-            background_color: app.theme.log_bg if app else (0,0,0,1)
-            foreground_color: app.theme.log_fg if app else (1,1,1,1)
+            orientation: 'vertical'

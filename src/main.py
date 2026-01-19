@@ -39,6 +39,7 @@ from config_manager import ConfigManager
 from ota_window import OTAWindow
 from theme import theme_manager
 from global_rssi_graph import GlobalRSSIGraph
+from wireshark_log_entry import WiresharkLogEntry
 
 
 def resource_path(relative_path):
@@ -62,6 +63,7 @@ Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
 Builder.load_file(resource_path('globalrssigraph.kv'))
 Builder.load_file(resource_path('tooltip.kv'))
+Builder.load_file(resource_path('wiresharklogentry.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -75,7 +77,7 @@ class WiresharkScreen(BoxLayout):
 class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
-    wireshark_text = StringProperty("")
+    wireshark_data = ListProperty([])
     scan_timeout = StringProperty("5.0")
     adapter = StringProperty("Default")
     VERSION = "1.0.0"
@@ -381,28 +383,22 @@ class BLEScannerApp(App):
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
-        log_lines = [
-            f"Advertisement from {device.address} ({device.name or 'Unknown'})",
-            f"  RSSI: {adv_data.rssi}",
-        ]
-        if adv_data.local_name:
-            log_lines.append(f"  Local Name: {adv_data.local_name}")
-        if adv_data.tx_power is not None:
-            log_lines.append(f"  TX Power: {adv_data.tx_power}")
-        if adv_data.service_uuids:
-            log_lines.append(f"  Service UUIDs: [{', '.join(adv_data.service_uuids)}]")
-        if adv_data.service_data:
-            service_data_str = ', '.join(f'"{k}":{v.hex()}' for k, v in adv_data.service_data.items())
-            log_lines.append(f"  Service Data: {{{service_data_str}}}")
-        if adv_data.manufacturer_data:
-            manuf_data_str = ', '.join(f'{k}:{v.hex()}' for k, v in adv_data.manufacturer_data.items())
-            log_lines.append(f"  Manufacturer Data: {{{manuf_data_str}}}")
-
-        self.log_to_wireshark("\n".join(log_lines))
-
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        manufacturer_data_str = ', '.join(f'{k}:{v.hex()}' for k, v in adv_data.manufacturer_data.items())
+        service_data_str = ', '.join(f'"{k}":{v.hex()}' for k, v in adv_data.service_data.items())
         decoded_info = decode_advertisement(adv_data)
-        if decoded_info:
-            self.log_to_wireshark(decoded_info)
+
+        entry = {
+            'time': timestamp,
+            'rssi': adv_data.rssi,
+            'address': device.address,
+            'service_uuids': ', '.join(adv_data.service_uuids),
+            'service_data': service_data_str,
+            'manufacturer_data': manufacturer_data_str,
+            'decoded_data': decoded_info
+        }
+        self.log_to_wireshark(entry)
+
         self.discovered_devices_batch.append((device, adv_data))
 
     async def _process_device_batch_periodically(self):
@@ -678,7 +674,6 @@ class BLEScannerApp(App):
         self.dismiss_popup()
 
     async def read_characteristic(self, characteristic, char_frame, *args):
-        self.log_to_wireshark(f"Reading from {characteristic.uuid}...")
         value = await self.ble_manager.read_characteristic(characteristic.uuid)
         self.on_characteristic_read(char_frame, value)
 
@@ -687,15 +682,12 @@ class BLEScannerApp(App):
             char_frame.raw_value = value
             display_format = char_frame.ids.format_spinner.text
             self.log_with_timestamp(f"Value read from {char_frame.char_uuid} ({display_format}): {char_frame.char_value}", LogLevel.SUCCESS)
-            self.log_to_wireshark(f"Read from {char_frame.char_uuid}: {value.hex()}")
             char_frame.ids.value_input.background_color = (0, 1, 0, 1) # Green for success
             asyncio.create_task(self.async_reset_char_color(char_frame))
         else:
             self.log_with_timestamp(f"Failed to read from {char_frame.char_uuid}", LogLevel.ERROR)
-            self.log_to_wireshark(f"Failed to read from {char_frame.char_uuid}")
 
     def write_characteristic(self, characteristic, char_frame, *args):
-        self.log_to_wireshark(f"Writing to {characteristic.uuid}...")
         asyncio.create_task(self.async_write_characteristic(characteristic, char_frame))
 
     async def async_write_characteristic(self, characteristic, char_frame):
@@ -718,12 +710,10 @@ class BLEScannerApp(App):
     def on_characteristic_write(self, char_frame, success, characteristic, value_written, write_mode):
         if success:
             self.log_with_timestamp(f"Value written to {char_frame.char_uuid} ({write_mode}): {value_written}", LogLevel.SUCCESS)
-            self.log_to_wireshark(f"Wrote to {char_frame.char_uuid}: {value_written}")
             if "read" in characteristic.properties:
                 asyncio.create_task(self.read_characteristic(characteristic, char_frame))
         else:
             self.log_with_timestamp(f"Write Error on {char_frame.char_uuid}", LogLevel.ERROR)
-            self.log_to_wireshark(f"Write Error on {char_frame.char_uuid}")
             char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
 
     async def async_reset_char_color(self, char_frame):
@@ -782,17 +772,29 @@ class BLEScannerApp(App):
             char_frame.raw_value = data
             display_format = char_frame.ids.format_spinner.text
             self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}", LogLevel.INFO)
-        self.log_to_wireshark(f"Notification from {characteristic.uuid}: {data.hex()}")
 
-    def log_to_wireshark(self, message: str):
-        """Logs a message to the Wireshark tab, scheduling it on the main thread."""
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        entry = {
+            'time': timestamp,
+            'rssi': 'N/A',
+            'address': self.ble_manager.client.address if self.ble_manager.client else 'Unknown',
+            'service_uuids': f"Notification: {characteristic.uuid}",
+            'service_data': '',
+            'manufacturer_data': data.hex(),
+            'decoded_data': ''  # No specific decoding for notifications yet
+        }
+        self.log_to_wireshark(entry)
+
+    def log_to_wireshark(self, entry: dict):
+        """Logs a new entry to the Wireshark tab, scheduling it on the main thread."""
         def _log(dt):
             app = App.get_running_app()
             if not app:
                 return
-            timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-            log_message = f"[{timestamp}] {message}\n"
-            app.wireshark_text += log_message
+            app.wireshark_data.append(entry)
+            # Optional: Scroll to the bottom
+            if 'wireshark_log_view' in app.root.ids.wireshark_screen.ids:
+                app.root.ids.wireshark_screen.ids.wireshark_log_view.scroll_y = 0
         Clock.schedule_once(_log)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
