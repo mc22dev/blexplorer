@@ -26,15 +26,21 @@
             opacity: 1 if app and app.is_connecting else 0
             size_hint_y: None
             height: self.texture_size[1] if self.opacity else 0
+    CollapsibleFrameKivy:
+        id: rssi_graph_frame
+        title: "RSSI Graph"
+        size_hint_y: None
+        height: self.minimum_height
+        is_expanded: False
+
     GlobalRSSIGraph:
         id: global_rssi_graph
-        size_hint_y: 0.4
         device_data: app.global_graph_data if app else {}
         rssi_min: app.rssi_min
         rssi_max: app.rssi_max
+
     ScrollView:
         id: device_scroll_view
-        size_hint_y: 0.6
         GridLayout:
             id: device_list
             cols: 1

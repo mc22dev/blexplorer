@@ -7,10 +7,16 @@ class CollapsibleFrameKivy(BoxLayout):
     is_expanded = BooleanProperty(True)
     characteristics = ListProperty()
     populate_callback = ObjectProperty()
+    content = ObjectProperty(None)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._content_populated = False
+
+    def on_content(self, instance, value):
+        self.clear_content()
+        if value:
+            self.add_content(value)
 
     def on_expansion(self):
         """Lazy load the content of the frame."""
