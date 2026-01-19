@@ -6,7 +6,7 @@ from kivy.uix.boxlayout import BoxLayout
 from functools import partial
 from device_frame_kivy import DeviceFrameKivy
 from models import DeviceScanStats, LogLevel
-from platform_utils import PlatformUtils, BondedDevice
+from platform_utils import platform_utils, BondedDevice
 
 
 class DeviceManager:
@@ -46,7 +46,7 @@ class DeviceManager:
         self.discovered_devices_batch.clear()
 
         # Add bonded devices first
-        bonded_devices = await PlatformUtils.get_bonded_devices()
+        bonded_devices = await platform_utils.get_bonded_devices()
         for bonded_device in bonded_devices:
             # Create a mock BLEDevice for UI representation
             mock_ble_device = BLEDevice(

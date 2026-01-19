@@ -43,7 +43,7 @@ from ota_window import OTAWindow
 from theme import theme_manager
 from global_rssi_graph import GlobalRSSIGraph
 from wireshark_log_entry import WiresharkLogEntry
-from platform_utils import PlatformUtils
+from platform_utils import platform_utils
 from ui_manager import UIManager
 from device_manager import DeviceManager
 
@@ -371,12 +371,12 @@ class BLEScannerApp(App):
         On Android, it checks for permissions first.
         """
         if kivy_platform == 'android':
-            if not PlatformUtils.check_android_permissions():
-                PlatformUtils.request_android_permissions(self._on_android_permissions_callback)
+            if not platform_utils.check_android_permissions():
+                platform_utils.request_android_permissions(self._on_android_permissions_callback)
                 return
 
-            bluetooth_enabled = PlatformUtils.is_bluetooth_enabled()
-            location_enabled = PlatformUtils.is_location_enabled()
+            bluetooth_enabled = platform_utils.is_bluetooth_enabled()
+            location_enabled = platform_utils.is_location_enabled()
 
             if not bluetooth_enabled or not location_enabled:
                 self.show_android_system_check_popup(bluetooth_enabled, location_enabled)

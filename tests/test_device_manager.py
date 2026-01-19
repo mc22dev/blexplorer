@@ -41,7 +41,7 @@ def device_manager():
 
 @pytest.mark.asyncio
 async def test_clear(device_manager):
-    with patch('platform_utils.PlatformUtils.get_bonded_devices', new_callable=AsyncMock) as mock_get_bonded:
+    with patch('device_manager.platform_utils.get_bonded_devices', new_callable=AsyncMock) as mock_get_bonded:
         mock_get_bonded.return_value = []
         await device_manager.clear()
         device_manager.ui_container.clear_widgets.assert_called_once()
