@@ -135,8 +135,8 @@ class BLEScannerApp(App):
             connect_callback=self.connect_to_device,
             auto_connect_callback=self._check_auto_connect,
             update_graph_data_callback=self.update_graph_data,
-            get_graph_device_color_callback=lambda addr: self.root.ids.scanner_screen.ids.rssi_graph_frame.content.get_device_color(addr),
-            clear_graph_callback=lambda: self.root.ids.scanner_screen.ids.rssi_graph_frame.content.clear_graph()
+            get_graph_device_color_callback=lambda addr: self.root.ids.scanner_screen.ids.global_rssi_graph.get_device_color(addr),
+            clear_graph_callback=lambda: self.root.ids.scanner_screen.ids.global_rssi_graph.clear_graph()
         )
 
         self.ble_manager = BLEManager(
@@ -169,13 +169,6 @@ class BLEScannerApp(App):
         def set_initial_device_tab_state(dt):
             self.ui_manager.display_message_in_device_tab("No connected device")
         Clock.schedule_once(set_initial_device_tab_state)
-
-        def setup_ui_bindings(dt):
-            scanner_screen = self.root.ids.scanner_screen
-            global_rssi_graph = scanner_screen.ids.global_rssi_graph
-            scanner_screen.remove_widget(global_rssi_graph)
-            scanner_screen.ids.rssi_graph_frame.content = global_rssi_graph
-        Clock.schedule_once(setup_ui_bindings)
 
         self.discover_adapters()
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
@@ -482,7 +475,7 @@ class BLEScannerApp(App):
             addr: data for addr, data in self.device_manager.global_graph_data.items()
             if self.device_manager.graph_selection.get(addr, True)
         }
-        self.root.ids.scanner_screen.ids.rssi_graph_frame.content.device_data = filtered_data
+        self.root.ids.scanner_screen.ids.global_rssi_graph.device_data = filtered_data
         # Reassign to a copy to trigger the Kivy property update, as in-place modification is not detected.
         self.global_graph_data = self.device_manager.global_graph_data.copy()
 
