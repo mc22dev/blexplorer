@@ -4,8 +4,8 @@ import asyncio
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 
-from file_chooser_dialog import FileChooserDialog
-from models import LogLevel
+from blescanner.ui.file_chooser_dialog import FileChooserDialog
+from blescanner.models import LogLevel
 
 
 class UIManager:

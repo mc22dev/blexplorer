@@ -9,7 +9,8 @@ from kivy.uix.button import Button
 from kivy.clock import Clock
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from gatt import GATT_CHARACTERISTICS
+
+from blescanner.ble.gatt import GATT_CHARACTERISTICS
 
 
 class InfoPopup(Popup):
@@ -30,9 +31,6 @@ class InfoPopup(Popup):
             size_hint=(0.8, 0.5),
             **kwargs
         )
-
-
-from gatt import GATT_CHARACTERISTICS
 
 class CharacteristicFrameKivy(BoxLayout):
     characteristic = ObjectProperty(None)
