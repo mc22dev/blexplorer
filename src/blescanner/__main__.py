@@ -22,59 +22,50 @@ from kivy.uix.label import Label
 from kivy.core.text import LabelBase
 from kivy.core.window import Window
 
-from tooltip import TooltipButton
-from file_chooser_dialog import FileChooserDialog
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from _version import __version__
-from ble_decoder import decode_advertisement
-from ble_manager import BLEManager
-from device_cache import DeviceCache, service_to_dict
-from models import CachedService, LogLevel, DeviceScanStats
-from device_frame_kivy import DeviceFrameKivy
-from characteristic_frame_kivy import CharacteristicFrameKivy
-from descriptor_frame_kivy import DescriptorFrameKivy
-from collapsible_frame_kivy import CollapsibleFrameKivy
-from gatt import GATT_SERVICES
-from parameter_window import ParameterWindow
-from config_manager import ConfigManager
-from ota_window import OTAWindow
-from theme import theme_manager
-from global_rssi_graph import GlobalRSSIGraph
-from wireshark_log_entry import WiresharkLogEntry
-from platform_utils import platform_utils
-from ui_manager import UIManager
-from device_manager import DeviceManager
+from blescanner._version import __version__
+from blescanner.ble.ble_decoder import decode_advertisement
+from blescanner.ble.ble_manager import BLEManager
+from blescanner.core.device_cache import DeviceCache, service_to_dict
+from blescanner.models import CachedService, LogLevel, DeviceScanStats
+from blescanner.ui.device_frame_kivy import DeviceFrameKivy
+from blescanner.ui.characteristic_frame_kivy import CharacteristicFrameKivy
+from blescanner.ui.descriptor_frame_kivy import DescriptorFrameKivy
+from blescanner.ui.collapsible_frame_kivy import CollapsibleFrameKivy
+from blescanner.ble.gatt import GATT_SERVICES
+from blescanner.ui.parameter_window import ParameterWindow
+from blescanner.utils.config_manager import ConfigManager
+from blescanner.ui.ota_window import OTAWindow
+from blescanner.utils.theme import theme_manager
+from blescanner.ui.global_rssi_graph import GlobalRSSIGraph
+from blescanner.ui.wireshark_log_entry import WiresharkLogEntry
+from blescanner.platform import platform_utils
+from blescanner.ui.ui_manager import UIManager
+from blescanner.core.device_manager import DeviceManager
+from blescanner.ui.tooltip import TooltipButton
+from blescanner.ui.file_chooser_dialog import FileChooserDialog
 
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     if hasattr(sys, '_MEIPASS'):
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
+        base_path = os.path.join(sys._MEIPASS, 'blescanner')
     else:
-        # For development, the base path is the directory containing main.py
+        # For development, the base path is the blescanner package directory
         base_path = os.path.abspath(os.path.dirname(__file__))
 
     return os.path.join(base_path, relative_path)
 
 # Load the kv files for the custom widgets
-LabelBase.register(name="MaterialIcons", fn_regular=resource_path("icons/materialdesignicons-webfont.ttf"))
-if hasattr(sys, '_MEIPASS'):
-    Builder.load_file(resource_path('scanner_screen.kv'))
-    Builder.load_file(resource_path('device_screen.kv'))
-    Builder.load_file(resource_path('log_screen.kv'))
-    Builder.load_file(resource_path('wireshark_screen.kv'))
-Builder.load_file(resource_path('deviceframekivy.kv'))
-Builder.load_file(resource_path('characteristicframekivy.kv'))
-Builder.load_file(resource_path('descriptorframekivy.kv'))
-Builder.load_file(resource_path('collapsibleframekivy.kv'))
-Builder.load_file(resource_path('parameterwindow.kv'))
-Builder.load_file(resource_path('otawindow.kv'))
-Builder.load_file(resource_path('globalrssigraph.kv'))
-Builder.load_file(resource_path('tooltip.kv'))
-Builder.load_file(resource_path('wiresharklogentry.kv'))
+assets_path = resource_path("assets")
+LabelBase.register(name="MaterialIcons", fn_regular=os.path.join(assets_path, "icons/materialdesignicons-webfont.ttf"))
+for kv_file in os.listdir(os.path.join(assets_path, "kv")):
+    if kv_file.endswith(".kv"):
+        with open(os.path.join(assets_path, "kv", kv_file), encoding="utf-8") as f:
+            Builder.load_string(f.read())
 
 
 class MainLayout(BoxLayout):
@@ -108,6 +99,7 @@ class BLEScannerApp(App):
     # Lifecycle Methods
     # -----------------
     def build(self):
+        Builder.load_file(resource_path('ui/blescanner.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(

@@ -2,11 +2,11 @@ from typing import Optional, Callable, Any
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from models import LogLevel
-from config_manager import ConfigManager
-from ble_adapter import BLEAdapter
-from bleak_adapter import BleakAdapter
-from able_adapter import AbleAdapter
+from blescanner.models import LogLevel
+from blescanner.utils.config_manager import ConfigManager
+from blescanner.ble.ble_adapter import BLEAdapter
+from blescanner.ble.bleak_adapter import BleakAdapter
+from blescanner.ble.able_adapter import AbleAdapter
 
 class BLEManager:
     """A manager for handling BLE communications."""

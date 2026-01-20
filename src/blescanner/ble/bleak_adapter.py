@@ -8,9 +8,9 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.descriptor import BleakGATTDescriptor
 from bleak.exc import BleakError
 
-from models import LogLevel
-from config_manager import ConfigManager
-from ble_adapter import BLEAdapter
+from blescanner.models import LogLevel
+from blescanner.utils.config_manager import ConfigManager
+from blescanner.ble.ble_adapter import BLEAdapter
 
 
 class BleakAdapter(BLEAdapter):

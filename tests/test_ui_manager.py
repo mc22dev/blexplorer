@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from ui_manager import UIManager
+from blescanner.ui.ui_manager import UIManager
 
 class TestUIManager(unittest.TestCase):
     def setUp(self):

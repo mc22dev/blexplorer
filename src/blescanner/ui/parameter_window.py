@@ -6,7 +6,7 @@ from importlib.metadata import version as get_version
 from kivy.properties import StringProperty
 from kivy.uix.popup import Popup
 
-from _version import __version__
+from blescanner._version import __version__
 
 try:
     import pyjnius

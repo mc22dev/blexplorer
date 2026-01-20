@@ -1,5 +1,5 @@
 import pytest
-from models import DeviceScanStats
+from blescanner.models import DeviceScanStats
 from bleak.backends.scanner import AdvertisementData
 
 def test_device_scan_stats_initialization():

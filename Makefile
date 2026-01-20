@@ -27,11 +27,11 @@ all: linux windows-on-linux android
 
 # Run the application locally on Unix-like systems
 run: setup
-	. $(VENV_ACTIVATE_UNIX); pytest; python3 src/main.py
+	. $(VENV_ACTIVATE_UNIX); pytest; PYTHONPATH=src python3 -m blescanner
 
 # Run the application locally on Windows
 run-windows: setup-windows
-	call $(VENV_ACTIVATE_WIN) && pytest && python src/main.py
+	call $(VENV_ACTIVATE_WIN) && pytest && set PYTHONPATH=src && python -m blescanner
 
 # Create the packages directory if it doesn't exist
 packages:
