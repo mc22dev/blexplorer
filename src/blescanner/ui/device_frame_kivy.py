@@ -143,7 +143,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
 
                 text_layout = BoxLayout(orientation='vertical')
                 text_layout.add_widget(Label(text=text, halign='left', size_hint_y=None, height='20dp', text_size=(Window.width * 0.6, None)))
-                text_layout.add_widget(TextInput(text=str(value), readonly=True, size_hint_y=None, height='24dp'))
+                text_layout.add_widget(TextInput(text=str(value), readonly=True, size_hint_y=None, height='30dp'))
                 box.add_widget(text_layout)
 
                 scroll_content.add_widget(box)
