@@ -91,6 +91,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
 
     def __init__(self, config_manager=None, bond_state="", **kwargs):
         self.config_manager = config_manager
+        self._copy_selection_state = set()
         super().__init__(**kwargs)
         self.bond_state = bond_state
         self.register_event_type('on_graph_selection_change')
@@ -137,7 +138,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
             if value:
                 box = BoxLayout(orientation='horizontal', size_hint_y=None, height='60dp', spacing=5)
 
-                chk = CheckBox(size_hint_x=None, width='48dp')
+                chk = CheckBox(size_hint_x=None, width='48dp', active=key in self._copy_selection_state)
                 box.add_widget(chk)
 
                 text_layout = BoxLayout(orientation='vertical')
@@ -182,7 +183,13 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
         popup = Popup(title='Copy Device Info',
                       content=content,
                       size_hint=(0.9, 0.9))
+
+        popup.bind(on_dismiss=lambda instance: self._save_copy_selection(checkboxes))
         popup.open()
+
+    def _save_copy_selection(self, checkboxes):
+        """Saves the current selection of checkboxes."""
+        self._copy_selection_state = {key for key, chk in checkboxes.items() if chk.active}
 
     def _copy_selected_to_clipboard(self, checkboxes):
         """Copies the selected device information to the clipboard."""
