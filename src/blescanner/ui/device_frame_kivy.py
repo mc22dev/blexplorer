@@ -1,14 +1,9 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty, ColorProperty
-from kivy.core.clipboard import Clipboard
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
-from kivy.uix.checkbox import CheckBox
-from kivy.uix.button import Button
-from kivy.uix.textinput import TextInput
-from kivy.uix.scrollview import ScrollView
-from kivy.core.window import Window
+from .copy_popup import CopyPopup
 
 class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     device = ObjectProperty(None)
@@ -115,96 +110,28 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
 
     def show_copy_popup(self):
         """Displays a popup to select what to copy."""
-        content = BoxLayout(orientation='vertical', padding="8dp")
-
-        options = {
-            "device_name": "Device Name",
-            "custom_device_name": "Custom Name",
-            "device_address": "Device Address",
-            "rssi_info": "RSSI Info",
-            "period_info": "Period Info",
-            "adv_flags": "Advertisement Flags",
-            "full_service_uuids": "Service UUIDs",
-            "full_manufacturer_data": "Manufacturer Data"
+        data_to_copy = {
+            "device_name": {"name": "Device Name", "value": self.device_name},
+            "custom_device_name": {"name": "Custom Name", "value": self.custom_device_name},
+            "device_address": {"name": "Device Address", "value": self.device_address},
+            "rssi_info": {"name": "RSSI Info", "value": self.rssi_info},
+            "period_info": {"name": "Period Info", "value": self.period_info},
+            "adv_flags": {"name": "Advertisement Flags", "value": self.adv_flags},
+            "full_service_uuids": {"name": "Service UUIDs", "value": self.full_service_uuids},
+            "full_manufacturer_data": {"name": "Manufacturer Data", "value": self.full_manufacturer_data},
         }
 
-        checkboxes = {}
-
-        scroll_content = BoxLayout(orientation='vertical', size_hint_y=None)
-        scroll_content.bind(minimum_height=scroll_content.setter('height'))
-
-        for key, text in options.items():
-            value = getattr(self, key)
-            if value:
-                box = BoxLayout(orientation='horizontal', size_hint_y=None, height='60dp', spacing=5)
-
-                chk = CheckBox(size_hint_x=None, width='48dp', active=key in self._copy_selection_state)
-                box.add_widget(chk)
-
-                text_layout = BoxLayout(orientation='vertical')
-                text_layout.add_widget(Label(text=text, halign='left', size_hint_y=None, height='20dp', text_size=(Window.width * 0.6, None)))
-                text_layout.add_widget(TextInput(text=str(value), readonly=True, size_hint_y=None, height='30dp'))
-                box.add_widget(text_layout)
-
-                scroll_content.add_widget(box)
-                checkboxes[key] = chk
-
-        select_buttons = BoxLayout(size_hint_y=None, height='30dp', spacing=5)
-        select_all_button = Button(text="Select All")
-        deselect_all_button = Button(text="Deselect All")
-        select_buttons.add_widget(select_all_button)
-        select_buttons.add_widget(deselect_all_button)
-        content.add_widget(select_buttons)
-
-        def select_all(instance):
-            for chk in checkboxes.values():
-                chk.active = True
-
-        def deselect_all(instance):
-            for chk in checkboxes.values():
-                chk.active = False
-
-        select_all_button.bind(on_release=select_all)
-        deselect_all_button.bind(on_release=deselect_all)
-
-        scroll_view = ScrollView(size_hint=(1, 1))
-        scroll_view.add_widget(scroll_content)
-        content.add_widget(scroll_view)
-
-        copy_button = Button(text="Copy", size_hint_y=None, height='44dp')
-
-        def do_copy(instance):
-            self._copy_selected_to_clipboard(checkboxes)
-            popup.dismiss()
-
-        copy_button.bind(on_release=do_copy)
-        content.add_widget(copy_button)
-
-        popup = Popup(title='Copy Device Info',
-                      content=content,
-                      size_hint=(0.9, 0.9))
-
-        popup.bind(on_dismiss=lambda instance: self._save_copy_selection(checkboxes))
+        popup = CopyPopup(
+            title='Copy Device Info',
+            data_dict=data_to_copy,
+            selection_state=self._copy_selection_state,
+            save_callback=self._save_copy_selection
+        )
         popup.open()
 
-    def _save_copy_selection(self, checkboxes):
+    def _save_copy_selection(self, selection):
         """Saves the current selection of checkboxes."""
-        self._copy_selection_state = {key for key, chk in checkboxes.items() if chk.active}
-
-    def _copy_selected_to_clipboard(self, checkboxes):
-        """Copies the selected device information to the clipboard."""
-        to_copy = []
-        for key, chk in checkboxes.items():
-            if chk.active:
-                to_copy.append(str(getattr(self, key)))
-
-        text_to_copy = "\n".join(to_copy)
-        Clipboard.copy(text_to_copy)
-
-        popup = Popup(title='Copied',
-                      content=Label(text=f'Selected info copied to clipboard.'),
-                      size_hint=(None, None), size=(400, 100))
-        popup.open()
+        self._copy_selection_state = selection
 
     def show_full_data_popup(self, title, data):
         """Displays a popup with the full data."""

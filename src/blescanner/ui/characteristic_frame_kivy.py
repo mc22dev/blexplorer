@@ -1,21 +1,11 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
-from kivy.core.clipboard import Clipboard
 import struct
 import json
-from kivy.uix.popup import Popup
-from kivy.uix.label import Label
-from kivy.uix.button import Button
-from kivy.clock import Clock
-from kivy.uix.checkbox import CheckBox
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.textinput import TextInput
-from kivy.core.window import Window
-
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
-
 from blescanner.ble.gatt import GATT_CHARACTERISTICS
+from .copy_popup import CopyPopup
 
 
 class CharacteristicFrameKivy(BoxLayout):
@@ -127,93 +117,25 @@ class CharacteristicFrameKivy(BoxLayout):
 
     def show_copy_popup(self):
         """Displays a popup to select what to copy."""
-        content = BoxLayout(orientation='vertical', padding="8dp")
-
-        options = {
-            "char_name": "Characteristic Name",
-            "char_uuid": "Characteristic UUID",
-            "full_char_properties": "Properties",
-            "user_description": "User Description",
-            "char_value": "Value"
+        data_to_copy = {
+            "char_name": {"name": "Characteristic Name", "value": self.char_name},
+            "char_uuid": {"name": "Characteristic UUID", "value": self.char_uuid},
+            "full_char_properties": {"name": "Properties", "value": self.full_char_properties},
+            "user_description": {"name": "User Description", "value": self.user_description},
+            "char_value": {"name": "Value", "value": self.char_value},
         }
 
-        checkboxes = {}
-
-        scroll_content = BoxLayout(orientation='vertical', size_hint_y=None)
-        scroll_content.bind(minimum_height=scroll_content.setter('height'))
-
-        for key, text in options.items():
-            value = getattr(self, key)
-            if value:
-                box = BoxLayout(orientation='horizontal', size_hint_y=None, height='60dp', spacing=5)
-
-                chk = CheckBox(size_hint_x=None, width='48dp', active=key in self._copy_selection_state)
-                box.add_widget(chk)
-
-                text_layout = BoxLayout(orientation='vertical')
-                text_layout.add_widget(Label(text=text, halign='left', size_hint_y=None, height='20dp', text_size=(Window.width * 0.6, None)))
-                text_layout.add_widget(TextInput(text=str(value), readonly=True, size_hint_y=None, height='30dp'))
-                box.add_widget(text_layout)
-
-                scroll_content.add_widget(box)
-                checkboxes[key] = chk
-
-        select_buttons = BoxLayout(size_hint_y=None, height='30dp', spacing=5)
-        select_all_button = Button(text="Select All")
-        deselect_all_button = Button(text="Deselect All")
-        select_buttons.add_widget(select_all_button)
-        select_buttons.add_widget(deselect_all_button)
-        content.add_widget(select_buttons)
-
-        def select_all(instance):
-            for chk in checkboxes.values():
-                chk.active = True
-
-        def deselect_all(instance):
-            for chk in checkboxes.values():
-                chk.active = False
-
-        select_all_button.bind(on_release=select_all)
-        deselect_all_button.bind(on_release=deselect_all)
-
-        scroll_view = ScrollView(size_hint=(1, 1))
-        scroll_view.add_widget(scroll_content)
-        content.add_widget(scroll_view)
-
-        copy_button = Button(text="Copy", size_hint_y=None, height='44dp')
-
-        def do_copy(instance):
-            self._copy_selected_to_clipboard(checkboxes)
-            popup.dismiss()
-
-        copy_button.bind(on_release=do_copy)
-        content.add_widget(copy_button)
-
-        popup = Popup(title='Copy Characteristic Info',
-                      content=content,
-                      size_hint=(0.9, 0.9))
-
-        popup.bind(on_dismiss=lambda instance: self._save_copy_selection(checkboxes))
+        popup = CopyPopup(
+            title='Copy Characteristic Info',
+            data_dict=data_to_copy,
+            selection_state=self._copy_selection_state,
+            save_callback=self._save_copy_selection
+        )
         popup.open()
 
-    def _save_copy_selection(self, checkboxes):
+    def _save_copy_selection(self, selection):
         """Saves the current selection of checkboxes."""
-        self._copy_selection_state = {key for key, chk in checkboxes.items() if chk.active}
-
-    def _copy_selected_to_clipboard(self, checkboxes):
-        """Copies the selected device information to the clipboard."""
-        to_copy = []
-        for key, chk in checkboxes.items():
-            if chk.active:
-                to_copy.append(str(getattr(self, key)))
-
-        text_to_copy = "\n".join(to_copy)
-        Clipboard.copy(text_to_copy)
-
-        popup = Popup(title='Copied',
-                      content=Label(text=f'Selected info copied to clipboard.'),
-                      size_hint=(None, None), size=(400, 100))
-        popup.open()
+        self._copy_selection_state = selection
 
 
     def toggle_collapse(self):
