@@ -6,6 +6,8 @@ from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
+from kivy.uix.scrollview import ScrollView
 from kivy.core.window import Window
 
 class DeviceFrameKivy(ButtonBehavior, BoxLayout):
@@ -126,14 +128,47 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
         }
 
         checkboxes = {}
+
+        scroll_content = BoxLayout(orientation='vertical', size_hint_y=None)
+        scroll_content.bind(minimum_height=scroll_content.setter('height'))
+
         for key, text in options.items():
-            if getattr(self, key):
-                box = BoxLayout(orientation='horizontal', size_hint_y=None, height='30dp')
-                box.add_widget(Label(text=text))
-                chk = CheckBox()
+            value = getattr(self, key)
+            if value:
+                box = BoxLayout(orientation='horizontal', size_hint_y=None, height='60dp', spacing=5)
+
+                chk = CheckBox(size_hint_x=None, width='48dp')
                 box.add_widget(chk)
-                content.add_widget(box)
+
+                text_layout = BoxLayout(orientation='vertical')
+                text_layout.add_widget(Label(text=text, halign='left', size_hint_y=None, height='20dp', text_size=(Window.width * 0.6, None)))
+                text_layout.add_widget(TextInput(text=str(value), readonly=True, size_hint_y=None, height='24dp'))
+                box.add_widget(text_layout)
+
+                scroll_content.add_widget(box)
                 checkboxes[key] = chk
+
+        select_buttons = BoxLayout(size_hint_y=None, height='30dp', spacing=5)
+        select_all_button = Button(text="Select All")
+        deselect_all_button = Button(text="Deselect All")
+        select_buttons.add_widget(select_all_button)
+        select_buttons.add_widget(deselect_all_button)
+        content.add_widget(select_buttons)
+
+        def select_all(instance):
+            for chk in checkboxes.values():
+                chk.active = True
+
+        def deselect_all(instance):
+            for chk in checkboxes.values():
+                chk.active = False
+
+        select_all_button.bind(on_release=select_all)
+        deselect_all_button.bind(on_release=deselect_all)
+
+        scroll_view = ScrollView(size_hint=(1, 1))
+        scroll_view.add_widget(scroll_content)
+        content.add_widget(scroll_view)
 
         copy_button = Button(text="Copy", size_hint_y=None, height='44dp')
 
@@ -146,7 +181,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
 
         popup = Popup(title='Copy Device Info',
                       content=content,
-                      size_hint=(0.8, 0.8))
+                      size_hint=(0.9, 0.9))
         popup.open()
 
     def _copy_selected_to_clipboard(self, checkboxes):
