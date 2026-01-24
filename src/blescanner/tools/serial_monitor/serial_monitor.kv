@@ -1,0 +1,116 @@
+#:kivy 2.0.0
+
+<SerialMonitorScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+
+        # Main Toolbar
+        BoxLayout:
+            id: main_toolbar
+            size_hint_y: None
+            height: "48dp"
+            canvas.before:
+                Color:
+                    rgba: app.theme.header_bg if app else (0.1, 0.1, 0.1, 1)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            Label:
+                text: "Serial Monitor"
+                size_hint_x: 3
+
+            TooltipButton:
+                id: refresh_ports_button
+                font_name: "MaterialIcons"
+                text: "\U000F0450"  # Refresh icon
+                on_release: root.refresh_serial_ports()
+                tooltip_text: "Refresh ports"
+
+            TooltipButton:
+                id: save_button
+                font_name: "MaterialIcons"
+                text: "\U000F0193"  # Save icon
+                on_release: root.save_log()
+                disabled: not root.is_connected
+                tooltip_text: "Save data"
+
+            TooltipButton:
+                id: clear_button
+                font_name: "MaterialIcons"
+                text: "\U000F05DC"  # Broom icon
+                on_release: root.clear_log()
+                tooltip_text: "Clear data"
+
+        # Connection Settings Toolbar
+        BoxLayout:
+            id: connection_toolbar
+            size_hint_y: None
+            height: "48dp"
+            padding: "5dp"
+            spacing: "5dp"
+
+            Spinner:
+                id: port_spinner
+                text: 'Select Port'
+                values: []
+                size_hint_x: 0.4
+
+            Spinner:
+                id: bitrate_spinner
+                text: '115200'
+                values: ['9600', '19200', '38400', '57600', '115200', '230400', '460800', '921600']
+                size_hint_x: 0.2
+
+            Spinner:
+                id: databits_spinner
+                text: '8'
+                values: ['5', '6', '7', '8']
+                size_hint_x: 0.1
+
+            Spinner:
+                id: parity_spinner
+                text: 'N'
+                values: ['N', 'E', 'O', 'M', 'S']
+                size_hint_x: 0.1
+
+            Spinner:
+                id: stopbits_spinner
+                text: '1'
+                values: ['1', '1.5', '2']
+                size_hint_x: 0.1
+
+            Button:
+                id: connect_button
+                text: 'Connect' if not root.is_connected else 'Disconnect'
+                on_release: root.toggle_connection()
+                size_hint_x: 0.2
+
+        # Data Display Area
+        ScrollView:
+            id: scroll_view
+            TextInput:
+                id: output_text
+                text: root.output_text
+                readonly: True
+                font_name: 'RobotoMono'
+                size_hint_y: None
+                height: self.minimum_height
+
+        # Send Data Area
+        BoxLayout:
+            size_hint_y: None
+            height: "48dp"
+            padding: "5dp"
+
+            TextInput:
+                id: input_text
+                hint_text: "Enter data to send"
+                multiline: False
+                size_hint_x: 0.8
+
+            Button:
+                id: send_button
+                text: "Send"
+                on_release: root.send_data()
+                disabled: not root.is_connected
+                size_hint_x: 0.2

@@ -49,6 +49,7 @@ from blescanner.ui.ui_manager import UIManager
 from blescanner.core.device_manager import DeviceManager
 from blescanner.ui.tooltip import TooltipButton
 from blescanner.ui.file_chooser_dialog import FileChooserDialog
+from blescanner.tools.serial_monitor.serial_monitor import SerialMonitorScreen
 
 
 def resource_path(relative_path):
@@ -115,6 +116,7 @@ class BLEScannerApp(App):
     def build(self):
         Builder.load_file(resource_path('ui/main.kv'))
         Builder.load_file(resource_path('tools/ble_scanner/ble_scanner.kv'))
+        Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(
@@ -173,6 +175,9 @@ class BLEScannerApp(App):
         ble_scanner_screen = BLEScannerScreen(name='ble_scanner')
         self.root.ids.screen_manager.add_widget(ble_scanner_screen)
 
+        serial_monitor_screen = SerialMonitorScreen(name='serial_monitor')
+        self.root.ids.screen_manager.add_widget(serial_monitor_screen)
+
         self.device_manager.ui_container = ble_scanner_screen.ids.scanner_screen.ids.device_list
         self.ui_manager.root = self.root
 
@@ -189,8 +194,8 @@ class BLEScannerApp(App):
         tool_list = self.root.ids.tool_list
         tools = {
             "ble_scanner": "BLE Scanner",
-            "network_scanner": "Network Scanner",
             "serial_monitor": "Serial Monitor",
+            "network_scanner": "Network Scanner",
             "serial_terminal": "Serial Terminal",
             "signal_generator": "Signal Generator",
             "audio_analyzer": "Audio Analyzer",
