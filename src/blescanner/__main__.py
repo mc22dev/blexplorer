@@ -904,9 +904,8 @@ class BLEScannerApp(App):
 
 if __name__ == '__main__':
     try:
-        loop = asyncio.get_event_loop()
         app = BLEScannerApp()
-        loop.run_until_complete(app.app_func())
+        asyncio.run(app.app_func())
     except asyncio.CancelledError:
         pass  # Ignore TaskCancelledError when the app is closed
     except KeyboardInterrupt:

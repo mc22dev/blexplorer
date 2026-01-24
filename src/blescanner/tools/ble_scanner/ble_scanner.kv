@@ -1,12 +1,12 @@
 #:kivy 2.0.0
 
 <BLEScannerScreen>:
-    BoxLayout:
-        orientation: 'vertical'
+    RelativeLayout:
         BoxLayout:
             id: main_toolbar
             size_hint_y: None
             height: "48dp"
+            pos_hint: {'top': 1}
             canvas.before:
                 Color:
                     rgba: app.theme.header_bg if app else (0,0,0,1)
