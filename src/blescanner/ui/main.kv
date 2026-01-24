@@ -1,0 +1,69 @@
+#:kivy 2.0.0
+
+<MainLayout>:
+    FloatLayout:
+        id: main_panel
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: 1, 1
+            pos_hint: {'top': 1, 'left': 1}
+
+            # Main Toolbar
+            BoxLayout:
+                id: main_toolbar
+                size_hint_y: None
+                height: "48dp"
+                canvas.before:
+                    Color:
+                        rgba: app.theme.header_bg if app else (0.1, 0.1, 0.1, 1)
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+
+                Button:
+                    font_name: "MaterialIcons"
+                    text: "\U000F035C"  # Menu icon
+                    size_hint_x: None
+                    width: "48dp"
+                    background_color: (0,0,0,0)
+                    on_release: root.toggle_nav_drawer()
+
+                Label:
+                    id: tool_title
+                    text: "BLE Scanner" # Default title
+                    size_hint_x: 3
+
+            ScreenManager:
+                id: screen_manager
+                # Screens will be added here by the app
+
+        # Navigation Drawer (Side Panel)
+        BoxLayout:
+            id: nav_drawer
+            orientation: 'vertical'
+            size_hint_x: None
+            width: '250dp'
+            height: root.height
+            x: -self.width  # Initially off-screen
+            padding: "10dp"
+            spacing: "10dp"
+            canvas.before:
+                Color:
+                    rgba: app.theme.background if app else (0.2, 0.2, 0.2, 1)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            Label:
+                text: "Tools"
+                font_size: '20sp'
+                size_hint_y: None
+                height: "48dp"
+
+            ScrollView:
+                BoxLayout:
+                    id: tool_list
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    spacing: "10dp"
+                    # Tool buttons will be added here by the app

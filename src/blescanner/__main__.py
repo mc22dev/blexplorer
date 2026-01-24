@@ -12,6 +12,9 @@ from functools import partial
 from kivy.utils import platform as kivy_platform
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.screenmanager import Screen
+from kivy.uix.floatlayout import FloatLayout
+from kivy.animation import Animation
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty, DictProperty, NumericProperty
@@ -68,7 +71,18 @@ for kv_file in os.listdir(os.path.join(assets_path, "kv")):
             Builder.load_string(f.read())
 
 
-class MainLayout(BoxLayout):
+class MainLayout(FloatLayout):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.nav_drawer_open = False
+
+    def toggle_nav_drawer(self):
+        anim = Animation(x=0, duration=0.2) if not self.nav_drawer_open else Animation(x=-self.ids.nav_drawer.width, duration=0.2)
+        anim.start(self.ids.nav_drawer)
+        self.nav_drawer_open = not self.nav_drawer_open
+
+
+class BLEScannerScreen(Screen):
     pass
 
 
@@ -99,7 +113,8 @@ class BLEScannerApp(App):
     # Lifecycle Methods
     # -----------------
     def build(self):
-        Builder.load_file(resource_path('ui/blescanner.kv'))
+        Builder.load_file(resource_path('ui/main.kv'))
+        Builder.load_file(resource_path('tools/ble_scanner/ble_scanner.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(
@@ -127,8 +142,8 @@ class BLEScannerApp(App):
             connect_callback=self.connect_to_device,
             auto_connect_callback=self._check_auto_connect,
             update_graph_data_callback=self.update_graph_data,
-            get_graph_device_color_callback=lambda addr: self.root.ids.scanner_screen.ids.global_rssi_graph.get_device_color(addr),
-            clear_graph_callback=lambda: self.root.ids.scanner_screen.ids.global_rssi_graph.clear_graph()
+            get_graph_device_color_callback=lambda addr: self.root.ids.screen_manager.get_screen('ble_scanner').ids.scanner_screen.ids.global_rssi_graph.get_device_color(addr),
+            clear_graph_callback=lambda: self.root.ids.screen_manager.get_screen('ble_scanner').ids.scanner_screen.ids.global_rssi_graph.clear_graph()
         )
 
         self.ble_manager = BLEManager(
@@ -155,7 +170,10 @@ class BLEScannerApp(App):
         Clock.schedule_once(log_startup)
         Window.bind(on_keyboard=self._on_keyboard)
 
-        self.device_manager.ui_container = self.root.ids.scanner_screen.ids.device_list
+        ble_scanner_screen = BLEScannerScreen(name='ble_scanner')
+        self.root.ids.screen_manager.add_widget(ble_scanner_screen)
+
+        self.device_manager.ui_container = ble_scanner_screen.ids.scanner_screen.ids.device_list
         self.ui_manager.root = self.root
 
         def set_initial_device_tab_state(dt):
@@ -164,6 +182,29 @@ class BLEScannerApp(App):
 
         self.discover_adapters()
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
+
+        self.populate_tool_list()
+
+    def populate_tool_list(self):
+        tool_list = self.root.ids.tool_list
+        tools = {
+            "ble_scanner": "BLE Scanner",
+            "network_scanner": "Network Scanner",
+            "serial_monitor": "Serial Monitor",
+            "serial_terminal": "Serial Terminal",
+            "signal_generator": "Signal Generator",
+            "audio_analyzer": "Audio Analyzer",
+        }
+        for tool_id, tool_name in tools.items():
+            btn = Button(text=tool_name, size_hint_y=None, height="48dp")
+            btn.bind(on_release=lambda _, tid=tool_id, name=tool_name: self.switch_tool(tid, name))
+            tool_list.add_widget(btn)
+
+    def switch_tool(self, tool_id, tool_name):
+        self.root.ids.screen_manager.current = tool_id
+        self.root.ids.tool_title.text = tool_name
+        if self.root.nav_drawer_open:
+            self.root.toggle_nav_drawer()
 
     def on_stop(self):
         """Called when the application is stopping."""
