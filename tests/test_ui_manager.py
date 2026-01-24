@@ -15,14 +15,19 @@ class TestUIManager(unittest.TestCase):
             self.reset_char_color_callback
         )
         self.ui_manager.root = MagicMock()
+        # Mock the screen manager and the ble_scanner screen
+        self.ble_scanner_screen_mock = MagicMock()
+        self.ui_manager.root.ids.screen_manager.get_screen.return_value = self.ble_scanner_screen_mock
 
     def test_switch_to_device_tab(self):
         self.ui_manager.switch_to_device_tab()
-        self.ui_manager.root.ids.bottom_nav.switch_to.assert_called_once()
+        self.ble_scanner_screen_mock.ids.bottom_nav.switch_to.assert_called_once_with(
+            self.ble_scanner_screen_mock.ids.device_screen_tab
+        )
 
     def test_clear_characteristic_list(self):
         self.ui_manager.clear_characteristic_list()
-        self.ui_manager.root.ids.device_screen.ids.characteristic_list.clear_widgets.assert_called_once()
+        self.ble_scanner_screen_mock.ids.device_screen.ids.characteristic_list.clear_widgets.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()
