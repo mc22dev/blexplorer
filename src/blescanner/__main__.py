@@ -472,9 +472,14 @@ class BLEScannerApp(App):
         """Filters the device list based on the search term."""
         self.device_manager.filter_devices(search_term)
 
+    @property
+    def ble_scanner_screen(self):
+        """Gets the BLE scanner screen widget."""
+        return self.root.ids.screen_manager.get_screen('ble_scanner')
+
     def clear_device_filter(self):
         """Clears the device filter."""
-        self.root.ids.scanner_screen.ids.search_input.text = ""
+        self.ble_scanner_screen.ids.scanner_screen.ids.search_input.text = ""
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
@@ -508,7 +513,7 @@ class BLEScannerApp(App):
             addr: data for addr, data in self.device_manager.global_graph_data.items()
             if self.device_manager.graph_selection.get(addr, True)
         }
-        self.root.ids.scanner_screen.ids.global_rssi_graph.device_data = filtered_data
+        self.ble_scanner_screen.ids.scanner_screen.ids.global_rssi_graph.device_data = filtered_data
         # Reassign to a copy to trigger the Kivy property update, as in-place modification is not detected.
         self.global_graph_data = self.device_manager.global_graph_data.copy()
 
@@ -579,7 +584,7 @@ class BLEScannerApp(App):
     # -------------------------------------
     def discover_attributes(self):
         """Discovers and displays the services and characteristics of the connected device."""
-        self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
+        self.ble_scanner_screen.ids.device_screen.ids.characteristic_list.clear_widgets()
         self.characteristic_frames = {}
 
         cached_services_data = None
@@ -619,7 +624,7 @@ class BLEScannerApp(App):
                 populate_callback=self._create_and_bind_characteristic_frame,
                 is_expanded=False  # Start collapsed
             )
-            self.root.ids.device_screen.ids.characteristic_list.add_widget(sf)
+            self.ble_scanner_screen.ids.device_screen.ids.characteristic_list.add_widget(sf)
 
     def _create_and_bind_characteristic_frame(self, char):
         """Creates a characteristic frame, binds its events, and returns the frame."""
@@ -661,7 +666,7 @@ class BLEScannerApp(App):
                     for diff in diffs:
                         self.log_with_timestamp(f"- {diff}", LogLevel.INFO)
                     self.log_with_timestamp("Refreshing UI with live data...", LogLevel.INFO)
-                    self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
+                    self.ble_scanner_screen.ids.device_screen.ids.characteristic_list.clear_widgets()
                     self.characteristic_frames = {}
                     all_characteristics = [char for service in self.ble_manager.client.services for char in
                                            service.characteristics]
@@ -684,7 +689,7 @@ class BLEScannerApp(App):
     def clear_log(self, *args):
         """Clears the debug log text box."""
         self.log_with_timestamp("Clearing log...", LogLevel.INFO)
-        self.root.ids.log_screen.ids.log_view.text = ""
+        self.ble_scanner_screen.ids.log_screen.ids.log_view.text = ""
 
     def clear_wireshark_log(self, *args):
         """Clears the Wireshark log."""
@@ -709,7 +714,7 @@ class BLEScannerApp(App):
             self.ui_manager.dismiss_popup()
             return
         filepath = os.path.join(path, selection[0])
-        log_content = self.root.ids.log_screen.ids.log_view.text
+        log_content = self.ble_scanner_screen.ids.log_screen.ids.log_view.text
         try:
             with open(filepath, "w") as f:
                 f.write(log_content)
@@ -828,11 +833,12 @@ class BLEScannerApp(App):
             app = App.get_running_app()
             if not app:
                 return
+            ble_scanner_screen = app.root.ids.screen_manager.get_screen('ble_scanner')
             app.wireshark_data.append(entry)
-            if 'wireshark_screen' in app.root.ids and 'autoscroll_checkbox' in app.root.ids.wireshark_screen.ids:
-                if app.root.ids.wireshark_screen.ids.autoscroll_checkbox.active:
-                    if 'wireshark_log_view' in app.root.ids.wireshark_screen.ids:
-                        app.root.ids.wireshark_screen.ids.wireshark_log_view.scroll_y = 0
+            if 'wireshark_screen' in ble_scanner_screen.ids and 'autoscroll_checkbox' in ble_scanner_screen.ids.wireshark_screen.ids:
+                if ble_scanner_screen.ids.wireshark_screen.ids.autoscroll_checkbox.active:
+                    if 'wireshark_log_view' in ble_scanner_screen.ids.wireshark_screen.ids:
+                        ble_scanner_screen.ids.wireshark_screen.ids.wireshark_log_view.scroll_y = 0
         Clock.schedule_once(_log)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
@@ -853,10 +859,11 @@ class BLEScannerApp(App):
 
             timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
             log_message = f"[{timestamp}] [{level.value}] {message}\n"
-            if 'log_screen' in app.root.ids and 'log_view' in app.root.ids.log_screen.ids:
-                app.root.ids.log_screen.ids.log_view.text += log_message
-                if app.root.ids.log_screen.ids.autoscroll_checkbox.active and 'log_scroll_view' in app.root.ids.log_screen.ids:
-                    app.root.ids.log_screen.ids.log_scroll_view.scroll_y = 0
+            ble_scanner_screen = app.root.ids.screen_manager.get_screen('ble_scanner')
+            if 'log_screen' in ble_scanner_screen.ids and 'log_view' in ble_scanner_screen.ids.log_screen.ids:
+                ble_scanner_screen.ids.log_screen.ids.log_view.text += log_message
+                if ble_scanner_screen.ids.log_screen.ids.autoscroll_checkbox.active and 'log_scroll_view' in ble_scanner_screen.ids.log_screen.ids:
+                    ble_scanner_screen.ids.log_screen.ids.log_scroll_view.scroll_y = 0
         Clock.schedule_once(_log)
 
     # OTA (Over-the-Air) Update Methods
