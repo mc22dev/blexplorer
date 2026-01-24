@@ -1,46 +1,9 @@
 #:kivy 2.0.0
 
 <BLEScannerScreen>:
-    RelativeLayout:
-        BoxLayout:
-            id: main_toolbar
-            size_hint_y: None
-            height: "48dp"
-            pos_hint: {'top': 1}
-            canvas.before:
-                Color:
-                    rgba: app.theme.header_bg if app else (0,0,0,1)
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-
-            Label:
-                text: "BLE Scanner"
-                size_hint_x: 3
-
-            TooltipButton:
-                font_name: "MaterialIcons"
-                text: "\U000F0493"
-                on_release: app.open_parameter_window()
-                tooltip_text: "Settings"
-
-            TooltipButton:
-                id: scan_button
-                font_name: "MaterialIcons"
-                text: "\U000F04DB" if app.is_scanning else "\U000F0349"
-                on_release: app.stop_scan() if app.is_scanning else app.scan_for_devices()
-                tooltip_text: "Stop scan" if app.is_scanning else "Scan for devices"
-
-            TooltipButton:
-                id: disconnect_button
-                font_name: "MaterialIcons"
-                text: "\U000F0338"
-                on_release: app.disconnect_from_device()
-                disabled: not app.is_connected if app else True
-                tooltip_text: "Disconnect"
-        TabbedPanel:
-            id: bottom_nav
-            do_default_tab: False
+    TabbedPanel:
+        id: bottom_nav
+        do_default_tab: False
 
         TabbedPanelItem:
             text: 'Scanner'
