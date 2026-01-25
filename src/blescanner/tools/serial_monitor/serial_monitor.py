@@ -1,14 +1,9 @@
 import asyncio
 import os
-import time
 from kivy.app import App
 from kivy.uix.screenmanager import Screen
 from kivy.properties import BooleanProperty, StringProperty, ListProperty, NumericProperty
 from kivy.clock import Clock
-from kivy.uix.popup import Popup
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.slider import Slider
-from kivy.uix.label import Label
 import serial.tools.list_ports
 import serial_asyncio
 from blescanner.models import LogLevel
@@ -193,35 +188,6 @@ class SerialMonitorScreen(Screen):
         app = App.get_running_app()
         if app:
             app.ui_manager.show_save_dialog("Save Serial Log", self._do_save_log)
-
-    def show_settings_popup(self):
-        content = BoxLayout(orientation='vertical', padding='10dp', spacing='10dp')
-
-        # Font size slider
-        font_size_layout = BoxLayout(orientation='horizontal')
-        font_size_layout.add_widget(Label(text='Font Size', size_hint_x=0.3))
-        font_slider = Slider(min=8, max=32, value=self.font_size, step=1)
-        font_label = Label(text=str(int(self.font_size)), size_hint_x=0.2)
-
-        def update_font_label(instance, value):
-            font_label.text = str(int(value))
-
-        font_slider.bind(value=update_font_label)
-        font_size_layout.add_widget(font_slider)
-        font_size_layout.add_widget(font_label)
-        content.add_widget(font_size_layout)
-
-        popup = Popup(title='Serial Monitor Settings',
-                      content=content,
-                      size_hint=(0.8, 0.4))
-
-        def on_dismiss_popup(instance):
-            self.font_size = font_slider.value
-            self.save_settings()
-
-        popup.bind(on_dismiss=on_dismiss_popup)
-        popup.open()
-
 
     def _do_save_log(self, path, selection):
         app = App.get_running_app()

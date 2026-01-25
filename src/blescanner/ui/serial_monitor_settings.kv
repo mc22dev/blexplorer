@@ -18,3 +18,24 @@
             text: root.font_name
             values: ['Roboto', 'UbuntuMono']
             size_hint_x: 0.7
+
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+
+        Label:
+            text: "Font Size:"
+            size_hint_x: 0.3
+
+        Slider:
+            id: font_size_slider
+            min: 8
+            max: 32
+            value: root.font_size
+            step: 1
+            on_value: root.font_size = self.value
+
+        Label:
+            id: font_size_label
+            text: str(int(root.font_size))
+            size_hint_x: 0.2
