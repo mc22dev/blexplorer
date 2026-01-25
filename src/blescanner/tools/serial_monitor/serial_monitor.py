@@ -2,17 +2,21 @@ import asyncio
 import os
 from kivy.app import App
 from kivy.uix.screenmanager import Screen
-from kivy.properties import BooleanProperty, StringProperty, ListProperty, NumericProperty
+from kivy.properties import BooleanProperty, ListProperty, NumericProperty, StringProperty
 from kivy.clock import Clock
+from kivy.lang import Builder
 import serial.tools.list_ports
 import serial_asyncio
 from blescanner.models import LogLevel
+from blescanner.ui.recycle_view_label import RecycleViewLabel
+
+Builder.load_file(os.path.join(os.path.dirname(__file__), "..", "..", "ui", "recycle_view_label.kv"))
 
 
 class SerialMonitorScreen(Screen):
     is_connected = BooleanProperty(False)
     serial_ports = ListProperty([])
-    output_text = StringProperty("")
+    rv_data = ListProperty([])
     font_name = StringProperty("Roboto")
     font_size = NumericProperty(12)
     char_delay = NumericProperty(0)
@@ -110,7 +114,7 @@ class SerialMonitorScreen(Screen):
     async def connect(self):
         port = self.ids.port_spinner.text
         if port == 'Select Port' or not self.serial_ports:
-            self.output_text += "[ERROR] Please select a serial port.\n"
+            self.rv_data.append({'text': "[ERROR] Please select a serial port."})
             return
 
         baudrate_str = self.ids.bitrate_spinner.text
@@ -133,7 +137,7 @@ class SerialMonitorScreen(Screen):
         try:
             self.transport, self.protocol = await coro
             self.is_connected = True
-            self.output_text += f"[INFO] Connected to {port}\n"
+            self.rv_data.append({'text': f"[INFO] Connected to {port}"})
             self._calculate_max_speed()
             self.rx_bytes = 0
             self.tx_bytes = 0
@@ -142,10 +146,10 @@ class SerialMonitorScreen(Screen):
             self.speed_update_task = Clock.schedule_interval(self._update_speeds, 1)
 
         except serial.SerialException as e:
-            self.output_text += f"[ERROR] Could not connect to {port}: {e}\n"
+            self.rv_data.append({'text': f"[ERROR] Could not connect to {port}: {e}"})
             self.is_connected = False
         except Exception as e:
-            self.output_text += f"[ERROR] An unexpected error occurred: {e}\n"
+            self.rv_data.append({'text': f"[ERROR] An unexpected error occurred: {e}"})
             self.is_connected = False
 
     def disconnect(self):
@@ -158,7 +162,7 @@ class SerialMonitorScreen(Screen):
         else:
             self.is_connected = False
             self.max_speed = 0
-            self.output_text += "[INFO] Already disconnected\n"
+            self.rv_data.append({'text': "[INFO] Already disconnected"})
 
 
     def toggle_connection(self):
@@ -181,11 +185,11 @@ class SerialMonitorScreen(Screen):
         try:
             delay_ms = int(delay_ms_str)
             if not 0 <= delay_ms <= 1000:
-                self.output_text += "[ERROR] Delay must be between 0 and 1000 ms.\n"
+                self.rv_data.append({'text': "[ERROR] Delay must be between 0 and 1000 ms."})
                 return
             self.char_delay = delay_ms
         except ValueError:
-            self.output_text += "[ERROR] Invalid delay value.\n"
+            self.rv_data.append({'text': "[ERROR] Invalid delay value."})
             return
 
         if eol == 'Hex':
@@ -193,7 +197,7 @@ class SerialMonitorScreen(Screen):
                 # Remove spaces and convert hex string to bytes
                 data_bytes = bytes.fromhex(data_to_send.replace(" ", ""))
             except ValueError:
-                self.output_text += "[ERROR] Invalid hexadecimal data.\n"
+                self.rv_data.append({'text': "[ERROR] Invalid hexadecimal data."})
                 return
         else:
             if eol == 'LF':
@@ -222,7 +226,7 @@ class SerialMonitorScreen(Screen):
 
 
     def clear_log(self):
-        self.output_text = ""
+        self.rv_data = []
         self.rx_bytes = 0
         self.tx_bytes = 0
         self._last_rx_bytes = 0
@@ -232,6 +236,11 @@ class SerialMonitorScreen(Screen):
         app = App.get_running_app()
         if app:
             app.ui_manager.show_save_dialog("Save Serial Log", self._do_save_log)
+
+    def scroll_to_bottom(self):
+        rv = self.ids.get('rv')
+        if rv and rv.height > 0 and rv.scroll_y <= 0.1:
+             rv.scroll_y = 0
 
     def _do_save_log(self, path, selection):
         app = App.get_running_app()
@@ -244,7 +253,8 @@ class SerialMonitorScreen(Screen):
             filepath += '.txt'
         try:
             with open(filepath, "w", encoding="utf-8") as f:
-                f.write(self.ids.output_text.text)
+                log_text = "\n".join([item['text'] for item in self.rv_data])
+                f.write(log_text)
             if app:
                 app.log_with_timestamp(f"Serial log saved to {filepath}", LogLevel.SUCCESS)
         except IOError as e:
@@ -294,30 +304,40 @@ class SerialProtocol(asyncio.Protocol):
         super().__init__()
         self.screen = screen
         self.transport = None
+        self.buffer = b''
 
     def connection_made(self, transport):
         self.transport = transport
 
     def data_received(self, data):
-        # Schedule the UI update on the main Kivy thread
         self.screen.rx_bytes += len(data)
-        Clock.schedule_once(lambda dt: self._update_output(data))
-
-    def _update_output(self, data):
-        try:
-            text = data.decode('utf-8', errors='replace')
-            self.screen.output_text += text
-            # Auto-scroll
-            scroll_view = self.screen.ids.get('scroll_view')
-            if scroll_view:
-                scroll_view.scroll_y = 0
-        except Exception as e:
-            app = App.get_running_app()
-            if app:
-                app.log_with_timestamp(f"Error decoding serial data: {e}", LogLevel.ERROR)
+        self.buffer += data
+        # Process buffer line by line
+        while b'\n' in self.buffer:
+            line, self.buffer = self.buffer.split(b'\n', 1)
+            try:
+                # Decode and schedule UI update
+                decoded_line = line.decode('utf-8', errors='replace').rstrip('\r')
+                Clock.schedule_once(lambda dt, text=decoded_line: self.screen.rv_data.append({'text': text}))
+            except Exception as e:
+                app = App.get_running_app()
+                if app:
+                    msg = f"Error decoding serial data: {e}"
+                    Clock.schedule_once(lambda dt, text=msg: self.screen.rv_data.append({'text': text}))
 
     def connection_lost(self, exc):
-        # Schedule the UI update on the main Kivy thread
+        # If there's any data left in the buffer, display it.
+        if self.buffer:
+            try:
+                decoded_buffer = self.buffer.decode('utf-8', errors='replace')
+                Clock.schedule_once(lambda dt, text=decoded_buffer: self.screen.rv_data.append({'text': text}))
+            except Exception as e:
+                app = App.get_running_app()
+                if app:
+                    msg = f"Error decoding final serial data: {e}"
+                    Clock.schedule_once(lambda dt, text=msg: self.screen.rv_data.append({'text': text}))
+            self.buffer = b''
+        # Schedule the UI update for the disconnection message
         Clock.schedule_once(lambda dt: self._handle_disconnection(exc))
 
     def _handle_disconnection(self, exc):
@@ -329,6 +349,6 @@ class SerialProtocol(asyncio.Protocol):
             self.screen.transport = None
             self.screen.protocol = None
             self.screen.max_speed = 0
-            self.screen.output_text += "[INFO] Disconnected\n"
+            self.screen.rv_data.append({'text': "[INFO] Disconnected"})
             if exc:
-                self.screen.output_text += f"[ERROR] Connection lost: {exc}\n"
+                self.screen.rv_data.append({'text': f"[ERROR] Connection lost: {exc}"})
