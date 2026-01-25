@@ -68,7 +68,17 @@ class SerialMonitorScreen(Screen):
             self.app.config_manager.set_setting(port_section, 'stopbits', self.ids.stopbits_spinner.text)
 
     def refresh_serial_ports(self, *args):
-        self.serial_ports = [port.device for port in serial.tools.list_ports.comports()]
+        ports = serial.tools.list_ports.comports()
+
+        def sort_key(port):
+            """Prioritize ttyUSB and ttyACM ports."""
+            if port.device.startswith('/dev/ttyUSB') or port.device.startswith('/dev/ttyACM'):
+                return (0, port.device)
+            return (1, port.device)
+
+        sorted_ports = sorted(ports, key=sort_key)
+        self.serial_ports = [port.device for port in sorted_ports]
+
         if self.serial_ports:
             port_spinner = self.ids.get('port_spinner')
             if port_spinner:
@@ -79,8 +89,8 @@ class SerialMonitorScreen(Screen):
                 elif port_spinner.text not in self.serial_ports:
                     port_spinner.text = self.serial_ports[0]
         else:
-             self.ids.port_spinner.text = 'Select Port'
-             self.ids.port_spinner.values = []
+            self.ids.port_spinner.text = 'Select Port'
+            self.ids.port_spinner.values = []
 
 
     async def connect(self):
