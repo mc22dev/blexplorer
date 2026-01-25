@@ -18,20 +18,6 @@
             Widget:
                 size_hint_x: 3
 
-            TooltipButton:
-                id: save_button
-                font_name: "MaterialIcons"
-                text: "\U000F0193"  # Save icon
-                on_release: root.save_log()
-                tooltip_text: "Save data"
-
-            TooltipButton:
-                id: clear_button
-                font_name: "MaterialIcons"
-                text: "\U000F05DC"  # Broom icon
-                on_release: root.clear_log()
-                tooltip_text: "Clear data"
-
         # Connection Settings Toolbar
         BoxLayout:
             id: connection_toolbar
@@ -44,7 +30,7 @@
                 id: port_spinner
                 text: 'Select Port'
                 values: []
-                size_hint_x: 0.3
+                size_hint_x: 0.25
 
             TooltipButton:
                 id: refresh_ports_button
@@ -59,7 +45,7 @@
                 id: bitrate_spinner
                 text: '115200'
                 values: ['9600', '19200', '38400', '57600', '115200', '230400', '460800', '921600']
-                size_hint_x: 0.2
+                size_hint_x: 0.15
 
             Spinner:
                 id: databits_spinner
@@ -78,6 +64,24 @@
                 text: '1'
                 values: ['1', '1.5', '2']
                 size_hint_x: 0.1
+
+            TooltipButton:
+                id: save_button
+                font_name: "MaterialIcons"
+                text: "\U000F0193"  # Save icon
+                on_release: root.save_log()
+                tooltip_text: "Save data"
+                size_hint_x: None
+                width: self.height
+
+            TooltipButton:
+                id: clear_button
+                font_name: "MaterialIcons"
+                text: "\U000F05DC"  # Broom icon
+                on_release: root.clear_log()
+                tooltip_text: "Clear data"
+                size_hint_x: None
+                width: self.height
 
             Button:
                 id: connect_button
