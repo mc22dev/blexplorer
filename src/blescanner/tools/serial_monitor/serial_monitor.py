@@ -40,10 +40,10 @@ class SerialMonitorScreen(Screen):
 
     def load_settings(self):
         """Loads settings from the config manager and applies them."""
-        self.font_name = self.app.config_manager.get_setting('serial_monitor', 'font_name', 'Roboto')
-        self.font_size = self.app.config_manager.get_setting('serial_monitor', 'font_size', 12)
-        self.ids.eol_spinner.text = self.app.config_manager.get_setting('serial_monitor', 'eol', 'None')
-        delay = self.app.config_manager.get_setting('serial_monitor', 'char_delay', 0)
+        self.font_name = self.app.config_manager.get_setting('serial_monitor', 'font_name')
+        self.font_size = int(self.app.config_manager.get_setting('serial_monitor', 'font_size'))
+        self.ids.eol_spinner.text = self.app.config_manager.get_setting('serial_monitor', 'eol')
+        delay = self.app.config_manager.get_setting('serial_monitor', 'char_delay')
         self.char_delay = int(delay)
         self.ids.delay_input.text = str(delay)
 
@@ -52,10 +52,10 @@ class SerialMonitorScreen(Screen):
             self.ids.port_spinner.text = last_port
             port_section = f'serial_monitor_ports_{last_port}'
             if self.app.config_manager.config.has_section(port_section):
-                self.ids.bitrate_spinner.text = self.app.config_manager.get_setting(port_section, 'baudrate', '115200')
-                self.ids.databits_spinner.text = self.app.config_manager.get_setting(port_section, 'databits', '8')
-                self.ids.parity_spinner.text = self.app.config_manager.get_setting(port_section, 'parity', 'N')
-                self.ids.stopbits_spinner.text = self.app.config_manager.get_setting(port_section, 'stopbits', '1')
+                self.ids.bitrate_spinner.text = self.app.config_manager.get_setting(port_section, 'baudrate', default='115200')
+                self.ids.databits_spinner.text = self.app.config_manager.get_setting(port_section, 'databits', default='8')
+                self.ids.parity_spinner.text = self.app.config_manager.get_setting(port_section, 'parity', default='N')
+                self.ids.stopbits_spinner.text = self.app.config_manager.get_setting(port_section, 'stopbits', default='1')
 
     def save_settings(self):
         """Saves current settings."""
