@@ -4,20 +4,6 @@
     BoxLayout:
         orientation: 'vertical'
 
-        # Main Toolbar
-        BoxLayout:
-            id: main_toolbar
-            size_hint_y: None
-            height: "48dp"
-            canvas.before:
-                Color:
-                    rgba: app.theme.header_bg if app else (0.1, 0.1, 0.1, 1)
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-            Widget:
-                size_hint_x: 3
-
         # Connection Settings Toolbar
         BoxLayout:
             id: connection_toolbar
