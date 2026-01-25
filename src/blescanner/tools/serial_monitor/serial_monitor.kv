@@ -37,19 +37,19 @@
                 id: databits_spinner
                 text: '8'
                 values: ['5', '6', '7', '8']
-                size_hint_x: 0.1
+                size_hint_x: 0.08
 
             Spinner:
                 id: parity_spinner
                 text: 'N'
                 values: ['N', 'E', 'O', 'M', 'S']
-                size_hint_x: 0.1
+                size_hint_x: 0.08
 
             Spinner:
                 id: stopbits_spinner
                 text: '1'
                 values: ['1', '1.5', '2']
-                size_hint_x: 0.1
+                size_hint_x: 0.08
 
             TooltipButton:
                 id: save_button
@@ -120,4 +120,28 @@
                 text: "Send"
                 on_release: root.send_data()
                 disabled: not root.is_connected
+                size_hint_x: 0.2
+        # Status Bar
+        BoxLayout:
+            size_hint_y: None
+            height: "24dp"
+            canvas.before:
+                Color:
+                    rgba: app.theme.header_bg if app else (0.1, 0.1, 0.1, 1)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            Label:
+                text: f"RX: {root.rx_bytes} bytes"
+                size_hint_x: 0.2
+            Label:
+                text: root.rx_speed_str
+                size_hint_x: 0.2
+            Widget:
+                size_hint_x: 0.2
+            Label:
+                text: f"TX: {root.tx_bytes} bytes"
+                size_hint_x: 0.2
+            Label:
+                text: root.tx_speed_str
                 size_hint_x: 0.2

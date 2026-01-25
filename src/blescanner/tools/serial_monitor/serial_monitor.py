@@ -16,12 +16,19 @@ class SerialMonitorScreen(Screen):
     font_name = StringProperty("Roboto")
     font_size = NumericProperty(12)
     char_delay = NumericProperty(0)
+    rx_bytes = NumericProperty(0)
+    tx_bytes = NumericProperty(0)
+    rx_speed_str = StringProperty("0 B/s")
+    tx_speed_str = StringProperty("0 B/s")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.serial_port = None
         self.read_task = None
         self.app = App.get_running_app()
+        self.speed_update_task = None
+        self._last_rx_bytes = 0
+        self._last_tx_bytes = 0
         Clock.schedule_once(self.refresh_serial_ports)
 
     def on_enter(self, *args):
@@ -120,6 +127,12 @@ class SerialMonitorScreen(Screen):
             self.transport, self.protocol = await coro
             self.is_connected = True
             self.output_text += f"[INFO] Connected to {port}\n"
+            self.rx_bytes = 0
+            self.tx_bytes = 0
+            self._last_rx_bytes = 0
+            self._last_tx_bytes = 0
+            self.speed_update_task = Clock.schedule_interval(self._update_speeds, 1)
+
         except serial.SerialException as e:
             self.output_text += f"[ERROR] Could not connect to {port}: {e}\n"
             self.is_connected = False
@@ -129,11 +142,14 @@ class SerialMonitorScreen(Screen):
 
     def disconnect(self):
         if self.is_connected and self.transport:
+            if self.speed_update_task:
+                self.speed_update_task.cancel()
+                self.speed_update_task = None
             self.transport.close()
             # The connection_lost callback will handle the state change
         else:
             self.is_connected = False
-            self.output_text += "[INFO] Already disconnected\\n"
+            self.output_text += "[INFO] Already disconnected\n"
 
 
     def toggle_connection(self):
@@ -180,6 +196,7 @@ class SerialMonitorScreen(Screen):
                 data_to_send += '\n\r'
             data_bytes = data_to_send.encode('utf-8')
 
+        num_bytes = len(data_bytes)
         if self.char_delay > 0:
             delay_s = self.char_delay / 1000.0
             for byte in data_bytes:
@@ -188,6 +205,7 @@ class SerialMonitorScreen(Screen):
         else:
             self.transport.write(data_bytes)
 
+        self.tx_bytes += num_bytes
         self.ids.input_text.text = ""
 
         def refocus(dt):
@@ -224,6 +242,27 @@ class SerialMonitorScreen(Screen):
             if app:
                 app.ui_manager.dismiss_popup()
 
+    def _update_speeds(self, dt):
+        """Calculates and updates the RX/TX speed labels."""
+        rx_speed = self.rx_bytes - self._last_rx_bytes
+        tx_speed = self.tx_bytes - self._last_tx_bytes
+        self._last_rx_bytes = self.rx_bytes
+        self._last_tx_bytes = self.tx_bytes
+
+        self.rx_speed_str = f"{self._format_speed(rx_speed)}/s"
+        self.tx_speed_str = f"{self._format_speed(tx_speed)}/s"
+
+    @staticmethod
+    def _format_speed(num_bytes):
+        """Formats a number of bytes into a human-readable string."""
+        if num_bytes < 1024:
+            return f"{num_bytes} B"
+        elif num_bytes < 1024 * 1024:
+            return f"{num_bytes / 1024:.2f} KB"
+        else:
+            return f"{num_bytes / (1024 * 1024):.2f} MB"
+
+
 class SerialProtocol(asyncio.Protocol):
     def __init__(self, screen):
         super().__init__()
@@ -235,6 +274,7 @@ class SerialProtocol(asyncio.Protocol):
 
     def data_received(self, data):
         # Schedule the UI update on the main Kivy thread
+        self.screen.rx_bytes += len(data)
         Clock.schedule_once(lambda dt: self._update_output(data))
 
     def _update_output(self, data):
@@ -256,9 +296,12 @@ class SerialProtocol(asyncio.Protocol):
 
     def _handle_disconnection(self, exc):
         if self.screen.is_connected:
+            if self.screen.speed_update_task:
+                self.screen.speed_update_task.cancel()
+                self.screen.speed_update_task = None
             self.screen.is_connected = False
             self.screen.transport = None
             self.screen.protocol = None
-            self.screen.output_text += "[INFO] Disconnected\\n"
+            self.screen.output_text += "[INFO] Disconnected\n"
             if exc:
-                self.screen.output_text += f"[ERROR] Connection lost: {exc}\\n"
+                self.screen.output_text += f"[ERROR] Connection lost: {exc}\n"
