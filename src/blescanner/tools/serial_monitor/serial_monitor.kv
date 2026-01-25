@@ -19,13 +19,6 @@
                 size_hint_x: 3
 
             TooltipButton:
-                id: refresh_ports_button
-                font_name: "MaterialIcons"
-                text: "\U000F0450"  # Refresh icon
-                on_release: root.refresh_serial_ports()
-                tooltip_text: "Refresh ports"
-
-            TooltipButton:
                 id: save_button
                 font_name: "MaterialIcons"
                 text: "\U000F0193"  # Save icon
@@ -51,7 +44,16 @@
                 id: port_spinner
                 text: 'Select Port'
                 values: []
-                size_hint_x: 0.4
+                size_hint_x: 0.3
+
+            TooltipButton:
+                id: refresh_ports_button
+                font_name: "MaterialIcons"
+                text: "\U000F0450"  # Refresh icon
+                on_release: root.refresh_serial_ports()
+                tooltip_text: "Refresh ports"
+                size_hint_x: None
+                width: self.height
 
             Spinner:
                 id: bitrate_spinner
