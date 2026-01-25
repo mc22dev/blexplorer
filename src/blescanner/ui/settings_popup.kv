@@ -1,0 +1,27 @@
+#:kivy 2.0.0
+
+<SettingsPopup>:
+    title: "Settings"
+    size_hint: 0.8, 0.8
+    auto_dismiss: False
+
+    BoxLayout:
+        orientation: 'vertical'
+
+        TabbedPanel:
+            id: settings_tabs
+            do_default_tab: False
+
+        BoxLayout:
+            size_hint_y: None
+            height: "48dp"
+            padding: "5dp"
+            spacing: "5dp"
+
+            Button:
+                text: "Save"
+                on_release: root.save_settings()
+
+            Button:
+                text: "Cancel"
+                on_release: root.dismiss()

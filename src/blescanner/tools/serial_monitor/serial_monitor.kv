@@ -31,7 +31,6 @@
                 font_name: "MaterialIcons"
                 text: "\U000F0193"  # Save icon
                 on_release: root.save_log()
-                disabled: not root.is_connected
                 tooltip_text: "Save data"
 
             TooltipButton:
@@ -92,7 +91,7 @@
                 id: output_text
                 text: root.output_text
                 readonly: True
-                font_name: 'Roboto'
+                font_name: root.font_name
                 size_hint_y: None
                 height: self.minimum_height
 
