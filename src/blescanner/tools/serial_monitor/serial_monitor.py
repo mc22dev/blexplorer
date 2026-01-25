@@ -20,6 +20,7 @@ class SerialMonitorScreen(Screen):
     tx_bytes = NumericProperty(0)
     rx_speed_str = StringProperty("0 B/s")
     tx_speed_str = StringProperty("0 B/s")
+    max_speed = NumericProperty(0)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -43,11 +44,17 @@ class SerialMonitorScreen(Screen):
     def load_settings(self):
         """Loads settings from the config manager and applies them."""
         self.font_name = self.app.config_manager.get_setting('serial_monitor', 'font_name')
-        self.font_size = int(self.app.config_manager.get_setting('serial_monitor', 'font_size'))
+        try:
+            self.font_size = int(self.app.config_manager.get_setting('serial_monitor', 'font_size'))
+        except (ValueError, TypeError):
+            self.font_size = 12
         self.ids.eol_spinner.text = self.app.config_manager.get_setting('serial_monitor', 'eol')
-        delay = self.app.config_manager.get_setting('serial_monitor', 'char_delay')
-        self.char_delay = int(delay)
-        self.ids.delay_input.text = str(delay)
+        try:
+            delay = self.app.config_manager.get_setting('serial_monitor', 'char_delay')
+            self.char_delay = int(delay)
+        except (ValueError, TypeError):
+            self.char_delay = 0
+        self.ids.delay_input.text = str(self.char_delay)
 
         last_port = self.app.config_manager.get_setting('serial_monitor', 'last_used_port')
         if last_port and last_port in self.serial_ports:
@@ -127,6 +134,7 @@ class SerialMonitorScreen(Screen):
             self.transport, self.protocol = await coro
             self.is_connected = True
             self.output_text += f"[INFO] Connected to {port}\n"
+            self._calculate_max_speed()
             self.rx_bytes = 0
             self.tx_bytes = 0
             self._last_rx_bytes = 0
@@ -149,6 +157,7 @@ class SerialMonitorScreen(Screen):
             # The connection_lost callback will handle the state change
         else:
             self.is_connected = False
+            self.max_speed = 0
             self.output_text += "[INFO] Already disconnected\n"
 
 
@@ -175,7 +184,6 @@ class SerialMonitorScreen(Screen):
                 self.output_text += "[ERROR] Delay must be between 0 and 1000 ms.\n"
                 return
             self.char_delay = delay_ms
-            self.save_settings()
         except ValueError:
             self.output_text += "[ERROR] Invalid delay value.\n"
             return
@@ -253,8 +261,22 @@ class SerialMonitorScreen(Screen):
         self._last_rx_bytes = self.rx_bytes
         self._last_tx_bytes = self.tx_bytes
 
-        self.rx_speed_str = f"{self._format_speed(rx_speed)}/s"
-        self.tx_speed_str = f"{self._format_speed(tx_speed)}/s"
+        rx_percent = (rx_speed / self.max_speed * 100) if self.max_speed > 0 else 0
+        tx_percent = (tx_speed / self.max_speed * 100) if self.max_speed > 0 else 0
+
+        self.rx_speed_str = f"{self._format_speed(rx_speed)}/s ({rx_percent:.1f}%)"
+        self.tx_speed_str = f"{self._format_speed(tx_speed)}/s ({tx_percent:.1f}%)"
+
+    def _calculate_max_speed(self):
+        """Calculates the theoretical max speed in bytes/sec."""
+        baudrate = int(self.ids.bitrate_spinner.text)
+        databits = int(self.ids.databits_spinner.text)
+        parity = self.ids.parity_spinner.text != 'N'
+        stopbits = float(self.ids.stopbits_spinner.text)
+
+        bits_per_char = 1 + databits + (1 if parity else 0) + stopbits
+        chars_per_sec = baudrate / bits_per_char
+        self.max_speed = chars_per_sec
 
     @staticmethod
     def _format_speed(num_bytes):
@@ -306,6 +328,7 @@ class SerialProtocol(asyncio.Protocol):
             self.screen.is_connected = False
             self.screen.transport = None
             self.screen.protocol = None
+            self.screen.max_speed = 0
             self.screen.output_text += "[INFO] Disconnected\n"
             if exc:
                 self.screen.output_text += f"[ERROR] Connection lost: {exc}\n"
