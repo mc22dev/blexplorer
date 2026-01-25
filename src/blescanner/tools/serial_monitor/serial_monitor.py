@@ -215,6 +215,10 @@ class SerialMonitorScreen(Screen):
 
     def clear_log(self):
         self.output_text = ""
+        self.rx_bytes = 0
+        self.tx_bytes = 0
+        self._last_rx_bytes = 0
+        self._last_tx_bytes = 0
 
     def save_log(self):
         app = App.get_running_app()
