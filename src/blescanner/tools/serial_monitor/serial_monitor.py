@@ -1,9 +1,14 @@
 import asyncio
 import os
+import time
 from kivy.app import App
 from kivy.uix.screenmanager import Screen
-from kivy.properties import BooleanProperty, StringProperty, ListProperty
+from kivy.properties import BooleanProperty, StringProperty, ListProperty, NumericProperty
 from kivy.clock import Clock
+from kivy.uix.popup import Popup
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.slider import Slider
+from kivy.uix.label import Label
 import serial.tools.list_ports
 import serial_asyncio
 from blescanner.models import LogLevel
@@ -14,6 +19,8 @@ class SerialMonitorScreen(Screen):
     serial_ports = ListProperty([])
     output_text = StringProperty("")
     font_name = StringProperty("Roboto")
+    font_size = NumericProperty(12)
+    char_delay = NumericProperty(0)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -25,39 +32,65 @@ class SerialMonitorScreen(Screen):
     def on_enter(self, *args):
         """Called when the screen is entered."""
         self.refresh_serial_ports()
-        # Use Clock to ensure ids are available
         Clock.schedule_once(lambda dt: self.load_settings())
+
+    def on_leave(self, *args):
+        """Called when the screen is left."""
+        self.save_settings()
 
     def load_settings(self):
         """Loads settings from the config manager and applies them."""
-        # Load font
-        self.font_name = self.app.config_manager.get_setting('serial_monitor', 'font_name')
+        self.font_name = self.app.config_manager.get_setting('serial_monitor', 'font_name', 'Roboto')
+        self.font_size = self.app.config_manager.get_setting('serial_monitor', 'font_size', 12)
+        self.ids.eol_spinner.text = self.app.config_manager.get_setting('serial_monitor', 'eol', 'None')
+        delay = self.app.config_manager.get_setting('serial_monitor', 'char_delay', 0)
+        self.char_delay = int(delay)
+        self.ids.delay_input.text = str(delay)
 
-        # Load last used port and its parameters
         last_port = self.app.config_manager.get_setting('serial_monitor', 'last_used_port')
         if last_port and last_port in self.serial_ports:
             self.ids.port_spinner.text = last_port
             port_section = f'serial_monitor_ports_{last_port}'
             if self.app.config_manager.config.has_section(port_section):
-                self.ids.bitrate_spinner.text = self.app.config_manager.get_setting(port_section, 'baudrate')
-                self.ids.databits_spinner.text = self.app.config_manager.get_setting(port_section, 'databits')
-                self.ids.parity_spinner.text = self.app.config_manager.get_setting(port_section, 'parity')
-                self.ids.stopbits_spinner.text = self.app.config_manager.get_setting(port_section, 'stopbits')
+                self.ids.bitrate_spinner.text = self.app.config_manager.get_setting(port_section, 'baudrate', '115200')
+                self.ids.databits_spinner.text = self.app.config_manager.get_setting(port_section, 'databits', '8')
+                self.ids.parity_spinner.text = self.app.config_manager.get_setting(port_section, 'parity', 'N')
+                self.ids.stopbits_spinner.text = self.app.config_manager.get_setting(port_section, 'stopbits', '1')
+
+    def save_settings(self):
+        """Saves current settings."""
+        self.app.config_manager.set_setting('serial_monitor', 'font_name', self.font_name)
+        self.app.config_manager.set_setting('serial_monitor', 'font_size', int(self.font_size))
+        self.app.config_manager.set_setting('serial_monitor', 'eol', self.ids.eol_spinner.text)
+        self.app.config_manager.set_setting('serial_monitor', 'char_delay', self.ids.delay_input.text)
+        port = self.ids.port_spinner.text
+        if port != 'Select Port':
+            self.app.config_manager.set_setting('serial_monitor', 'last_used_port', port)
+            port_section = f'serial_monitor_ports_{port}'
+            self.app.config_manager.set_setting(port_section, 'baudrate', self.ids.bitrate_spinner.text)
+            self.app.config_manager.set_setting(port_section, 'databits', self.ids.databits_spinner.text)
+            self.app.config_manager.set_setting(port_section, 'parity', self.ids.parity_spinner.text)
+            self.app.config_manager.set_setting(port_section, 'stopbits', self.ids.stopbits_spinner.text)
 
     def refresh_serial_ports(self, *args):
         self.serial_ports = [port.device for port in serial.tools.list_ports.comports()]
-        port_spinner = self.ids.get('port_spinner')
-        if port_spinner:
-            port_spinner.values = self.serial_ports
-            last_port = self.app.config_manager.get_setting('serial_monitor', 'last_used_port')
-            if last_port in self.serial_ports:
-                port_spinner.text = last_port
-            elif port_spinner.text not in self.serial_ports:
-                port_spinner.text = 'Select Port'
+        if self.serial_ports:
+            port_spinner = self.ids.get('port_spinner')
+            if port_spinner:
+                port_spinner.values = self.serial_ports
+                last_port = self.app.config_manager.get_setting('serial_monitor', 'last_used_port')
+                if last_port in self.serial_ports:
+                    port_spinner.text = last_port
+                elif port_spinner.text not in self.serial_ports:
+                    port_spinner.text = self.serial_ports[0]
+        else:
+             self.ids.port_spinner.text = 'Select Port'
+             self.ids.port_spinner.values = []
+
 
     async def connect(self):
         port = self.ids.port_spinner.text
-        if port == 'Select Port':
+        if port == 'Select Port' or not self.serial_ports:
             self.output_text += "[ERROR] Please select a serial port.\n"
             return
 
@@ -67,12 +100,7 @@ class SerialMonitorScreen(Screen):
         stopbits_str = self.ids.stopbits_spinner.text
 
         # Save settings for this port
-        port_section = f'serial_monitor_ports_{port}'
-        self.app.config_manager.set_setting(port_section, 'baudrate', baudrate_str)
-        self.app.config_manager.set_setting(port_section, 'databits', databits_str)
-        self.app.config_manager.set_setting(port_section, 'parity', parity)
-        self.app.config_manager.set_setting(port_section, 'stopbits', stopbits_str)
-        self.app.config_manager.set_setting('serial_monitor', 'last_used_port', port)
+        self.save_settings()
 
         coro = serial_asyncio.create_serial_connection(
             asyncio.get_event_loop(),
@@ -110,10 +138,53 @@ class SerialMonitorScreen(Screen):
             asyncio.create_task(self.connect())
 
     def send_data(self):
-        if self.is_connected and self.transport:
-            data = self.ids.input_text.text
-            self.transport.write(data.encode('utf-8'))
-            self.ids.input_text.text = ""
+        if not self.is_connected or not self.transport:
+            return
+        asyncio.create_task(self.do_send_data())
+
+
+    async def do_send_data(self):
+        data_to_send = self.ids.input_text.text
+        eol = self.ids.eol_spinner.text
+        delay_ms_str = self.ids.delay_input.text
+
+        try:
+            delay_ms = int(delay_ms_str)
+            if not 0 <= delay_ms <= 1000:
+                self.output_text += "[ERROR] Delay must be between 0 and 1000 ms.\n"
+                return
+            self.char_delay = delay_ms
+            self.save_settings()
+        except ValueError:
+            self.output_text += "[ERROR] Invalid delay value.\n"
+            return
+
+        if eol == 'Hex':
+            try:
+                # Remove spaces and convert hex string to bytes
+                data_bytes = bytes.fromhex(data_to_send.replace(" ", ""))
+            except ValueError:
+                self.output_text += "[ERROR] Invalid hexadecimal data.\n"
+                return
+        else:
+            if eol == 'LF':
+                data_to_send += '\n'
+            elif eol == 'CR':
+                data_to_send += '\r'
+            elif eol == 'LF/CR':
+                data_to_send += '\n\r'
+            data_bytes = data_to_send.encode('utf-8')
+
+        if self.char_delay > 0:
+            delay_s = self.char_delay / 1000.0
+            for byte in data_bytes:
+                self.transport.write(bytes([byte]))
+                await asyncio.sleep(delay_s)
+        else:
+            self.transport.write(data_bytes)
+
+        self.ids.input_text.text = ""
+
 
     def clear_log(self):
         self.output_text = ""
@@ -122,6 +193,35 @@ class SerialMonitorScreen(Screen):
         app = App.get_running_app()
         if app:
             app.ui_manager.show_save_dialog("Save Serial Log", self._do_save_log)
+
+    def show_settings_popup(self):
+        content = BoxLayout(orientation='vertical', padding='10dp', spacing='10dp')
+
+        # Font size slider
+        font_size_layout = BoxLayout(orientation='horizontal')
+        font_size_layout.add_widget(Label(text='Font Size', size_hint_x=0.3))
+        font_slider = Slider(min=8, max=32, value=self.font_size, step=1)
+        font_label = Label(text=str(int(self.font_size)), size_hint_x=0.2)
+
+        def update_font_label(instance, value):
+            font_label.text = str(int(value))
+
+        font_slider.bind(value=update_font_label)
+        font_size_layout.add_widget(font_slider)
+        font_size_layout.add_widget(font_label)
+        content.add_widget(font_size_layout)
+
+        popup = Popup(title='Serial Monitor Settings',
+                      content=content,
+                      size_hint=(0.8, 0.4))
+
+        def on_dismiss_popup(instance):
+            self.font_size = font_slider.value
+            self.save_settings()
+
+        popup.bind(on_dismiss=on_dismiss_popup)
+        popup.open()
+
 
     def _do_save_log(self, path, selection):
         app = App.get_running_app()
