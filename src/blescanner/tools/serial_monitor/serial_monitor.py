@@ -180,6 +180,10 @@ class SerialMonitorScreen(Screen):
 
         self.ids.input_text.text = ""
 
+        def refocus(dt):
+            self.ids.input_text.focus = True
+        Clock.schedule_once(refocus)
+
 
     def clear_log(self):
         self.output_text = ""
