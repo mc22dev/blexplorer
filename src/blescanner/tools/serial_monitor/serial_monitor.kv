@@ -76,16 +76,18 @@
                 size_hint_x: 0.2
 
         # Data Display Area
-        ScrollView:
-            id: scroll_view
-            TextInput:
-                id: output_text
-                text: root.output_text
-                readonly: False
-                font_name: root.font_name
-                font_size: root.font_size
+        RecycleView:
+            id: rv
+            data: root.rv_data
+            viewclass: 'RecycleViewLabel'
+            on_data: root.scroll_to_bottom()
+            RecycleBoxLayout:
+                default_size: None, dp(20)
+                default_size_hint: 1, None
                 size_hint_y: None
                 height: self.minimum_height
+                orientation: 'vertical'
+                spacing: dp(2)
 
         # Send Data Area
         BoxLayout:
