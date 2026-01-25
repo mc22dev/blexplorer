@@ -1,0 +1,20 @@
+#:kivy 2.0.0
+
+<SerialMonitorSettings>:
+    orientation: 'vertical'
+    padding: "10dp"
+    spacing: "10dp"
+
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+
+        Label:
+            text: "Font:"
+            size_hint_x: 0.3
+
+        Spinner:
+            id: font_spinner
+            text: root.font_name
+            values: ['Roboto', 'UbuntuMono']
+            size_hint_x: 0.7

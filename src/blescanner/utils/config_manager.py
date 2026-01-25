@@ -47,6 +47,10 @@ class ConfigManager:
             'logging': {
                 'level': 'DEBUG'
             },
+            'serial_monitor': {
+                'font_name': 'Roboto',
+                'last_used_port': ''
+            },
             'device_names': {}
         }
         self._load_or_create_config()

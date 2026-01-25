@@ -13,55 +13,85 @@ class SerialMonitorScreen(Screen):
     is_connected = BooleanProperty(False)
     serial_ports = ListProperty([])
     output_text = StringProperty("")
+    font_name = StringProperty("Roboto")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.serial_port = None
         self.read_task = None
+        self.app = App.get_running_app()
         Clock.schedule_once(self.refresh_serial_ports)
 
     def on_enter(self, *args):
         """Called when the screen is entered."""
         self.refresh_serial_ports()
+        # Use Clock to ensure ids are available
+        Clock.schedule_once(lambda dt: self.load_settings())
+
+    def load_settings(self):
+        """Loads settings from the config manager and applies them."""
+        # Load font
+        self.font_name = self.app.config_manager.get_setting('serial_monitor', 'font_name')
+
+        # Load last used port and its parameters
+        last_port = self.app.config_manager.get_setting('serial_monitor', 'last_used_port')
+        if last_port and last_port in self.serial_ports:
+            self.ids.port_spinner.text = last_port
+            port_section = f'serial_monitor_ports_{last_port}'
+            if self.app.config_manager.config.has_section(port_section):
+                self.ids.bitrate_spinner.text = self.app.config_manager.get_setting(port_section, 'baudrate')
+                self.ids.databits_spinner.text = self.app.config_manager.get_setting(port_section, 'databits')
+                self.ids.parity_spinner.text = self.app.config_manager.get_setting(port_section, 'parity')
+                self.ids.stopbits_spinner.text = self.app.config_manager.get_setting(port_section, 'stopbits')
 
     def refresh_serial_ports(self, *args):
         self.serial_ports = [port.device for port in serial.tools.list_ports.comports()]
         port_spinner = self.ids.get('port_spinner')
         if port_spinner:
             port_spinner.values = self.serial_ports
-            # If the current selection is no longer valid, reset it
-            if port_spinner.text not in self.serial_ports:
+            last_port = self.app.config_manager.get_setting('serial_monitor', 'last_used_port')
+            if last_port in self.serial_ports:
+                port_spinner.text = last_port
+            elif port_spinner.text not in self.serial_ports:
                 port_spinner.text = 'Select Port'
 
     async def connect(self):
         port = self.ids.port_spinner.text
         if port == 'Select Port':
-            self.output_text += "[ERROR] Please select a serial port.\\n"
+            self.output_text += "[ERROR] Please select a serial port.\n"
             return
 
-        baudrate = int(self.ids.bitrate_spinner.text)
-        databits = int(self.ids.databits_spinner.text)
+        baudrate_str = self.ids.bitrate_spinner.text
+        databits_str = self.ids.databits_spinner.text
         parity = self.ids.parity_spinner.text
-        stopbits = float(self.ids.stopbits_spinner.text)
+        stopbits_str = self.ids.stopbits_spinner.text
+
+        # Save settings for this port
+        port_section = f'serial_monitor_ports_{port}'
+        self.app.config_manager.set_setting(port_section, 'baudrate', baudrate_str)
+        self.app.config_manager.set_setting(port_section, 'databits', databits_str)
+        self.app.config_manager.set_setting(port_section, 'parity', parity)
+        self.app.config_manager.set_setting(port_section, 'stopbits', stopbits_str)
+        self.app.config_manager.set_setting('serial_monitor', 'last_used_port', port)
 
         coro = serial_asyncio.create_serial_connection(
             asyncio.get_event_loop(),
             lambda: SerialProtocol(self),
             port,
-            baudrate=baudrate,
-            bytesize=databits,
+            baudrate=int(baudrate_str),
+            bytesize=int(databits_str),
             parity=parity,
-            stopbits=stopbits
+            stopbits=float(stopbits_str)
         )
         try:
             self.transport, self.protocol = await coro
             self.is_connected = True
-            self.output_text += f"[INFO] Connected to {port}\\n"
+            self.output_text += f"[INFO] Connected to {port}\n"
         except serial.SerialException as e:
-            self.output_text += f"[ERROR] Could not connect to {port}: {e}\\n"
+            self.output_text += f"[ERROR] Could not connect to {port}: {e}\n"
             self.is_connected = False
         except Exception as e:
-            self.output_text += f"[ERROR] An unexpected error occurred: {e}\\n"
+            self.output_text += f"[ERROR] An unexpected error occurred: {e}\n"
             self.is_connected = False
 
     def disconnect(self):

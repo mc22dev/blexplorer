@@ -33,6 +33,15 @@
                     text: "BLE Scanner" # Default title
                     size_hint_x: 3
 
+                TooltipButton:
+                    id: settings_button
+                    font_name: "MaterialIcons"
+                    text: "\U000F0493"  # Cog icon
+                    size_hint_x: None
+                    width: "48dp"
+                    on_release: app.open_settings_window()
+                    tooltip_text: "Settings"
+
             ScreenManager:
                 id: screen_manager
                 # Screens will be added here by the app

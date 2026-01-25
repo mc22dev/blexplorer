@@ -14,6 +14,7 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
 from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.tabbedpanel import TabbedPanelItem
 from kivy.animation import Animation
 from kivy.lang import Builder
 from kivy.clock import Clock
@@ -50,6 +51,8 @@ from blescanner.core.device_manager import DeviceManager
 from blescanner.ui.tooltip import TooltipButton
 from blescanner.ui.file_chooser_dialog import FileChooserDialog
 from blescanner.tools.serial_monitor.serial_monitor import SerialMonitorScreen
+from blescanner.ui.settings_popup import SettingsPopup
+from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
 
 
 def resource_path(relative_path):
@@ -66,6 +69,15 @@ def resource_path(relative_path):
 # Load the kv files for the custom widgets
 assets_path = resource_path("assets")
 LabelBase.register(name="MaterialIcons", fn_regular=os.path.join(assets_path, "icons/materialdesignicons-webfont.ttf"))
+
+# Register custom fonts
+fonts_path = resource_path("assets/fonts")
+LabelBase.register(name="UbuntuMono",
+                   fn_regular=os.path.join(fonts_path, "UbuntuMono-Regular.ttf"),
+                   fn_italic=os.path.join(fonts_path, "UbuntuMono-Italic.ttf"),
+                   fn_bold=os.path.join(fonts_path, "UbuntuMono-Bold.ttf"),
+                   fn_bolditalic=os.path.join(fonts_path, "UbuntuMono-BoldItalic.ttf"))
+
 for kv_file in os.listdir(os.path.join(assets_path, "kv")):
     if kv_file.endswith(".kv"):
         with open(os.path.join(assets_path, "kv", kv_file), encoding="utf-8") as f:
@@ -115,6 +127,8 @@ class BLEScannerApp(App):
     # -----------------
     def build(self):
         Builder.load_file(resource_path('ui/main.kv'))
+        Builder.load_file(resource_path('ui/settings_popup.kv'))
+        Builder.load_file(resource_path('ui/serial_monitor_settings.kv'))
         Builder.load_file(resource_path('tools/ble_scanner/ble_scanner.kv'))
         Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
@@ -232,6 +246,21 @@ class BLEScannerApp(App):
 
     # Parameter and Settings Management
     # ---------------------------------
+    def open_settings_window(self):
+        """Opens the settings window."""
+        self.settings_popup = SettingsPopup(app=self)
+
+        # Add tool-specific settings tabs
+        serial_monitor_settings = SerialMonitorSettings()
+
+        # Create a TabbedPanelItem for the serial monitor settings
+        serial_tab = TabbedPanelItem(text='Serial Monitor')
+        serial_tab.content = serial_monitor_settings
+
+        self.settings_popup.add_tool_settings(serial_tab)
+
+        self.settings_popup.open()
+
     def open_parameter_window(self):
         """Opens the parameter window."""
         self.parameter_popup = ParameterWindow()
