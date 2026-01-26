@@ -33,7 +33,7 @@ source.include_exts = py,png,jpg,kv,atlas,ttf
 
 # (str) Application versioning (method 2)
 version.regex = __version__ = ['"](.*)['"]
-version.filename = %(source.dir)s/_version.py
+version.filename = %(source.dir)s/blescanner/_version.py
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
