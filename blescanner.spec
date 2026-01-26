@@ -13,7 +13,7 @@ if sys.platform == 'win32':
     kivy_deps_trees = [Tree(p) for p in (sdl2.dep_bins + glew.dep_bins)]
 
 
-a = Analysis(['src/blescanner/__main__.py'],
+a = Analysis(['src/main.py'],
              pathex=['.'],
              binaries=[],
              datas=[('src/blescanner/assets', 'blescanner/assets'),
