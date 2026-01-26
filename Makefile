@@ -2,7 +2,7 @@
 
 # Extract package metadata from the buildozer.spec and _version.py files
 PACKAGE_NAME := $(shell grep '^package.name =' buildozer.spec | cut -d' ' -f3)
-VERSION := $(shell grep "^__version__" src/_version.py | cut -d'"' -f2)
+VERSION := $(shell grep "^__version__" src/blescanner/_version.py | cut -d'"' -f2)
 
 # --- Environment Setup ---
 VENV_DIR := tmp/venv
