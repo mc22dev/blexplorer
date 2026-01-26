@@ -4,9 +4,9 @@ from kivy.app import App
 from kivy.uix.screenmanager import Screen
 from kivy.properties import BooleanProperty, StringProperty, ListProperty, NumericProperty
 from kivy.clock import Clock
-import serial.tools.list_ports
 import serial_asyncio
 from blescanner.models import LogLevel
+from blescanner.platform import platform_utils
 
 
 class SerialMonitorScreen(Screen):
@@ -82,7 +82,7 @@ class SerialMonitorScreen(Screen):
             self.app.config_manager.set_setting(port_section, 'stopbits', self.ids.stopbits_spinner.text)
 
     def refresh_serial_ports(self, *args):
-        ports = serial.tools.list_ports.comports()
+        ports = platform_utils.list_serial_ports()
 
         def sort_key(port):
             """Prioritize ttyUSB and ttyACM ports."""

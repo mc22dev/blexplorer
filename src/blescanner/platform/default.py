@@ -1,7 +1,8 @@
 
 from typing import List, Callable
 
-from .base import PlatformUtilsBase, BondedDevice
+import serial.tools.list_ports
+from .base import PlatformUtilsBase, BondedDevice, SerialPort
 
 
 class DefaultPlatformUtils(PlatformUtilsBase):
@@ -38,3 +39,15 @@ class DefaultPlatformUtils(PlatformUtilsBase):
         No-op on this platform.
         """
         return []
+
+    def list_serial_ports(self) -> List[SerialPort]:
+        """
+        Default implementation for listing serial ports using pyserial.
+        """
+        try:
+            ports = serial.tools.list_ports.comports()
+            return [SerialPort(device=port.device, description=port.description) for port in ports]
+        except Exception as e:
+            # Log the error, but don't crash the app
+            print(f"Error listing serial ports: {e}")
+            return []

@@ -12,6 +12,13 @@ class BondedDevice:
     bond_state: str
 
 
+@dataclass
+class SerialPort:
+    """A class to represent a serial port."""
+    device: str
+    description: str
+
+
 class PlatformUtilsBase(ABC):
     """
     Abstract base class for platform-specific utility operations.
@@ -49,5 +56,12 @@ class PlatformUtilsBase(ABC):
     async def get_bonded_devices(self) -> List[BondedDevice]:
         """
         Retrieves a list of bonded Bluetooth devices.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_serial_ports(self) -> List[SerialPort]:
+        """
+        Lists available serial ports.
         """
         raise NotImplementedError

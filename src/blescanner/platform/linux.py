@@ -2,10 +2,11 @@
 import logging
 from typing import List, Callable
 
+import serial.tools.list_ports
 from dbus_fast import Variant
 from dbus_fast.aio import MessageBus
 
-from .base import PlatformUtilsBase, BondedDevice
+from .base import PlatformUtilsBase, BondedDevice, SerialPort
 
 logger = logging.getLogger(__name__)
 
@@ -69,3 +70,14 @@ class LinuxPlatformUtils(PlatformUtilsBase):
                 logger.error(f"Error getting bonded devices on Linux: {e}")
 
         return devices
+
+    def list_serial_ports(self) -> List[SerialPort]:
+        """
+        Lists available serial ports on Linux.
+        """
+        try:
+            ports = serial.tools.list_ports.comports()
+            return [SerialPort(device=port.device, description=port.description) for port in ports]
+        except Exception as e:
+            logger.error(f"Error listing serial ports on Linux: {e}")
+            return []
