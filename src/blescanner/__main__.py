@@ -29,7 +29,7 @@ from kivy.core.window import Window
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
-from blescanner._version import __version__
+from ._version import __version__
 from blescanner.ble.ble_decoder import decode_advertisement
 from blescanner.ble.ble_manager import BLEManager
 from blescanner.core.device_cache import DeviceCache, service_to_dict
