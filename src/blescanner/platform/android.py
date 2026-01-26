@@ -6,13 +6,6 @@ from jnius import autoclass
 
 from .base import PlatformUtilsBase, BondedDevice, SerialPort
 
-try:
-    from usb4a import get_usb_device_list
-    from usb4a.usb import USBError
-except ImportError:
-    get_usb_device_list = None
-    USBError = None
-
 logger = logging.getLogger(__name__)
 
 # Android-specific imports
@@ -133,29 +126,34 @@ class AndroidPlatformUtils(PlatformUtilsBase):
 
     def list_serial_ports(self) -> List[SerialPort]:
         """
-        Lists available USB serial ports on Android.
+        Lists available USB serial ports on Android using the usb-serial-for-android library.
         """
-        if get_usb_device_list is None:
-            logger.warning("usb4a is not installed. Cannot list serial ports.")
-            return []
-
+        ports = []
         try:
-            usb_devices = get_usb_device_list()
-            ports = []
-            for device in usb_devices:
-                # This is a simplification. A real implementation would need to
-                # check for CDC-ACM or other serial interfaces.
-                # The device name from usb4a is often sufficient for pyserial.
-                port_name = f"/dev/bus/usb/{device.getBus():03d}/{device.getDevice():03d}"
-                product_name = device.getProductName()
-                manufacturer = device.getManufacturerName()
-                description = f"{product_name} by {manufacturer}"
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            Context = autoclass('android.content.Context')
+            UsbManager = autoclass('android.hardware.usb.UsbManager')
+            UsbSerialProber = autoclass('com.hoho.android.usbserial.driver.UsbSerialProber')
+
+            context = PythonActivity.mActivity
+            usb_manager = context.getSystemService(Context.USB_SERVICE)
+
+            available_drivers = UsbSerialProber.getDefaultProber().findAllDrivers(usb_manager)
+            if not available_drivers:
+                return []
+
+            for driver in available_drivers.toArray():
+                device = driver.getDevice()
+                # The device name for pyserial should be the device's address
+                port_name = str(device.getDeviceName())
+                product_name = device.getProductName() or "Unknown"
+                manufacturer = device.getManufacturerName() or "Unknown"
+
+                description = f"{product_name} ({manufacturer})"
                 ports.append(SerialPort(device=port_name, description=description))
-            return ports
-        except USBError as e:
-            logger.error(f"Error listing USB devices: {e}")
-            # You might want to show a popup to the user here
-            return []
+
         except Exception as e:
-            logger.error(f"An unexpected error occurred while listing serial ports: {e}")
-            return []
+            logger.error(f"Error listing serial ports on Android: {e}")
+            # Optionally, show a user-facing error message here
+
+        return ports

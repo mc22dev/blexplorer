@@ -147,7 +147,7 @@ android.accept_sdk_license = True
 
 # (str) Extra xml to write directly inside the <manifest> element of AndroidManifest.xml
 # use that parameter to provide a filename from where to load your custom XML code
-#android.extra_manifest_xml = ./src/android/extra_manifest.xml
+android.extra_manifest_xml = manifest/extra_manifest.xml
 
 # (str) Extra xml to write directly inside the <manifest><application> tag of AndroidManifest.xml
 # use that parameter to provide a filename from where to load your custom XML arguments:
@@ -180,7 +180,7 @@ android.accept_sdk_license = True
 #android.add_src =
 
 # (list) Android AAR archives to add
-#android.add_aars =
+android.add_aars = libs/usb-serial-for-android-3.9.0.aar
 
 # (list) Put these files or directories in the apk assets directory.
 # Either form may be used, and assets need not be in 'source.include_exts'.
@@ -236,10 +236,10 @@ android.enable_androidx = True
 #android.ouya.icon.filename = %(source.dir)s/data/ouya_icon.png
 
 # (str) XML file to include as an intent filters in <activity> tag
-#android.manifest.intent_filters =
+android.manifest.intent_filters = manifest/intent-filter.xml
 
 # (list) Copy these files to src/main/res/xml/ (used for example with intent-filters)
-#android.res_xml = PATH_TO_FILE,
+android.res_xml = manifest/device_filter.xml
 
 # (str) launchMode to set for the main activity
 #android.manifest.launch_mode = standard

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<intent-filter>
+    <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+</intent-filter>
