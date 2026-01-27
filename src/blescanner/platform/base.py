@@ -1,7 +1,8 @@
 
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Callable
+from typing import List, Callable, Tuple
 
 
 @dataclass
@@ -63,5 +64,18 @@ class PlatformUtilsBase(ABC):
     def list_serial_ports(self) -> List[SerialPort]:
         """
         Lists available serial ports.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_serial_connection(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        protocol_factory: Callable[[], asyncio.Protocol],
+        url: str,
+        **kwargs
+    ) -> Tuple[asyncio.Transport, asyncio.Protocol]:
+        """
+        Creates a platform-specific serial connection.
         """
         raise NotImplementedError

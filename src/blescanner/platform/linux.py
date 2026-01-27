@@ -5,8 +5,8 @@ from typing import List, Callable
 from dbus_fast import Variant
 from dbus_fast.aio import MessageBus
 
-from .default import DefaultPlatformUtils
 from .base import BondedDevice
+from .default import DefaultPlatformUtils
 
 logger = logging.getLogger(__name__)
 
@@ -15,30 +15,6 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
     """
     Utility class for handling Linux-specific operations.
     """
-
-    def check_android_permissions(self) -> bool:
-        """
-        No-op on Linux.
-        """
-        return True
-
-    def request_android_permissions(self, callback: Callable):
-        """
-        No-op on Linux.
-        """
-        pass
-
-    def is_bluetooth_enabled(self) -> bool:
-        """
-        No-op on Linux, assuming enabled.
-        """
-        return True
-
-    def is_location_enabled(self) -> bool:
-        """
-        No-op on Linux, assuming enabled.
-        """
-        return True
 
     async def get_bonded_devices(self) -> List[BondedDevice]:
         """

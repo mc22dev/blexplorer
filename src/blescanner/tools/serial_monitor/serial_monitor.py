@@ -4,9 +4,8 @@ from kivy.app import App
 from kivy.uix.screenmanager import Screen
 from kivy.properties import BooleanProperty, StringProperty, ListProperty, NumericProperty
 from kivy.clock import Clock
-import serial_asyncio
+import serial
 from blescanner.models import LogLevel
-from blescanner.platform import platform_utils
 
 
 class SerialMonitorScreen(Screen):
@@ -82,10 +81,10 @@ class SerialMonitorScreen(Screen):
             self.app.config_manager.set_setting(port_section, 'stopbits', self.ids.stopbits_spinner.text)
 
     def refresh_serial_ports(self, *args):
-        ports = platform_utils.list_serial_ports()
+        ports = self.app.platform_utils.list_serial_ports()
 
         def sort_key(port):
-            """Prioritize ttyUSB and ttyACM ports."""
+            """Prioritize ttyUSB and ttyACM ports on Linux."""
             if port.device.startswith('/dev/ttyUSB') or port.device.startswith('/dev/ttyACM'):
                 return (0, port.device)
             return (1, port.device)
@@ -93,9 +92,13 @@ class SerialMonitorScreen(Screen):
         sorted_ports = sorted(ports, key=sort_key)
         self.serial_ports = [port.device for port in sorted_ports]
 
+        # Store descriptions for display if needed later, e.g., in a dropdown with more info
+        self.port_descriptions = {port.device: port.description for port in sorted_ports}
+
         if self.serial_ports:
             port_spinner = self.ids.get('port_spinner')
             if port_spinner:
+                # We only show the device name in the spinner
                 port_spinner.values = self.serial_ports
                 last_port = self.app.config_manager.get_setting('serial_monitor', 'last_used_port')
                 if last_port in self.serial_ports:
@@ -121,17 +124,16 @@ class SerialMonitorScreen(Screen):
         # Save settings for this port
         self.save_settings()
 
-        coro = serial_asyncio.create_serial_connection(
-            asyncio.get_event_loop(),
-            lambda: SerialProtocol(self),
-            port,
-            baudrate=int(baudrate_str),
-            bytesize=int(databits_str),
-            parity=parity,
-            stopbits=float(stopbits_str)
-        )
         try:
-            self.transport, self.protocol = await coro
+            self.transport, self.protocol = await self.app.platform_utils.create_serial_connection(
+                asyncio.get_event_loop(),
+                lambda: SerialProtocol(self),
+                port,
+                baudrate=int(baudrate_str),
+                bytesize=int(databits_str),
+                parity=parity,
+                stopbits=float(stopbits_str)
+            )
             self.is_connected = True
             self.output_text += f"[INFO] Connected to {port}\n"
             self._calculate_max_speed()

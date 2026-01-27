@@ -1,8 +1,10 @@
 
+import asyncio
 import logging
-from typing import List
+import threading
+from typing import List, Callable, Tuple
 
-from jnius import autoclass
+from jnius import autoclass, cast
 
 from .base import PlatformUtilsBase, BondedDevice, SerialPort
 
@@ -126,34 +128,175 @@ class AndroidPlatformUtils(PlatformUtilsBase):
 
     def list_serial_ports(self) -> List[SerialPort]:
         """
-        Lists available USB serial ports on Android using the usb-serial-for-android library.
+        Lists available serial ports using the usb-serial-for-android library.
         """
-        ports = []
         try:
             PythonActivity = autoclass('org.kivy.android.PythonActivity')
             Context = autoclass('android.content.Context')
             UsbManager = autoclass('android.hardware.usb.UsbManager')
             UsbSerialProber = autoclass('com.hoho.android.usbserial.driver.UsbSerialProber')
 
-            context = PythonActivity.mActivity
-            usb_manager = context.getSystemService(Context.USB_SERVICE)
+            # Get the UsbManager from the current activity
+            activity = PythonActivity.mActivity
+            usb_manager = activity.getSystemService(Context.USB_SERVICE)
 
-            available_drivers = UsbSerialProber.getDefaultProber().findAllDrivers(usb_manager)
-            if not available_drivers:
-                return []
+            # Find all available drivers from the prober
+            prober = UsbSerialProber.getDefaultProber()
+            drivers = prober.findAllDrivers(usb_manager)
 
-            for driver in available_drivers.toArray():
+            ports = []
+            for driver in drivers:
                 device = driver.getDevice()
-                # The device name for pyserial should be the device's address
-                port_name = str(device.getDeviceName())
-                product_name = device.getProductName() or "Unknown"
-                manufacturer = device.getManufacturerName() or "Unknown"
-
-                description = f"{product_name} ({manufacturer})"
-                ports.append(SerialPort(device=port_name, description=description))
-
+                ports.append(
+                    SerialPort(
+                        device=f"usb{device.getDeviceId()}",
+                        description=f"{device.getProductName()} (VID:{device.getVendorId()} PID:{device.getProductId()})"
+                    )
+                )
+            logger.debug(f"Found serial ports: {ports}")
+            return ports
         except Exception as e:
             logger.error(f"Error listing serial ports on Android: {e}")
-            # Optionally, show a user-facing error message here
+            # The Java class might not be found if the library is not included
+            logger.error("Make sure the usb-serial-for-android library is included in the build.")
+            return []
 
-        return ports
+    async def create_serial_connection(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        protocol_factory: Callable[[], asyncio.Protocol],
+        url: str,
+        **kwargs
+    ) -> Tuple[asyncio.Transport, asyncio.Protocol]:
+        """
+        Creates a serial connection for Android using the usb-serial-for-android library.
+        """
+        logger.info(f"Attempting to connect to {url} with args {kwargs}")
+        try:
+            # JNI class imports
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            Context = autoclass('android.content.Context')
+            UsbManager = autoclass('android.hardware.usb.UsbManager')
+            UsbSerialProber = autoclass('com.hoho.android.usbserial.driver.UsbSerialProber')
+            # Note: A custom permission request flow might be needed for production
+            # PendingIntent = autoclass('android.app.PendingIntent')
+            # Intent = autoclass('android.content.Intent')
+
+            activity = PythonActivity.mActivity
+            usb_manager = activity.getSystemService(Context.USB_SERVICE)
+
+            # Find the target device by parsing the URL (e.g., "usb1002")
+            try:
+                device_id = int(url.replace("usb", ""))
+            except (ValueError, TypeError):
+                raise ValueError(f"Invalid serial port URL for Android: {url}")
+
+            target_driver = None
+            prober = UsbSerialProber.getDefaultProber()
+            for driver in prober.findAllDrivers(usb_manager):
+                if driver.getDevice().getDeviceId() == device_id:
+                    target_driver = driver
+                    break
+
+            if not target_driver:
+                raise ConnectionError(f"USB device for {url} not found.")
+
+            # --- Permission Handling (Simplified) ---
+            # In a real app, a BroadcastReceiver would be needed to handle the result
+            # of requestPermission asynchronously. For now, we hope it's pre-approved.
+            if not usb_manager.hasPermission(target_driver.getDevice()):
+                 logger.warning(f"App does not have permission for {url}. Connection may fail.")
+                 # usb_manager.requestPermission(target_driver.getDevice(), ...) # Requires PendingIntent
+
+            connection = usb_manager.openDevice(target_driver.getDevice())
+            if not connection:
+                raise ConnectionError(f"Failed to open USB device connection for {url}.")
+
+            # Use the first port of the driver
+            port = target_driver.getPorts().get(0)
+            port.open(connection)
+
+            # Set serial parameters
+            stopbits_map = {1: 1, 1.5: 3, 2: 2}  # pyserial -> usb-serial-for-android
+            parity_map = {'N': 0, 'E': 2, 'O': 1, 'M': 3, 'S': 4}  # pyserial -> usb-serial-for-android
+
+            port.setParameters(
+                kwargs.get('baudrate', 115200),
+                kwargs.get('bytesize', 8),
+                stopbits_map.get(kwargs.get('stopbits', 1), 1),
+                parity_map.get(kwargs.get('parity', 'N'), 0)
+            )
+
+            protocol = protocol_factory()
+            transport = AndroidSerialTransport(loop, protocol, port)
+            loop.call_soon(protocol.connection_made, transport)
+
+            logger.info(f"Successfully connected to {url}")
+            return transport, protocol
+
+        except Exception as e:
+            logger.error(f"Failed to create Android serial connection: {e}")
+            raise
+
+
+class AndroidSerialTransport(asyncio.Transport):
+    """
+    An asyncio.Transport implementation for the Android USB serial library.
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop, protocol: asyncio.Protocol, java_port):
+        super().__init__()
+        self._loop = loop
+        self._protocol = protocol
+        self._java_port = java_port
+        self._closing = False
+        self._read_thread = threading.Thread(target=self._read_loop, daemon=True)
+        self._read_thread.start()
+
+    def _read_loop(self):
+        """Continuously reads from the serial port in a separate thread."""
+        read_buffer = bytearray(4096)
+        j_buffer = autoclass('java.nio.ByteBuffer').wrap(read_buffer)
+
+        while not self._closing:
+            try:
+                num_bytes_read = self._java_port.read(j_buffer.array(), 200) # 200ms timeout
+                if num_bytes_read > 0:
+                    data = bytes(read_buffer[:num_bytes_read])
+                    self._loop.call_soon_threadsafe(self._protocol.data_received, data)
+            except Exception as e:
+                logger.error(f"Error in Android serial read loop: {e}")
+                self._loop.call_soon_threadsafe(self._protocol.connection_lost, e)
+                break
+        logger.info("Android serial read loop terminated.")
+
+    def write(self, data: bytes):
+        """Writes data to the serial port."""
+        if self._closing:
+            return
+        try:
+            self._java_port.write(data, 200) # 200ms timeout
+        except Exception as e:
+            logger.error(f"Error writing to Android serial port: {e}")
+            self._loop.call_soon_threadsafe(self._protocol.connection_lost, e)
+
+    def is_closing(self):
+        """Returns True if the transport is closing."""
+        return self._closing
+
+    def close(self):
+        """Closes the serial port and stops the read thread."""
+        if self._closing:
+            return
+        self._closing = True
+        try:
+            self._java_port.close()
+            logger.info("Android serial port closed.")
+        except Exception as e:
+            logger.error(f"Error closing Android serial port: {e}")
+        finally:
+            self._loop.call_soon_threadsafe(self._protocol.connection_lost, None)
+
+    def abort(self):
+        """Aborts the connection."""
+        self.close()
