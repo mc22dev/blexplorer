@@ -2,11 +2,11 @@
 import logging
 from typing import List, Callable
 
-import serial.tools.list_ports
 from dbus_fast import Variant
 from dbus_fast.aio import MessageBus
 
 from .default import DefaultPlatformUtils
+from .base import BondedDevice
 
 logger = logging.getLogger(__name__)
 
