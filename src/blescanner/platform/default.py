@@ -1,11 +1,8 @@
 
-import logging
 from typing import List, Callable
 
 import serial.tools.list_ports
 from .base import PlatformUtilsBase, BondedDevice, SerialPort
-
-logger = logging.getLogger(__name__)
 
 
 class DefaultPlatformUtils(PlatformUtilsBase):
@@ -52,5 +49,5 @@ class DefaultPlatformUtils(PlatformUtilsBase):
             return [SerialPort(device=port.device, description=port.description) for port in ports]
         except Exception as e:
             # Log the error, but don't crash the app
-            logger.error(f"Error listing serial ports: {e}")
+            print(f"Error listing serial ports: {e}")
             return []
