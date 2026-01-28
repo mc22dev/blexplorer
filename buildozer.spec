@@ -98,7 +98,7 @@ fullscreen = 0
 android.permissions = android.permission.BLUETOOTH, android.permission.BLUETOOTH_ADMIN, android.permission.ACCESS_FINE_LOCATION, android.permission.BLUETOOTH_SCAN, android.permission.BLUETOOTH_CONNECT
 
 # (list) features (adds uses-feature -tags to manifest)
-android.features = android.hardware.usb.host
+#android.features = android.hardware.usb.host
 
 # (int) Target Android API, should be as high as possible.
 android.api = 33
