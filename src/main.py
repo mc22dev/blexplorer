@@ -114,6 +114,7 @@ class BLEScannerApp(MDApp):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
     scan_timeout = StringProperty("5.0")
+    adapter = StringProperty("Default")
     VERSION = "1.0.0"
     is_scanning = BooleanProperty(False)
     is_connected = BooleanProperty(False)
@@ -128,6 +129,8 @@ class BLEScannerApp(MDApp):
         self.parameter_popup = ParameterWindow()
         self.parameter_popup.ids.scan_timeout_input.text = self.scan_timeout
         self.parameter_popup.ids.theme_spinner.text = self.config_manager.get_setting('theme', 'name')
+        self.parameter_popup.ids.adapter_spinner.values = self.adapters
+        self.parameter_popup.ids.adapter_spinner.text = self.adapter
         self.parameter_popup.open()
 
     def restore_default_parameters(self, popup):
@@ -140,12 +143,16 @@ class BLEScannerApp(MDApp):
         self.theme_cls.theme_style = theme_name
         popup.ids.theme_spinner.text = theme_name
 
+        self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
+        popup.ids.adapter_spinner.text = self.adapter
+
         self.log_with_timestamp("Default parameters restored.", LogLevel.INFO)
 
     def update_parameters(self, popup):
         """Updates the parameters from the parameter window."""
         new_timeout = popup.ids.scan_timeout_input.text
         new_theme = popup.ids.theme_spinner.text
+        new_adapter = popup.ids.adapter_spinner.text
         try:
             # Validate that the input is a valid float before saving
             float(new_timeout)
@@ -156,6 +163,10 @@ class BLEScannerApp(MDApp):
             self.config_manager.set_setting('theme', 'name', new_theme)
             self.theme_cls.theme_style = new_theme
             self.log_with_timestamp(f"Theme set to {new_theme}.", LogLevel.INFO)
+
+            self.adapter = new_adapter
+            self.config_manager.set_setting('bluetooth', 'adapter', self.adapter)
+            self.log_with_timestamp(f"Adapter set to {self.adapter}.", LogLevel.INFO)
 
             popup.dismiss()
         except ValueError:
@@ -176,6 +187,7 @@ class BLEScannerApp(MDApp):
             self.request_android_permissions()
 
         self.discover_adapters()
+        self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
         Clock.schedule_once(self._find_and_bind_buttons)
 
     def _find_and_bind_buttons(self, *args):
@@ -248,6 +260,7 @@ class BLEScannerApp(MDApp):
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
+        self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
 
         # Set the initial theme
         self.theme_cls.theme_style = self.config_manager.get_setting('theme', 'name')
@@ -262,6 +275,7 @@ class BLEScannerApp(MDApp):
         self.device_frames = {}
         self.device_cache = DeviceCache()
         self.selected_device = None
+        self.discovered_devices_batch = []
         return MainLayout()
 
     def on_stop(self):
@@ -278,28 +292,16 @@ class BLEScannerApp(MDApp):
                 self.log_with_timestamp("hciconfig not found. Could not list Bluetooth adapters.", LogLevel.WARNING)
         else:
             self.log_with_timestamp("Adapter discovery is currently only supported on Linux.", LogLevel.DEBUG)
-        self.root.ids.adapter_spinner.values = adapters
-
-    def on_adapter_selected(self, spinner, text):
-        """
-        Handles the selection of a Bluetooth adapter.
-        """
-        self.log_with_timestamp(f"Adapter selected: {text}", LogLevel.INFO)
-        if platform.system() == "Linux" and text != "Default":
-            try:
-                result = subprocess.run(['hciconfig', '-a', text], capture_output=True, text=True, check=True)
-                self.log_with_timestamp(f"--- Adapter Info for {text} ---\n{result.stdout.strip()}\n--------------------", LogLevel.DEBUG)
-            except (FileNotFoundError, subprocess.CalledProcessError) as e:
-                self.log_with_timestamp(f"Could not get info for adapter {text}: {e}", LogLevel.ERROR)
+        self.adapters = adapters
 
     def scan_for_devices(self, *args):
         """Initiates a scan for nearby BLE devices."""
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
+        self.discovered_devices_batch = []
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
         self.is_scanning = True
-        adapter = self.root.ids.adapter_spinner.text
-        adapter = adapter if adapter != "Default" else None
+        adapter = self.adapter if self.adapter != "Default" else None
 
         try:
             timeout = float(self.scan_timeout)
@@ -308,10 +310,14 @@ class BLEScannerApp(MDApp):
             self.is_scanning = False
             return
 
+        Clock.schedule_interval(self._process_device_batch, 0.25)  # Process batch every 250ms
         self.ble_manager.scan_for_devices(adapter, timeout)
-        Clock.schedule_once(self.on_scan_finished, timeout + 0.5)
+        Clock.schedule_once(self.on_scan_finished, timeout)
 
     def on_scan_finished(self, *args):
+        self.ble_manager.stop_scan()
+        Clock.unschedule(self._process_device_batch)
+        self._process_device_batch()  # Process any remaining devices
         self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
         self.is_scanning = False
 
@@ -330,23 +336,38 @@ class BLEScannerApp(MDApp):
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
-        Clock.schedule_once(lambda dt: self._populate_device_ui(device, adv_data))
+        self.discovered_devices_batch.append((device, adv_data))
+
+    def _process_device_batch(self, *args):
+        """Processes the batch of discovered devices and updates the UI."""
+        # Sort by RSSI to show the strongest signals first
+        sorted_batch = sorted(self.discovered_devices_batch, key=lambda x: x[1].rssi, reverse=True)
+        for device, adv_data in sorted_batch:
+            self._populate_device_ui(device, adv_data)
+        self.discovered_devices_batch = []
 
     def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
         """
-        Populates the UI with a discovered BLE device.
+        Populates the UI with a discovered BLE device, updating if it already exists.
         """
-        self.log_with_timestamp(f"Found device: {device.address} ({device.name or 'Unknown'}) RSSI: {adv_data.rssi}", LogLevel.DEBUG)
-        frame = DeviceFrameKivy(device=device, adv_data=adv_data)
-        self.device_frames[device.address] = frame
-        self.root.ids.device_list.add_widget(frame)
+        if device.address in self.device_frames:
+            # Update existing frame
+            frame = self.device_frames[device.address]
+            frame.device = device
+            frame.adv_data = adv_data
+            frame.device_rssi = str(adv_data.rssi)
+        else:
+            # Create a new frame for a new device
+            self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
+            frame = DeviceFrameKivy(device=device, adv_data=adv_data)
+            self.device_frames[device.address] = frame
+            self.root.ids.device_list.add_widget(frame)
 
     def connect_to_device(self, device: BLEDevice):
         """Connects to the selected device."""
         self.selected_device = device
         self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...", LogLevel.INFO)
-        adapter = self.root.ids.adapter_spinner.text
-        adapter = adapter if adapter != "Default" else None
+        adapter = self.adapter if self.adapter != "Default" else None
         self.ble_manager.connect_to_device(device.address, adapter)
 
     def disconnect_from_device(self, *args):

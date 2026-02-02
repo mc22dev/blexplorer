@@ -46,6 +46,7 @@ class BLEManager:
             logger_callback: Callback for logging messages.
         """
         self.client: Optional[BleakClient] = None
+        self.scanner: Optional[BleakScanner] = None
         self.selected_device_address: Optional[str] = None
         self.adapter: Optional[str] = None
         self._manual_disconnect: bool = False
@@ -65,6 +66,8 @@ class BLEManager:
 
     def shutdown(self) -> None:
         """Shuts down the BLE manager and the asyncio loop."""
+        if self.scanner:
+            asyncio.run_coroutine_threadsafe(self.scanner.stop(), self.loop)
         if self.client and self.client.is_connected:
             self.logger_callback("Disconnecting on shutdown...", LogLevel.INFO)
             future = asyncio.run_coroutine_threadsafe(self.client.disconnect(), self.loop)
@@ -78,24 +81,28 @@ class BLEManager:
 
     def scan_for_devices(self, adapter: Optional[str], timeout: float) -> None:
         """Initiates a scan for nearby BLE devices."""
-        asyncio.run_coroutine_threadsafe(self._discover_devices(adapter, timeout), self.loop)
+        asyncio.run_coroutine_threadsafe(self._start_scan(adapter), self.loop)
 
-    async def _discover_devices(self, adapter_name: Optional[str], timeout: float) -> None:
-        """
-        Scans for BLE devices and populates the UI with the results.
-
-        Args:
-            adapter_name: The name of the Bluetooth adapter to use.
-            timeout: The duration of the scan in seconds.
-        """
+    async def _start_scan(self, adapter_name: Optional[str]) -> None:
+        """Starts a non-blocking BLE scan."""
         scanner_kwargs = {"adapter": adapter_name} if adapter_name else {}
+        self.scanner = BleakScanner(
+            detection_callback=self._on_device_found,
+            **scanner_kwargs
+        )
         try:
-            discovered_devices_dict = await BleakScanner.discover(timeout=timeout, return_adv=True, **scanner_kwargs)
-            sorted_devices = sorted(discovered_devices_dict.values(), key=lambda item: item[1].rssi, reverse=True)
-            for device, adv_data in sorted_devices:
-                self.device_discovered_callback(device, adv_data)
+            await self.scanner.start()
         except BleakError as e:
             self.logger_callback(f"Scanning Error: {e}", LogLevel.ERROR)
+
+    def _on_device_found(self, device: BLEDevice, adv_data: AdvertisementData) -> None:
+        """Callback for when BleakScanner discovers a device."""
+        self.device_discovered_callback(device, adv_data)
+
+    def stop_scan(self) -> None:
+        """Stops the BLE scan."""
+        if self.scanner:
+            asyncio.run_coroutine_threadsafe(self.scanner.stop(), self.loop)
 
     def connect_to_device(self, device_address: str, adapter: Optional[str]) -> None:
         """Connects to a specified device by its address."""

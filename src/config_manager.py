@@ -25,6 +25,9 @@ class ConfigManager:
             },
             'theme': {
                 'name': 'Dark'
+            },
+            'bluetooth': {
+                'adapter': 'Default'
             }
         }
         self._load_or_create_config()

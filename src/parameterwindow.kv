@@ -16,6 +16,18 @@
             height: '30dp'
 
             MDLabel:
+                text: 'Bluetooth Adapter:'
+            Spinner:
+                id: adapter_spinner
+                text: 'Default'
+                values: ['Default']
+
+        MDBoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: '30dp'
+
+            MDLabel:
                 text: 'Scan Timeout:'
             MDTextField:
                 id: scan_timeout_input
