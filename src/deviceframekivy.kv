@@ -3,11 +3,12 @@
 <DeviceFrameKivy>:
     orientation: 'vertical'
     size_hint_y: None
+    size_hint_x: 1
     height: self.minimum_height
 
     MDCard:
         size_hint_y: None
-        height: "108dp"
+        height: self.minimum_height
         padding: "8dp"
         on_release: app.connect_to_device(root.device)
 
@@ -21,12 +22,43 @@
                 orientation: 'vertical'
                 adaptive_height: True
                 padding: "8dp"
+                size_hint_x: 0.6
 
-                ThreeLineAvatarIconListItem:
+                MDLabel:
                     text: root.device_name
-                    secondary_text: root.device_address
-                    tertiary_text: root.rssi_info
-                    _no_ripple_effect: True
+                    bold: True
+                    adaptive_height: True
+
+                MDLabel:
+                    text: root.device_address
+                    font_style: "Caption"
+                    adaptive_height: True
+
+                MDFlatButton:
+                    text: root.service_uuids
+                    font_style: "Caption"
+                    adaptive_height: True
+                    on_release: root.show_full_data_popup("Service UUIDs", root.full_service_uuids)
+                    theme_text_color: "Primary"
+                    padding: [0, 0, 0, 0]
+
+                MDFlatButton:
+                    text: root.manufacturer_data
+                    font_style: "Caption"
+                    adaptive_height: True
+                    on_release: root.show_full_data_popup("Manufacturer Data", root.full_manufacturer_data)
+                    theme_text_color: "Primary"
+                    padding: [0, 0, 0, 0]
+
+            MDBoxLayout:
+                orientation: 'vertical'
+                adaptive_height: True
+                size_hint_x: 0.4
+
+                MDLabel:
+                    text: root.rssi_info
+                    font_style: "Caption"
+                    adaptive_height: True
 
                 MDLabel:
                     text: root.period_info

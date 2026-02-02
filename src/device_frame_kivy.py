@@ -14,6 +14,10 @@ class DeviceFrameKivy(MDBoxLayout):
     rssi_info = StringProperty("")
     period_info = StringProperty("")
     adv_flags = StringProperty("")
+    service_uuids = StringProperty("")
+    manufacturer_data = StringProperty("")
+    full_service_uuids = StringProperty("")
+    full_manufacturer_data = StringProperty("")
 
 
     def on_device(self, instance, value):
@@ -31,7 +35,11 @@ class DeviceFrameKivy(MDBoxLayout):
                           f"Max: {self.stats.max_rssi}, "
                           f"Avg: {self.stats.avg_rssi:.2f})")
 
-        self.period_info = f"Period: {self.stats.avg_period:.2f} ms | Count: {len(self.stats.rssi_values)}"
+        self.period_info = (f"Period: {self.stats.last_period:.2f} ms "
+                            f"(Min: {self.stats.min_period:.2f}, "
+                            f"Max: {self.stats.max_period:.2f}, "
+                            f"Avg: {self.stats.avg_period:.2f}) | "
+                            f"Count: {len(self.stats.rssi_values)}")
 
         flags = []
         if self.device.details and hasattr(self.device.details, 'props') and self.device.details.props.get('Connectable'):
@@ -45,6 +53,27 @@ class DeviceFrameKivy(MDBoxLayout):
 
         self.adv_flags = "Flags: " + ", ".join(flags) if flags else "Flags: Not Connectable"
 
+        self.service_uuids = ""
+        self.full_service_uuids = ""
+        if self.stats.adv_data.service_uuids:
+            self.full_service_uuids = "Services: " + ", ".join(self.stats.adv_data.service_uuids)
+            if len(self.full_service_uuids) > 30:
+                self.service_uuids = self.full_service_uuids[:27] + "..."
+            else:
+                self.service_uuids = self.full_service_uuids
+
+        self.manufacturer_data = ""
+        self.full_manufacturer_data = ""
+        if self.stats.adv_data.manufacturer_data:
+            manu_data_str = []
+            for company_id, data in self.stats.adv_data.manufacturer_data.items():
+                manu_data_str.append(f"0x{company_id:04X}: {data.hex()}")
+            self.full_manufacturer_data = "Manu: " + ", ".join(manu_data_str)
+            if len(self.full_manufacturer_data) > 30:
+                self.manufacturer_data = self.full_manufacturer_data[:27] + "..."
+            else:
+                self.manufacturer_data = self.full_manufacturer_data
+
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -57,4 +86,11 @@ class DeviceFrameKivy(MDBoxLayout):
         dialog = MDDialog(title='Copied',
                           text=f'"{text}" copied to clipboard.',
                           size_hint=(None, None), size=(300, 100))
+        dialog.open()
+
+    def show_full_data_popup(self, title, data):
+        """Displays a popup with the full data."""
+        if not data:
+            return
+        dialog = MDDialog(title=title, text=data, size_hint=(0.8, 0.5))
         dialog.open()
