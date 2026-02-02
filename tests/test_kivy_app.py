@@ -72,15 +72,19 @@ class TestKivyApp:
 
     def test_collapsible_frame_instantiation_and_toggle(self):
         """
-        Tests that the CollapsibleFrameKivy widget can be instantiated and toggled.
+        Tests that the CollapsibleFrameKivy widget can be instantiated and its expansion state can be changed.
         """
-        collapsible_frame = CollapsibleFrameKivy(title="Test Frame")
+        collapsible_frame = CollapsibleFrameKivy(title="Test Frame", is_expanded=False)
         assert collapsible_frame.title == "Test Frame"
-        assert not collapsible_frame.collapsed
-        collapsible_frame.toggle_collapse()
-        assert collapsible_frame.collapsed
-        collapsible_frame.toggle_collapse()
-        assert not collapsible_frame.collapsed
+        assert not collapsible_frame.is_expanded
+
+        # Simulate expanding the frame
+        collapsible_frame.is_expanded = True
+        assert collapsible_frame.is_expanded
+
+        # Simulate collapsing the frame
+        collapsible_frame.is_expanded = False
+        assert not collapsible_frame.is_expanded
 
     def test_data_format_conversion(self):
         """

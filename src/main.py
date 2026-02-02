@@ -276,6 +276,7 @@ class BLEScannerApp(MDApp):
         self.device_cache = DeviceCache()
         self.selected_device = None
         self.discovered_devices_batch = []
+        self.scan_counts = {}
         return MainLayout()
 
     def on_stop(self):
@@ -299,6 +300,7 @@ class BLEScannerApp(MDApp):
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
         self.discovered_devices_batch = []
+        self.scan_counts = {}
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
         self.is_scanning = True
         adapter = self.adapter if self.adapter != "Default" else None
@@ -350,16 +352,19 @@ class BLEScannerApp(MDApp):
         """
         Populates the UI with a discovered BLE device, updating if it already exists.
         """
+        self.scan_counts[device.address] = self.scan_counts.get(device.address, 0) + 1
+
         if device.address in self.device_frames:
-            # Update existing frame
+            # Update existing frame only if data has changed to avoid unnecessary UI redraws
             frame = self.device_frames[device.address]
-            frame.device = device
-            frame.adv_data = adv_data
-            frame.device_rssi = str(adv_data.rssi)
+            frame.scan_count = self.scan_counts[device.address]
+            if frame.device.name != device.name or frame.adv_data.rssi != adv_data.rssi:
+                frame.device = device
+                frame.adv_data = adv_data
         else:
             # Create a new frame for a new device
             self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
-            frame = DeviceFrameKivy(device=device, adv_data=adv_data)
+            frame = DeviceFrameKivy(device=device, adv_data=adv_data, scan_count=self.scan_counts[device.address])
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
 
@@ -418,39 +423,52 @@ class BLEScannerApp(MDApp):
             Clock.schedule_once(lambda dt: self._check_for_attribute_diffs(cached_services_data), 0.1)
 
     def populate_characteristic_ui(self, characteristics):
-        service_frames = {}
+        # Group characteristics by service UUID
+        service_map = {}
         for char in characteristics:
             service_uuid = str(char.service_uuid)
-            if service_uuid not in service_frames:
-                service_name = GATT_SERVICES.get(service_uuid.split("-")[0].lstrip("0").lower(), "Unknown Service")
-                sf = CollapsibleFrameKivy(title=f"Service: {service_name} ({service_uuid})")
-                self.root.ids.characteristic_list.add_widget(sf)
-                service_frames[service_uuid] = sf
+            if service_uuid not in service_map:
+                service_map[service_uuid] = []
+            service_map[service_uuid].append(char)
 
-            char_frame = CharacteristicFrameKivy(characteristic=char)
-            self.characteristic_frames[char.uuid] = char_frame
-            service_frames[service_uuid].add_content(char_frame)
+        # Create collapsible frames for each service, passing the characteristics and a creation callback
+        for service_uuid, service_chars in service_map.items():
+            service_name = GATT_SERVICES.get(service_uuid.split("-")[0].lstrip("0").lower(), "Unknown Service")
+            sf = CollapsibleFrameKivy(
+                title=f"Service: {service_name} ({service_uuid})",
+                characteristics=service_chars,
+                populate_callback=self._create_and_bind_characteristic_frame,
+                is_expanded=False  # Start collapsed
+            )
+            self.root.ids.characteristic_list.add_widget(sf)
 
-            if "notify" not in char.properties and "indicate" not in char.properties:
-                char_frame.ids.subscribe_button.disabled = True
+    def _create_and_bind_characteristic_frame(self, char):
+        """Creates a characteristic frame, binds its events, and returns the frame."""
+        char_frame = CharacteristicFrameKivy(characteristic=char)
+        self.characteristic_frames[char.uuid] = char_frame
 
-            char_frame.ids.read_button.bind(on_release=partial(self.read_characteristic, char, char_frame))
-            char_frame.ids.write_button.bind(on_release=partial(self.write_characteristic, char, char_frame))
-            char_frame.ids.subscribe_button.bind(active=partial(self.toggle_subscription, char, char_frame))
+        if "notify" not in char.properties and "indicate" not in char.properties:
+            char_frame.ids.subscribe_button.disabled = True
 
-            user_desc = None
-            for desc in char.descriptors:
-                if desc.uuid == "00002901-0000-1000-8000-00805f9b34fb":
-                    user_desc = desc
-                    continue
-                desc_frame = DescriptorFrameKivy(descriptor=desc)
-                char_frame.add_widget(desc_frame)
-                desc_frame.ids.read_button.bind(on_release=partial(self.read_descriptor, desc, desc_frame))
-                desc_frame.ids.write_button.bind(on_release=partial(self.write_descriptor, desc, desc_frame))
+        char_frame.ids.read_button.bind(on_release=partial(self.read_characteristic, char, char_frame))
+        char_frame.ids.write_button.bind(on_release=partial(self.write_characteristic, char, char_frame))
+        char_frame.ids.subscribe_button.bind(active=partial(self.toggle_subscription, char, char_frame))
 
-            if user_desc:
-                self.read_descriptor(user_desc, char_frame.ids.user_description_label)
+        user_desc = None
+        for desc in char.descriptors:
+            if desc.uuid == "00002901-0000-1000-8000-00805f9b34fb":
+                user_desc = desc
+                continue
+            desc_frame = DescriptorFrameKivy(descriptor=desc)
+            char_frame.add_widget(desc_frame)
+            desc_frame.ids.read_button.bind(on_release=partial(self.read_descriptor, desc, desc_frame))
+            desc_frame.ids.write_button.bind(on_release=partial(self.write_descriptor, desc, desc_frame))
 
+        if user_desc:
+            # Defer the read operation to allow the UI to draw first
+            Clock.schedule_once(lambda dt: self.read_descriptor(user_desc, char_frame.ids.user_description_label), 0.1)
+
+        return char_frame
 
     def _check_for_attribute_diffs(self, cached_services):
         if self.ble_manager.client:
