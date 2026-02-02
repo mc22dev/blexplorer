@@ -1,7 +1,8 @@
 
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import List, Callable
+from typing import List, Callable, Tuple
 
 
 @dataclass
@@ -10,6 +11,13 @@ class BondedDevice:
     name: str
     address: str
     bond_state: str
+
+
+@dataclass
+class SerialPort:
+    """A class to represent a serial port."""
+    device: str
+    description: str
 
 
 class PlatformUtilsBase(ABC):
@@ -49,5 +57,25 @@ class PlatformUtilsBase(ABC):
     async def get_bonded_devices(self) -> List[BondedDevice]:
         """
         Retrieves a list of bonded Bluetooth devices.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_serial_ports(self) -> List[SerialPort]:
+        """
+        Lists available serial ports.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def create_serial_connection(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        protocol_factory: Callable[[], asyncio.Protocol],
+        url: str,
+        **kwargs
+    ) -> Tuple[asyncio.Transport, asyncio.Protocol]:
+        """
+        Creates a platform-specific serial connection.
         """
         raise NotImplementedError

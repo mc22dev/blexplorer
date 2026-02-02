@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- We want to be notified of any USB device attached -->
+    <usb-device />
+</resources>

@@ -1,7 +1,10 @@
 
-from typing import List, Callable
+import asyncio
+from typing import List, Callable, Tuple
 
-from .base import PlatformUtilsBase, BondedDevice
+import serial_asyncio
+
+from .base import PlatformUtilsBase, BondedDevice, SerialPort
 
 
 class DefaultPlatformUtils(PlatformUtilsBase):
@@ -38,3 +41,25 @@ class DefaultPlatformUtils(PlatformUtilsBase):
         No-op on this platform.
         """
         return []
+
+    def list_serial_ports(self) -> List[SerialPort]:
+        """
+        Lists available serial ports using pyserial.
+        """
+        import serial.tools.list_ports
+        ports = serial.tools.list_ports.comports()
+        return [SerialPort(device=p.device, description=p.description) for p in ports]
+
+    async def create_serial_connection(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        protocol_factory: Callable[[], asyncio.Protocol],
+        url: str,
+        **kwargs
+    ) -> Tuple[asyncio.Transport, asyncio.Protocol]:
+        """
+        Creates a serial connection using pyserial-asyncio.
+        """
+        return await serial_asyncio.create_serial_connection(
+            loop, protocol_factory, url, **kwargs
+        )
