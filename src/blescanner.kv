@@ -1,7 +1,14 @@
 #:kivy 2.0.0
+#:import theme_manager theme.theme_manager
 
 <MainLayout>:
     orientation: 'vertical'
+    canvas.before:
+        Color:
+            rgba: theme_manager.background
+        Rectangle:
+            pos: self.pos
+            size: self.size
 
     # Top Adapter Bar
     BoxLayout:
@@ -14,29 +21,40 @@
             text: 'Adapter:'
             size_hint_x: None
             width: '80dp'
+            color: theme_manager.text
         Spinner:
             id: adapter_spinner
             text: 'Default'
             values: ['Default']
             size_hint_x: 0.3
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         Button:
             text: 'Refresh'
             size_hint_x: 0.1
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         Button:
             id: scan_button
             text: 'Scan'
             size_hint_x: 0.1
             disabled: app.is_scan_button_disabled
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         Button:
             id: parameter_button
             text: 'Parameters'
             size_hint_x: 0.15
             on_release: app.open_parameter_window()
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         Button:
             id: disconnect_button
             text: 'Disconnect'
             size_hint_x: 0.2
             disabled: True
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
 
     # Main Content Area
     BoxLayout:
@@ -53,6 +71,8 @@
                 size_hint_y: None
                 height: '30dp'
                 on_text: app.filter_devices(self.text)
+                background_color: theme_manager.input_bg
+                foreground_color: theme_manager.input_fg
 
             ScrollView:
                 id: device_scroll_view
@@ -79,16 +99,24 @@
                     id: read_all_button
                     text: 'Read All'
                     disabled: True
+                    background_color: theme_manager.button_bg
+                    color: theme_manager.button_fg
                 Button:
                     id: clear_log_button
                     text: 'Clear Log'
+                    background_color: theme_manager.button_bg
+                    color: theme_manager.button_fg
                 Button:
                     id: save_log_button
                     text: 'Save Log'
+                    background_color: theme_manager.button_bg
+                    color: theme_manager.button_fg
                 Button:
                     id: ota_button
                     text: 'OTA'
                     on_release: app.open_ota_window()
+                    background_color: theme_manager.button_bg
+                    color: theme_manager.button_fg
 
             ScrollView:
                 id: char_scroll_view
@@ -100,9 +128,12 @@
                     height: self.minimum_height
                     Label:
                         text: 'Characteristics will appear here'
+                        color: theme_manager.text
 
             TextInput:
                 id: log_view
                 text: ''
                 readonly: True
                 size_hint_y: 0.4
+                background_color: theme_manager.input_bg
+                foreground_color: theme_manager.input_fg

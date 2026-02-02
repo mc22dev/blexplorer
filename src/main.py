@@ -33,6 +33,7 @@ from gatt import GATT_SERVICES
 from parameter_window import ParameterWindow
 from config_manager import ConfigManager
 from ota_window import OTAWindow
+from theme import theme_manager
 
 
 def resource_path(relative_path):
@@ -119,6 +120,7 @@ class BLEScannerApp(App):
         """Opens the parameter window."""
         self.parameter_popup = ParameterWindow()
         self.parameter_popup.ids.scan_timeout_input.text = self.scan_timeout
+        self.parameter_popup.ids.theme_spinner.text = self.config_manager.get_setting('theme', 'name')
         self.parameter_popup.open()
 
     def restore_default_parameters(self, popup):
@@ -126,17 +128,28 @@ class BLEScannerApp(App):
         self.config_manager.restore_defaults()
         self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
         popup.ids.scan_timeout_input.text = self.scan_timeout
+
+        theme_name = self.config_manager.get_setting('theme', 'name')
+        theme_manager.set_theme(theme_name)
+        popup.ids.theme_spinner.text = theme_name
+
         self.log_with_timestamp("Default parameters restored.", LogLevel.INFO)
 
     def update_parameters(self, popup):
         """Updates the parameters from the parameter window."""
         new_timeout = popup.ids.scan_timeout_input.text
+        new_theme = popup.ids.theme_spinner.text
         try:
             # Validate that the input is a valid float before saving
             float(new_timeout)
             self.scan_timeout = new_timeout
             self.config_manager.set_setting('scan', 'timeout', self.scan_timeout)
             self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
+
+            self.config_manager.set_setting('theme', 'name', new_theme)
+            theme_manager.set_theme(new_theme)
+            self.log_with_timestamp(f"Theme set to {new_theme}.", LogLevel.INFO)
+
             popup.dismiss()
         except ValueError:
             self.log_with_timestamp(f"Invalid scan timeout value: {new_timeout}. Please enter a number.", LogLevel.ERROR)
@@ -220,6 +233,10 @@ class BLEScannerApp(App):
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
+
+        # Set the initial theme
+        theme_name = self.config_manager.get_setting('theme', 'name')
+        theme_manager.set_theme(theme_name)
 
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,

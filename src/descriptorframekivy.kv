@@ -1,4 +1,5 @@
 #:kivy 2.0.0
+#:import theme_manager theme.theme_manager
 
 <DescriptorFrameKivy>:
     orientation: 'vertical'
@@ -9,7 +10,7 @@
 
     canvas.before:
         Color:
-            rgba: 0.3, 0.3, 0.3, 1
+            rgba: theme_manager.secondary
         Rectangle:
             pos: self.pos
             size: self.size
@@ -19,6 +20,7 @@
         font_size: '14sp'
         halign: 'left'
         text_size: self.width, None
+        color: theme_manager.text
 
     BoxLayout:
         size_hint_y: None
@@ -26,10 +28,13 @@
         Label:
             text: 'Value:'
             size_hint_x: 0.2
+            color: theme_manager.text
         TextInput:
             id: value_input
             text: root.desc_value
             size_hint_x: 0.8
+            background_color: theme_manager.input_bg
+            foreground_color: theme_manager.input_fg
 
     BoxLayout:
         size_hint_y: None
@@ -38,6 +43,10 @@
         Button:
             id: read_button
             text: 'Read'
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg
         Button:
             id: write_button
             text: 'Write'
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg

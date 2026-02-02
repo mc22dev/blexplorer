@@ -1,27 +1,61 @@
 #:kivy 2.0.0
+#:import theme_manager theme.theme_manager
 
 <DeviceFrameKivy>:
     orientation: 'vertical'
-    padding: '10dp'
-    spacing: '5dp'
     size_hint_y: None
-    height: '60dp'
+    height: self.minimum_height
+    spacing: '2dp'
+    padding: '5dp'
 
     canvas.before:
         Color:
-            rgba: 0.2, 0.2, 0.2, 1
-        Rectangle:
+            rgba: theme_manager.primary if self.hovered else theme_manager.secondary
+        RoundedRectangle:
             pos: self.pos
             size: self.size
+            radius: [5]
 
     Label:
+        id: device_name
         text: root.device_name
+        size_hint_y: None
+        height: '24dp'
+        font_size: '16sp'
+        bold: True
+        halign: 'left'
+        valign: 'middle'
+        text_size: self.width, None
+        color: theme_manager.text
+
+    Label:
+        id: device_address
+        text: root.device_address
+        size_hint_y: None
+        height: '20dp'
+        font_size: '12sp'
+        color: theme_manager.text
+        halign: 'left'
+        valign: 'middle'
+        text_size: self.width, None
+
     BoxLayout:
         size_hint_y: None
-        height: '30dp'
+        height: '20dp'
         Label:
-            text: f"{root.device_address} - {root.device_rssi}"
+            text: 'RSSI: '
+            size_hint_x: None
+            width: self.texture_size[0]
+            color: theme_manager.text
+        Label:
+            id: rssi_label
+            text: root.device_rssi
+            size_hint_x: None
+            width: '40dp'
+            color: theme_manager.text
         Button:
             text: 'Copy'
             size_hint_x: 0.2
             on_release: root.copy_to_clipboard(root.device_address)
+            background_color: theme_manager.button_bg
+            color: theme_manager.button_fg

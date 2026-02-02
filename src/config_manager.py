@@ -22,6 +22,9 @@ class ConfigManager:
         self.defaults = {
             'scan': {
                 'timeout': '5.0'
+            },
+            'theme': {
+                'name': 'Dark'
             }
         }
         self._load_or_create_config()
