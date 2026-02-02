@@ -173,19 +173,15 @@ class BLEScannerApp(App):
         Clock.schedule_once(log_startup)
         Window.bind(on_keyboard=self._on_keyboard)
 
-        if kivy_platform == 'android':
-            self.request_android_permissions()
-
         self.discover_adapters()
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
 
     def _on_permissions_result(self, success: bool, dt=None):
         """
         Callback function for permission request results.
-        Enables the scan button if permissions were granted.
         """
         if success:
-            self.log_with_timestamp("Permissions granted.", LogLevel.SUCCESS)
+            self.log_with_timestamp("Permissions granted. You can now scan for devices.", LogLevel.SUCCESS)
         else:
             self.log_with_timestamp("Permissions denied. Scanning is disabled.", LogLevel.ERROR)
 
@@ -193,6 +189,7 @@ class BLEScannerApp(App):
         """
         Callback for the permission request. Checks if all permissions were granted.
         """
+        self.log_with_timestamp(f"Permission grants received: {grants}", LogLevel.DEBUG)
         success = all(grant == 0 for grant in grants)
         self._on_permissions_result(success)
 
@@ -200,16 +197,49 @@ class BLEScannerApp(App):
         """
         Requests BLE scanning permissions on Android using Kivy's built-in APIs.
         """
-        from android.permissions import request_permissions, Permission
-
-        permissions = [
-            Permission.BLUETOOTH_SCAN,
-            Permission.BLUETOOTH_CONNECT,
-            Permission.ACCESS_FINE_LOCATION,
-        ]
-
-        self.log_with_timestamp("Requesting Android permissions...", LogLevel.INFO)
+        from android.permissions import request_permissions
+        permissions = self._get_android_permissions()
+        self.log_with_timestamp(f"Requesting Android permissions: {permissions}", LogLevel.INFO)
         request_permissions(permissions, self._on_permissions_callback)
+
+    def _get_android_permissions(self) -> list[str]:
+        """
+        Returns the appropriate list of Android permissions based on the API level.
+        """
+        from jnius import autoclass
+        Build = autoclass('android.os.Build$VERSION')
+        sdk_int = Build.SDK_INT
+
+        if sdk_int >= 31:  # Android 12 (API 31) and above
+            return [
+                "android.permission.BLUETOOTH_SCAN",
+                "android.permission.BLUETOOTH_CONNECT",
+                "android.permission.ACCESS_FINE_LOCATION",
+            ]
+        else:  # Older Android versions
+            return [
+                "android.permission.BLUETOOTH",
+                "android.permission.BLUETOOTH_ADMIN",
+                "android.permission.ACCESS_FINE_LOCATION",
+            ]
+
+    def _check_android_permissions(self) -> bool:
+        """
+        Checks if the necessary Android permissions for BLE scanning are granted.
+        """
+        from jnius import autoclass
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        context = PythonActivity.mActivity
+        PackageManager = autoclass('android.content.pm.PackageManager')
+
+        permissions_to_check = self._get_android_permissions()
+
+        granted = all(
+            context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
+            for p in permissions_to_check
+        )
+        self.log_with_timestamp(f"Permission check for {permissions_to_check}: {granted}", LogLevel.DEBUG)
+        return granted
 
     def _on_keyboard(self, window, key, scancode, codepoint, modifier):
         """
@@ -276,7 +306,15 @@ class BLEScannerApp(App):
         self.adapters = adapters
 
     def scan_for_devices(self, *args):
-        """Schedules the asynchronous scan for devices."""
+        """
+        Schedules the asynchronous scan for devices.
+        On Android, it checks for permissions first.
+        """
+        if kivy_platform == 'android':
+            if not self._check_android_permissions():
+                self.request_android_permissions()
+                return
+
         asyncio.create_task(self.async_scan_for_devices())
 
     async def async_scan_for_devices(self):
