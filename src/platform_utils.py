@@ -1,5 +1,7 @@
 
 import logging
+from dataclasses import dataclass
+from typing import List
 
 from kivy.utils import platform as kivy_platform
 
@@ -13,16 +15,29 @@ if kivy_platform == 'android':
     PackageManager = autoclass('android.content.pm.PackageManager')
     Context = autoclass('android.content.Context')
     BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+    BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
     LocationManager = autoclass('android.location.LocationManager')
-else:
-    # Create mock classes for non-Android platforms to avoid import errors
+elif kivy_platform == 'linux':
+    import asyncio
+    from dbus_fast.aio import MessageBus
+    from dbus_fast import Variant
+    # Mock classes for non-Android platforms to avoid import errors
     PythonActivity = None
     Build = None
     PackageManager = None
     android_request_permissions = None
     Context = None
     BluetoothAdapter = None
+    BluetoothDevice = None
     LocationManager = None
+
+
+@dataclass
+class BondedDevice:
+    """A class to represent a bonded Bluetooth device."""
+    name: str
+    address: str
+    bond_state: str
 
 
 class PlatformUtils:
@@ -116,3 +131,81 @@ class PlatformUtils:
         except Exception as e:
             logger.error(f"Error checking location status: {e}")
             return False
+
+    @staticmethod
+    async def get_bonded_devices() -> List[BondedDevice]:
+        """
+        Retrieves a list of bonded Bluetooth devices.
+        This feature is currently implemented for Android and Linux only.
+        """
+        if kivy_platform == 'android':
+            return PlatformUtils._get_bonded_devices_android()
+        elif kivy_platform == 'linux':
+            return await PlatformUtils._get_bonded_devices_linux()
+        return []
+
+    @staticmethod
+    def _get_bonded_devices_android() -> List[BondedDevice]:
+        """
+        Retrieves a list of bonded Bluetooth devices on Android.
+        """
+        adapter = BluetoothAdapter.getDefaultAdapter()
+        if not adapter:
+            return []
+
+        bonded_devices = adapter.getBondedDevices()
+        if not bonded_devices:
+            return []
+
+        devices = []
+        for device in bonded_devices.toArray():
+            bond_state_int = device.getBondState()
+            bond_state = "Unknown"
+            if bond_state_int == BluetoothDevice.BOND_BONDED:
+                bond_state = "Bonded"
+            elif bond_state_int == BluetoothDevice.BOND_BONDING:
+                bond_state = "Bonding"
+            elif bond_state_int == BluetoothDevice.BOND_NONE:
+                bond_state = "Not Bonded"
+
+            devices.append(
+                BondedDevice(
+                    name=device.getName() or "Unnamed",
+                    address=device.getAddress(),
+                    bond_state=bond_state,
+                )
+            )
+
+        return devices
+
+    @staticmethod
+    async def _get_bonded_devices_linux() -> List[BondedDevice]:
+        """
+        Retriees a list of bonded Bluetooth devices on Linux via D-Bus.
+        """
+        devices = []
+        try:
+            bus = await MessageBus().connect()
+            introspection = await bus.introspect('org.bluez', '/')
+            obj = bus.get_proxy_object('org.bluez', '/', introspection)
+            iface = obj.get_interface('org.freedesktop.DBus.ObjectManager')
+            managed_objects = await iface.call_get_managed_objects()
+
+            for path, interfaces in managed_objects.items():
+                if 'org.bluez.Device1' in interfaces:
+                    device_props = interfaces['org.bluez.Device1']
+                    if device_props.get('Paired', Variant('b', False)).value:
+                        devices.append(
+                            BondedDevice(
+                                name=device_props.get('Name', Variant('s', 'Unknown')).value,
+                                address=device_props.get('Address', Variant('s', '')).value,
+                                bond_state="Bonded",
+                            )
+                        )
+        except Exception as e:
+            if "org.freedesktop.DBus.Error.ServiceUnknown" in str(e):
+                logger.warning("Could not find BlueZ service. Make sure Bluetooth is enabled and the service is running.")
+            else:
+                logger.error(f"Error getting bonded devices on Linux: {e}")
+
+        return devices
