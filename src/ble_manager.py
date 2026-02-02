@@ -8,11 +8,8 @@ from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.descriptor import BleakGATTDescriptor
 from bleak.exc import BleakError
 
-
 from models import LogLevel
-
-OTA_SERVICE_UUID = "00010203-0405-0607-0809-0a0b0c0d1912"
-OTA_CHARACTERISTIC_UUID = "00010203-0405-0607-0809-0a0b0c0d2b12"
+from config_manager import ConfigManager
 
 
 class BLEManager:
@@ -34,7 +31,8 @@ class BLEManager:
                  device_discovered_callback: Callable[[BLEDevice, AdvertisementData], Any],
                  connection_status_callback: Callable[[bool], Any],
                  notification_callback: Callable[[BleakGATTCharacteristic, bytes], Any],
-                 logger_callback: Callable[[str, LogLevel], Any]) -> None:
+                 logger_callback: Callable[[str, LogLevel], Any],
+                 config_manager: ConfigManager) -> None:
         """
         Initializes the BLEManager.
 
@@ -54,6 +52,7 @@ class BLEManager:
         self.connection_status_callback = connection_status_callback
         self.notification_callback = notification_callback
         self.logger_callback = logger_callback
+        self.config_manager = config_manager
 
     async def shutdown(self) -> None:
         """Shuts down the BLE manager."""
@@ -86,7 +85,13 @@ class BLEManager:
     async def stop_scan(self) -> None:
         """Stops the BLE scan."""
         if self.scanner:
-            await self.scanner.stop()
+            try:
+                await self.scanner.stop()
+            except AssertionError:
+                self.logger_callback(
+                    "AssertionError during scan stop, possibly due to Wine environment. Ignoring.",
+                    LogLevel.WARNING
+                )
 
     async def connect_to_device(self, device_address: str, adapter: Optional[str]) -> None:
         """Connects to a specified device by its address."""
@@ -176,7 +181,8 @@ class BLEManager:
 
     def _internal_notification_handler(self, characteristic: BleakGATTCharacteristic, data: bytes) -> None:
         """Internal handler to pass notifications to the main app."""
-        if characteristic.uuid == OTA_CHARACTERISTIC_UUID and hasattr(self, 'ota_notification_queue') and self.ota_notification_queue:
+        ota_characteristic_uuid = self.config_manager.get_setting('ota', 'characteristic_uuid')
+        if characteristic.uuid == ota_characteristic_uuid and hasattr(self, 'ota_notification_queue') and self.ota_notification_queue:
             self.ota_notification_queue.put_nowait(data)
         else:
             self.notification_callback(characteristic, data)
@@ -206,17 +212,18 @@ class BLEManager:
         """The core logic for the OTA upload, following the Telink protocol."""
         self.logger_callback(f"Starting OTA upload for {filepath}", LogLevel.INFO)
         self.ota_notification_queue = asyncio.Queue()
+        ota_characteristic_uuid = self.config_manager.get_setting('ota', 'characteristic_uuid')
 
         try:
             with open(filepath, "rb") as f:
                 firmware = f.read()
 
-            await self.client.start_notify(OTA_CHARACTERISTIC_UUID, self._internal_notification_handler)
+            await self.client.start_notify(ota_characteristic_uuid, self._internal_notification_handler)
             self.logger_callback("OTA notifications started.", LogLevel.DEBUG)
 
             # Start command
             start_command = b'\x01\xff\xff\xff'
-            await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, start_command, response=True)
+            await self.client.write_gatt_char(ota_characteristic_uuid, start_command, response=True)
             self.logger_callback(f"Sent OTA start command: {start_command.hex()}", LogLevel.DEBUG)
 
             # Wait for ACK
@@ -244,7 +251,7 @@ class BLEManager:
                 crc = self._crc16_modbus(packet_data).to_bytes(2, 'little')
                 packet_to_send = packet_data + crc
 
-                await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, packet_to_send, response=True)
+                await self.client.write_gatt_char(ota_characteristic_uuid, packet_to_send, response=True)
 
                 # Wait for ACK for the current packet index
                 ack_index_data = await asyncio.wait_for(self.ota_notification_queue.get(), timeout=2.0)
@@ -258,7 +265,7 @@ class BLEManager:
 
             # End command
             end_command = b'\x02\x00'
-            await self.client.write_gatt_char(OTA_CHARACTERISTIC_UUID, end_command, response=True)
+            await self.client.write_gatt_char(ota_characteristic_uuid, end_command, response=True)
             self.logger_callback(f"Sent OTA end command: {end_command.hex()}", LogLevel.DEBUG)
 
             # Wait for final ACK
@@ -280,6 +287,6 @@ class BLEManager:
             self.logger_callback(f"An unexpected error occurred during OTA upload: {e}", LogLevel.ERROR)
         finally:
             if self.client and self.client.is_connected:
-                await self.client.stop_notify(OTA_CHARACTERISTIC_UUID)
+                await self.client.stop_notify(ota_characteristic_uuid)
                 self.logger_callback("OTA notifications stopped.", LogLevel.DEBUG)
             self.ota_notification_queue = None

@@ -19,6 +19,7 @@ from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.label import Label
 from kivy.core.window import Window
 
+from file_chooser_dialog import FileChooserDialog
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
@@ -60,55 +61,6 @@ Builder.load_file(resource_path('globalrssigraph.kv'))
 
 class MainLayout(BoxLayout):
     pass
-
-class SaveDialog(BoxLayout):
-    def __init__(self, save_callback, dismiss_callback, **kwargs):
-        super().__init__(**kwargs)
-        self.orientation = "vertical"
-        self.save_callback = save_callback
-        self.dismiss_callback = dismiss_callback
-        self.file_chooser = FileChooserListView(path=os.getcwd())
-        self.add_widget(self.file_chooser)
-
-        button_box = BoxLayout(size_hint_y=None, height=40)
-        self.save_button = Button(text='Save')
-        self.save_button.bind(on_release=self.on_save)
-        button_box.add_widget(self.save_button)
-        self.cancel_button = Button(text='Cancel')
-        self.cancel_button.bind(on_release=self.on_cancel)
-        button_box.add_widget(self.cancel_button)
-        self.add_widget(button_box)
-
-    def on_save(self, instance):
-        self.save_callback(self.file_chooser.path, self.file_chooser.selection)
-
-    def on_cancel(self, instance):
-        self.dismiss_callback()
-
-
-class LoadDialog(BoxLayout):
-    def __init__(self, load_callback, dismiss_callback, **kwargs):
-        super().__init__(**kwargs)
-        self.orientation = "vertical"
-        self.load_callback = load_callback
-        self.dismiss_callback = dismiss_callback
-        self.file_chooser = FileChooserListView(path=os.getcwd())
-        self.add_widget(self.file_chooser)
-
-        button_box = BoxLayout(size_hint_y=None, height=40)
-        self.load_button = Button(text='Load')
-        self.load_button.bind(on_release=self.on_load)
-        button_box.add_widget(self.load_button)
-        self.cancel_button = Button(text='Cancel')
-        self.cancel_button.bind(on_release=self.on_cancel)
-        button_box.add_widget(self.cancel_button)
-        self.add_widget(button_box)
-
-    def on_load(self, instance):
-        self.load_callback(self.file_chooser.path, self.file_chooser.selection)
-
-    def on_cancel(self, instance):
-        self.dismiss_callback()
 
 
 class BLEScannerApp(App):
@@ -266,7 +218,8 @@ class BLEScannerApp(App):
             device_discovered_callback=self._on_device_discovered,
             connection_status_callback=self._on_connection_status_changed,
             notification_callback=self.notification_handler,
-            logger_callback=self.log_with_timestamp
+            logger_callback=self.log_with_timestamp,
+            config_manager=self.config_manager
         )
         self.characteristic_frames = {}
         self.device_frames = {}
@@ -562,7 +515,7 @@ class BLEScannerApp(App):
     def show_save_dialog(self, *args):
         """Shows the save file dialog."""
         self.log_with_timestamp("Showing save log dialog...", LogLevel.INFO)
-        content = SaveDialog(save_callback=self.save_log, dismiss_callback=self.dismiss_popup)
+        content = FileChooserDialog(title="Save", callback=self.save_log, dismiss_callback=self.dismiss_popup)
         self.dialog = Popup(title="Save Log", content=content,
                                size_hint=(0.9, 0.9))
         self.dialog.open()
@@ -701,7 +654,7 @@ class BLEScannerApp(App):
 
     def show_load_dialog(self):
         """Shows the load file dialog for OTA upload."""
-        content = LoadDialog(load_callback=self.upload_firmware, dismiss_callback=self.dismiss_popup)
+        content = FileChooserDialog(title="Load", callback=self.upload_firmware, dismiss_callback=self.dismiss_popup)
         self.dialog = Popup(title="Load Firmware", content=content,
                                  size_hint=(0.9, 0.9))
         self.dialog.open()
