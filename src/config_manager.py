@@ -18,7 +18,7 @@ class ConfigManager:
             config_path: The full path to the configuration file.
         """
         self.config_path = config_path
-        self.config = configparser.ConfigParser()
+        self.config = configparser.ConfigParser(delimiters=('=',))
         self.defaults = {
             'scan': {
                 'timeout': '5.0'
@@ -32,16 +32,46 @@ class ConfigManager:
             'ota': {
                 'service_uuid': '00010203-0405-0607-0809-0a0b0c0d1912',
                 'characteristic_uuid': '00010203-0405-0607-0809-0a0b0c0d2b12'
-            }
+            },
+            'device_names': {}
         }
         self._load_or_create_config()
+
+    def get_device_name(self, address: str) -> str:
+        """
+        Gets the custom name for a given device address.
+
+        Args:
+            address: The MAC address of the device.
+
+        Returns:
+            The custom name as a string, or None if not found.
+        """
+        return self.get_setting('device_names', address)
+
+    def set_device_name(self, address: str, name: str):
+        """
+        Sets a custom name for a device and saves the configuration.
+
+        Args:
+            address: The MAC address of the device.
+            name: The custom name to set.
+        """
+        self.set_setting('device_names', address, name)
 
     def _load_or_create_config(self):
         """Loads the config file, or creates it with defaults if it doesn't exist."""
         if not os.path.exists(self.config_path):
             self._create_default_config()
         else:
-            self.config.read(self.config_path)
+            try:
+                self.config.read(self.config_path)
+            except configparser.DuplicateOptionError as e:
+                print(f"Error: Corrupt config file detected at {self.config_path}. Details: {e}")
+                print("Resetting configuration to defaults.")
+                self.restore_defaults()
+                return  # Exit after resetting to avoid further processing
+
             # Ensure that any new default settings are added to an existing config file
             needs_saving = False
             for section, options in self.defaults.items():
@@ -101,4 +131,6 @@ class ConfigManager:
         # This removes the existing file and recreates it with defaults
         if os.path.exists(self.config_path):
             os.remove(self.config_path)
+        # Re-initialize the config parser to clear any old state
+        self.config = configparser.ConfigParser(delimiters=('=',))
         self._create_default_config()
