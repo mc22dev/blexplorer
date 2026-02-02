@@ -42,13 +42,15 @@
                             size_hint_y: None
                             height: self.texture_size[1] if self.opacity else 0
 
-                    ScrollView:
-                        id: device_scroll_view
-                        MDBoxLayout:
-                            id: device_list
-                            orientation: 'vertical'
+                    RecycleView:
+                        id: device_list
+                        viewclass: 'DeviceFrameKivy'
+                        RecycleBoxLayout:
+                            default_size: None, dp(90)
+                            default_size_hint: 1, None
                             size_hint_y: None
                             height: self.minimum_height
+                            orientation: 'vertical'
 
             MDBottomNavigationItem:
                 name: 'device_screen'

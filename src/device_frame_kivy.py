@@ -9,6 +9,7 @@ class DeviceFrameKivy(MDBoxLayout):
     device = ObjectProperty(None)
     stats = ObjectProperty(None)
     is_selected = BooleanProperty(False)
+    app = ObjectProperty(None)
 
     device_name = StringProperty("Unknown")
     device_address = StringProperty("")
@@ -23,6 +24,8 @@ class DeviceFrameKivy(MDBoxLayout):
 
     def on_device(self, instance, value):
         """Handles updates to the device object."""
+        if not self.device:
+            return
         self.device_name = self.device.name or "Unknown"
         self.device_address = self.device.address
 

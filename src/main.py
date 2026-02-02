@@ -273,9 +273,12 @@ class BLEScannerApp(MDApp):
             logger_callback=self.log_with_timestamp
         )
         self.characteristic_frames = {}
-        self.device_frames = {}
+        # Data for the RecycleView
+        self.devices_data = []
+        # A dictionary to quickly access device data by address
+        self.device_map = {}
         self.device_cache = DeviceCache()
-        self.selected_device_frame = None
+        self.selected_device_address = None
         self.discovered_devices_batch = []
         self.scan_stats = {}
         return MainLayout()
@@ -298,13 +301,20 @@ class BLEScannerApp(MDApp):
 
     def scan_for_devices(self, *args):
         """Initiates a scan for nearby BLE devices."""
-        if self.selected_device_frame:
-            self.selected_device_frame.is_selected = False
-            self.selected_device_frame = None
-        self.root.ids.device_list.clear_widgets()
-        self.device_frames = {}
+        # Clear previous selection visual
+        if self.selected_device_address and self.selected_device_address in self.device_map:
+            item = self.device_map[self.selected_device_address]
+            item['is_selected'] = False
+        self.root.ids.device_list.refresh_from_data()
+        self.selected_device_address = None
+
+        # Reset data structures
+        self.devices_data = []
+        self.device_map = {}
         self.discovered_devices_batch = []
         self.scan_stats = {}
+        self.root.ids.device_list.data = self.devices_data
+
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
         self.is_scanning = True
         adapter = self.adapter if self.adapter != "Default" else None
@@ -316,7 +326,7 @@ class BLEScannerApp(MDApp):
             self.is_scanning = False
             return
 
-        Clock.schedule_interval(self._process_device_batch, 0.25)  # Process batch every 250ms
+        Clock.schedule_interval(self._process_device_batch, 0.25)
         self.ble_manager.scan_for_devices(adapter, timeout)
         Clock.schedule_once(self.on_scan_finished, timeout)
 
@@ -335,31 +345,37 @@ class BLEScannerApp(MDApp):
     def filter_devices(self, search_term):
         """Filters the device list based on the search term."""
         search_term = search_term.lower()
-        for address, frame in self.device_frames.items():
-            device_name = (frame.device.name or "Unknown").lower()
-            device_address = frame.device.address.lower()
-            if search_term in device_name or search_term in device_address:
-                if frame.parent is None:
-                    self.root.ids.device_list.add_widget(frame)
-            else:
-                if frame.parent is not None:
-                    self.root.ids.device_list.remove_widget(frame)
+        if not search_term:
+            self.root.ids.device_list.data = self.devices_data
+            return
+
+        filtered_data = [
+            item for item in self.devices_data
+            if search_term in (item['device'].name or "Unknown").lower() or
+               search_term in item['device'].address.lower()
+        ]
+        self.root.ids.device_list.data = filtered_data
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
         self.discovered_devices_batch.append((device, adv_data))
 
     def _process_device_batch(self, *args):
-        """Processes the batch of discovered devices and updates the UI."""
-        # Sort by RSSI to show the strongest signals first
-        sorted_batch = sorted(self.discovered_devices_batch, key=lambda x: x[1].rssi, reverse=True)
-        for device, adv_data in sorted_batch:
+        """Processes the batch of discovered devices and updates the UI data."""
+        for device, adv_data in self.discovered_devices_batch:
             self._populate_device_ui(device, adv_data)
+
+        # Sort the main data list by RSSI
+        self.devices_data.sort(key=lambda x: x['stats'].rssi, reverse=True)
+
+        # Refresh the view
+        self.root.ids.device_list.data = self.devices_data
+        self.root.ids.device_list.refresh_from_data()
         self.discovered_devices_batch = []
 
     def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
         """
-        Populates the UI with a discovered BLE device, updating if it already exists.
+        Populates the data for the RecycleView with a discovered BLE device.
         """
         if device.address not in self.scan_stats:
             self.scan_stats[device.address] = DeviceScanStats()
@@ -367,32 +383,42 @@ class BLEScannerApp(MDApp):
         stats = self.scan_stats[device.address]
         stats.update(adv_data)
 
-        if device.address in self.device_frames:
-            # Update existing frame only if data has changed to avoid unnecessary UI redraws
-            frame = self.device_frames[device.address]
-            frame.stats = stats
-            frame.property('stats').dispatch(frame)
-            if frame.device.name != device.name:
-                frame.device = device
+        if device.address in self.device_map:
+            # Update existing item
+            item = self.device_map[device.address]
+            item['stats'] = stats
+            if item['device'].name != device.name:
+                item['device'] = device
         else:
-            # Create a new frame for a new device
+            # Create a new item
             self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
-            frame = DeviceFrameKivy(device=device, stats=stats)
-            self.device_frames[device.address] = frame
-            self.root.ids.device_list.add_widget(frame)
+            item = {
+                'device': device,
+                'stats': stats,
+                'app': self,
+                'is_selected': False
+            }
+            self.devices_data.append(item)
+            self.device_map[device.address] = item
 
-    def connect_to_device(self, device_frame: DeviceFrameKivy):
+    def connect_to_device(self, device: BLEDevice):
         """Connects to the selected device."""
         if self.is_scanning:
             self.stop_scan()
 
-        if self.selected_device_frame:
-            self.selected_device_frame.is_selected = False
+        # Unselect previous device
+        if self.selected_device_address and self.selected_device_address in self.device_map:
+            prev_item = self.device_map[self.selected_device_address]
+            prev_item['is_selected'] = False
 
-        self.selected_device_frame = device_frame
-        self.selected_device_frame.is_selected = True
+        # Select new device
+        self.selected_device_address = device.address
+        if self.selected_device_address in self.device_map:
+            new_item = self.device_map[self.selected_device_address]
+            new_item['is_selected'] = True
 
-        device = device_frame.device
+        self.root.ids.device_list.refresh_from_data()
+
         self.is_connecting = True
         self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...", LogLevel.INFO)
         adapter = self.adapter if self.adapter != "Default" else None
@@ -417,9 +443,11 @@ class BLEScannerApp(MDApp):
             self.discover_attributes()
             self.root.ids.bottom_nav.switch_tab('device_screen')
         else:
-            if self.selected_device_frame:
-                self.selected_device_frame.is_selected = False
-                self.selected_device_frame = None
+            if self.selected_device_address in self.device_map:
+                item = self.device_map[self.selected_device_address]
+                item['is_selected'] = False
+                self.root.ids.device_list.refresh_from_data()
+            self.selected_device_address = None
             # The BLEManager now logs the disconnection event.
             # We just need to update the UI state.
             self.root.ids.characteristic_list.clear_widgets()
@@ -431,8 +459,8 @@ class BLEScannerApp(MDApp):
         self.characteristic_frames = {}
 
         cached_services_data = None
-        if self.selected_device_frame:
-            cached_services_data = self.device_cache.load_device(self.selected_device_frame.device.address)
+        if self.selected_device_address:
+            cached_services_data = self.device_cache.load_device(self.selected_device_address)
             if cached_services_data:
                 self.log_with_timestamp("Loading services from cache...", LogLevel.DEBUG)
                 cached_services = [CachedService(s) for s in cached_services_data]
