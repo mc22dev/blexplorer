@@ -5,25 +5,22 @@ from kivy.properties import StringProperty, BooleanProperty, ListProperty, Objec
 class CollapsibleFrameKivy(BoxLayout):
     title = StringProperty("")
     is_expanded = BooleanProperty(True)
-    characteristics = ListProperty()
-    populate_callback = ObjectProperty()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._content_populated = False
+    def add_widget(self, widget, index=0, canvas=None):
+        if len(self.children) < 2:  # First child is the layout, second is the content_box
+            super().add_widget(widget, index, canvas)
+        else:
+            self.ids.content_box.add_widget(widget, index, canvas)
 
-    def on_expansion(self):
-        """Lazy load the content of the frame."""
-        if self.is_expanded and not self._content_populated and self.populate_callback:
-            for char in self.characteristics:
-                char_frame = self.populate_callback(char)
-                self.add_content(char_frame)
-            self._content_populated = True
+    def remove_widget(self, widget):
+        if widget in self.children:
+            super().remove_widget(widget)
+        else:
+            self.ids.content_box.remove_widget(widget)
 
-    def add_content(self, widget):
-        self.ids.content_box.add_widget(widget)
-
-    def clear_content(self):
-        """Clears the content of the frame."""
-        self.ids.content_box.clear_widgets()
-        self._content_populated = False
+    def clear_widgets(self, children=None):
+        if children is None:
+            self.ids.content_box.clear_widgets()
+        else:
+            for child in children:
+                self.remove_widget(child)
