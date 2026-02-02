@@ -62,6 +62,17 @@
                         height: '30dp'
 
                         Label:
+                            text: 'BLE library:'
+                        Spinner:
+                            id: ble_library_spinner
+                            text: 'bleak'
+                            values: ['bleak', 'able']
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: '30dp'
+
+                        Label:
                             text: 'RSSI Min:'
                         TextInput:
                             id: rssi_min_input
