@@ -26,6 +26,7 @@ from file_chooser_dialog import FileChooserDialog
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
+from _version import __version__
 from ble_decoder import decode_advertisement
 from ble_manager import BLEManager
 from device_cache import DeviceCache, service_to_dict
@@ -81,7 +82,7 @@ class BLEScannerApp(App):
     wireshark_data = ListProperty([])
     scan_timeout = StringProperty("5.0")
     adapter = StringProperty("Default")
-    VERSION = "1.0.0"
+    VERSION = __version__
     is_scanning = BooleanProperty(False)
     is_connected = BooleanProperty(False)
     is_connecting = BooleanProperty(False)
@@ -318,7 +319,7 @@ class BLEScannerApp(App):
             except (FileNotFoundError, subprocess.CalledProcessError):
                 self.log_with_timestamp("hciconfig not found. Could not list Bluetooth adapters.", LogLevel.WARNING)
         else:
-            self.log_with_timestamp("Adapter discovery is currently only supported on Linux.", LogLevel.DEBUG)
+            self.log_with_timestamp("Adapter discovery is currently only supported on Linux.", LogLevel.INFO)
         self.adapters = adapters
 
     def scan_for_devices(self, *args):
@@ -485,7 +486,7 @@ class BLEScannerApp(App):
                 frame.device = device
         else:
             # Create a new frame for a new device
-            self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.DEBUG)
+            self.log_with_timestamp(f"Found new device: {device.address} ({device.name or 'Unknown'})", LogLevel.INFO)
             frame = DeviceFrameKivy(device=device, stats=stats)
             frame.bind(on_graph_selection_change=self._on_graph_selection_change)
             self.device_frames[device.address] = frame
@@ -571,12 +572,12 @@ class BLEScannerApp(App):
         if self.selected_device_frame:
             cached_services_data = self.device_cache.load_device(self.selected_device_frame.device.address)
             if cached_services_data:
-                self.log_with_timestamp("Loading services from cache...", LogLevel.DEBUG)
+                self.log_with_timestamp("Loading services from cache...", LogLevel.INFO)
                 cached_services = [CachedService(s) for s in cached_services_data]
                 all_characteristics = [char for service in cached_services for char in service.characteristics]
                 all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
                 self.populate_characteristic_ui(all_characteristics)
-                self.log_with_timestamp("Finished loading from cache.", LogLevel.DEBUG)
+                self.log_with_timestamp("Finished loading from cache.", LogLevel.INFO)
 
         if self.ble_manager.client:
             if not cached_services_data:
@@ -636,7 +637,7 @@ class BLEScannerApp(App):
 
     def _check_for_attribute_diffs(self, cached_services):
         if self.ble_manager.client:
-            self.log_with_timestamp("Checking for attribute differences...", LogLevel.DEBUG)
+            self.log_with_timestamp("Checking for attribute differences...", LogLevel.INFO)
             live_services = [service_to_dict(s) for s in self.ble_manager.client.services]
 
             if cached_services:
@@ -653,7 +654,7 @@ class BLEScannerApp(App):
                     all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
                     self.populate_characteristic_ui(all_characteristics)
                 else:
-                    self.log_with_timestamp("No differences found.", LogLevel.DEBUG)
+                    self.log_with_timestamp("No differences found.", LogLevel.INFO)
 
             self.device_cache.save_device(self.ble_manager.client)
 

@@ -4,63 +4,53 @@ This is a simple GUI application to scan for BLE devices, connect to them, and r
 
 ## Usage
 
-1. Clone this repository.
-2. Run the appropriate script for your operating system:
+1.  Clone this repository.
+2.  Run the appropriate script for your operating system:
 
-   **For Linux and macOS:**
-   ```
-   ./run.sh
-   ```
+    **For Linux and macOS:**
+    ```bash
+    ./run.sh
+    ```
 
-   **For Windows:**
-   ```
-   run.bat
-   ```
+    **For Windows:**
+    ```bat
+    run.bat
+    ```
 
-This will create a virtual environment (if it doesn't exist), install the dependencies, and launch the application.
+This will create a virtual environment (if it doesn't exist), install the dependencies, run the test suite, and launch the application.
 
-## Building for Linux
+## Building
+
+This project uses a `Makefile` to automate the build process for all supported platforms.
+
+### Building for Linux
 
 **Prerequisites:**
 
 You must install the development headers for Kivy's dependencies. On Debian-based systems (like Ubuntu), you can do this by running:
-```
+```bash
 sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libglew-dev
 ```
 
-To build a standalone executable for Linux, run the following script:
-
-```
-./scripts/build_linux.sh
-```
-
-Alternatively, you can use the `make` target:
-
-```
+To build a standalone executable for Linux, run the following command:
+```bash
 make linux
 ```
 
-This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner`) and all its dependencies.
+This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner`) and all its dependencies. A packaged `.tar.gz` archive will be placed in `tmp/packages`.
 
-## Building for Windows
+### Building for Windows
 
-### On a Windows Machine
+#### On a Windows Machine
 
-To build a standalone executable for Windows, run the following script:
-
-```
-build_windows.bat
-```
-
-Alternatively, if you have `make` installed on your Windows environment (e.g., through Git Bash), you can run:
-
-```
+To build a standalone executable for Windows, run the following command (requires `make` to be installed, e.g., via [Chocolatey](https://chocolatey.org/) or Git Bash):
+```bash
 make windows
 ```
 
-This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner.exe`) and all its dependencies.
+This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner.exe`) and all its dependencies. A packaged `.zip` archive will be placed in `tmp/packages`.
 
-### On a Linux Machine (using Wine)
+#### On a Linux Machine (using Wine)
 
 It is possible to build the Windows executable on a Linux machine using [Wine](https://www.winehq.org/), a compatibility layer for running Windows applications.
 
@@ -68,24 +58,25 @@ It is possible to build the Windows executable on a Linux machine using [Wine](h
 
 *   **Wine:** You must have Wine installed on your system (e.g., `sudo apt install wine`).
 
-The build script automates the rest of the setup. On its first run, it will:
-1.  Create a local Wine prefix in a `.wine/` directory to avoid interfering with your system's Wine configuration.
+The build process is automated. On the first run, the `Makefile` will:
+1.  Create a local Wine prefix in `tmp/.wine/` to avoid interfering with your system's Wine configuration.
 2.  Download the official Windows installer for Python.
 3.  Install Python into the local Wine prefix.
 
-Once the setup is complete, you can build the application by running the following script:
-
-```
-./build_windows_on_linux.sh
-```
-
-Alternatively, you can use the `make` target:
-
-```
+Once the setup is complete, you can build the application by running:
+```bash
 make windows-on-linux
 ```
 
-This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner.exe`) and all its dependencies.
+This will create a `tmp/dist/BLEScanner` directory containing the executable (`blescanner.exe`) and all its dependencies. A packaged `.zip` archive will be placed in `tmp/packages`.
+
+### Building for Android
+
+To build the Android APK, run:
+```bash
+make android
+```
+The resulting `.apk` file will be placed in `tmp/packages`.
 
 ## Choosing a Bluetooth Adapter
 
