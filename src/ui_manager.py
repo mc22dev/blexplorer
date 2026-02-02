@@ -69,13 +69,14 @@ class UIManager:
             self.log_callback(f"Write Error on {char_frame.char_uuid}", LogLevel.ERROR)
             char_frame.ids.value_input.background_color = (1, 0.6, 0.6, 1)
 
-    def on_descriptor_read(self, descriptor, desc_frame, value):
+    def on_descriptor_read(self, descriptor, frame, value):
         """Handles the UI update after a descriptor read."""
         if value is not None:
-            if isinstance(desc_frame, Label):
-                desc_frame.text = f"{value.decode('utf-8')}"
-            else:
-                desc_frame.desc_value = value.hex()
+            # Handle both CharacteristicFrameKivy and DescriptorFrameKivy
+            if 'user_description_label' in frame.ids:
+                frame.ids.user_description_label.text = f"{value.decode('utf-8')}"
+            elif hasattr(frame, 'desc_value'):
+                frame.desc_value = value.hex()
             self.log_callback(f"Value read from {descriptor.uuid}: {value.hex()}", LogLevel.SUCCESS)
         else:
             self.log_callback(f"Failed to read from {descriptor.uuid}", LogLevel.ERROR)

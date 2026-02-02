@@ -54,8 +54,6 @@ class BLEManager:
 
     async def connect_to_device(self, device_address: str, adapter: Optional[str]) -> None:
         self.client = await self.adapter.connect_to_device(device_address, adapter)
-        if self.client:
-            self.connection_status_callback(True)
         # The adapter will call the connection_status_callback with False on failure.
 
     async def disconnect_from_device(self) -> None:

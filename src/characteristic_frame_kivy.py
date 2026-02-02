@@ -46,7 +46,7 @@ class CharacteristicFrameKivy(BoxLayout):
         super().__init__(**kwargs)
         self.characteristic = characteristic
         self.char_uuid = characteristic.uuid
-        self.char_name = GATT_CHARACTERISTICS.get(self.char_uuid.lower(), "Unknown Characteristic")
+        self.char_name = self.characteristic.description or "Unknown Characteristic"
 
         # Create the full properties string for the tooltip
         self.full_char_properties = ", ".join(sorted(characteristic.properties))

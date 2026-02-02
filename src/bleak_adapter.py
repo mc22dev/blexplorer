@@ -120,6 +120,7 @@ class BleakAdapter(BLEAdapter):
 
         try:
             await self.client.connect()
+            self.connection_status_callback(True)
             return self.client
         except (BleakError, asyncio.TimeoutError) as e:
             self.logger_callback(f"Connection Error: {e}", LogLevel.ERROR)
