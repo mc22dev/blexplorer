@@ -30,6 +30,8 @@ from characteristic_frame_kivy import CharacteristicFrameKivy
 from descriptor_frame_kivy import DescriptorFrameKivy
 from collapsible_frame_kivy import CollapsibleFrameKivy
 from gatt import GATT_SERVICES
+from parameter_window import ParameterWindow
+from config_manager import ConfigManager
 
 
 def resource_path(relative_path):
@@ -48,6 +50,7 @@ Builder.load_file(resource_path('deviceframekivy.kv'))
 Builder.load_file(resource_path('characteristicframekivy.kv'))
 Builder.load_file(resource_path('descriptorframekivy.kv'))
 Builder.load_file(resource_path('collapsibleframekivy.kv'))
+Builder.load_file(resource_path('parameterwindow.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -82,7 +85,37 @@ class BLEScannerApp(App):
     adapters = ListProperty(["Default"])
     log_text = StringProperty("")
     is_scan_button_disabled = BooleanProperty(True)
+    scan_timeout = StringProperty("5.0")
     VERSION = "1.0.0"
+
+    def open_parameter_window(self):
+        """Opens the parameter window."""
+        self.parameter_popup = ParameterWindow()
+        self.parameter_popup.ids.scan_timeout_input.text = self.scan_timeout
+        self.parameter_popup.open()
+
+    def restore_default_parameters(self, popup):
+        """Restores the default parameters."""
+        self.config_manager.restore_defaults()
+        self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
+        popup.ids.scan_timeout_input.text = self.scan_timeout
+        self.log_with_timestamp("Default parameters restored.", LogLevel.INFO)
+
+    def update_parameters(self, popup):
+        """Updates the parameters from the parameter window."""
+        new_timeout = popup.ids.scan_timeout_input.text
+        try:
+            # Validate that the input is a valid float before saving
+            float(new_timeout)
+            self.scan_timeout = new_timeout
+            self.config_manager.set_setting('scan', 'timeout', self.scan_timeout)
+            self.log_with_timestamp(f"Scan timeout set to {self.scan_timeout}s.", LogLevel.INFO)
+            popup.dismiss()
+        except ValueError:
+            self.log_with_timestamp(f"Invalid scan timeout value: {new_timeout}. Please enter a number.", LogLevel.ERROR)
+            # Optionally, provide visual feedback to the user in the popup
+            popup.ids.scan_timeout_input.background_color = (1, 0.6, 0.6, 1)
+
 
     def on_start(self):
         """
@@ -157,6 +190,10 @@ class BLEScannerApp(App):
                 self.clear_log()
 
     def build(self):
+        config_path = os.path.join(self.user_data_dir, 'config.ini')
+        self.config_manager = ConfigManager(config_path)
+        self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
+
         self.ble_manager = BLEManager(
             device_discovered_callback=self._on_device_discovered,
             connection_status_callback=self._on_connection_status_changed,
@@ -208,7 +245,7 @@ class BLEScannerApp(App):
         adapter = adapter if adapter != "Default" else None
 
         try:
-            timeout = float(self.root.ids.scan_timeout_input.text)
+            timeout = float(self.scan_timeout)
         except ValueError:
             self.log_with_timestamp("Invalid scan timeout. Please enter a number.", LogLevel.ERROR)
             self.is_scan_button_disabled = False
