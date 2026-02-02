@@ -59,7 +59,7 @@ class TestKivyApp:
         device_frame = DeviceFrameKivy(device=device, adv_data=adv_data)
         assert device_frame.device_name == 'Test Device'
         assert device_frame.device_address == '00:11:22:33:44:55'
-        assert device_frame.device_rssi == 'RSSI: -50'
+        assert device_frame.device_rssi == '-50 dBm'
 
     def test_characteristic_frame_instantiation(self):
         """
@@ -68,7 +68,7 @@ class TestKivyApp:
         char = MockCharacteristic()
         char_frame = CharacteristicFrameKivy(characteristic=char)
         assert char_frame.char_uuid == "00002a00-0000-1000-8000-00805f9b34fb"
-        assert char_frame.char_properties == "read, write"
+        assert char_frame.char_properties == "R/W"
 
     def test_collapsible_frame_instantiation_and_toggle(self):
         """

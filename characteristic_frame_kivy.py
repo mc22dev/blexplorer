@@ -3,14 +3,60 @@ from kivy.properties import ObjectProperty, StringProperty, BoundedNumericProper
 from kivy.core.clipboard import Clipboard
 import struct
 import json
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.clock import Clock
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
+
+
+class Toast(Popup):
+    def __init__(self, text, **kwargs):
+        super().__init__(**kwargs)
+        self.content = Label(text=text)
+        self.size_hint = (None, None)
+        self.size = (150, 50)
+        self.title = ""
+        self.separator_height = 0
+
+    def show(self, duration=1):
+        self.open()
+        Clock.schedule_once(self.dismiss, duration)
+
+
+class InfoPopup(Popup):
+    def __init__(self, title, text, copy_callback, **kwargs):
+        super().__init__(**kwargs)
+        self.title = title
+        self.size_hint = (0.9, 0.4)
+
+        content = BoxLayout(orientation='vertical', padding='10dp', spacing='10dp')
+
+        info_label = Label(text=text, size_hint_y=None)
+        info_label.bind(texture_size=info_label.setter('size'))
+
+        buttons = BoxLayout(size_hint_y=None, height='44dp', spacing='10dp')
+        copy_button = Button(text='Copy')
+        copy_button.bind(on_release=lambda x: copy_callback(text))
+        close_button = Button(text='Close')
+        close_button.bind(on_release=self.dismiss)
+
+        buttons.add_widget(copy_button)
+        buttons.add_widget(close_button)
+
+        content.add_widget(info_label)
+        content.add_widget(buttons)
+
+        self.content = content
 
 
 class CharacteristicFrameKivy(BoxLayout):
     characteristic = ObjectProperty(None)
     char_uuid = StringProperty('')
+    short_uuid = StringProperty('')
     char_properties = StringProperty('')
+    full_char_properties = StringProperty('')
     char_value = StringProperty('')
     raw_value = ObjectProperty(b'')
 
@@ -18,7 +64,25 @@ class CharacteristicFrameKivy(BoxLayout):
         super().__init__(**kwargs)
         self.characteristic = characteristic
         self.char_uuid = characteristic.uuid
-        self.char_properties = ", ".join(characteristic.properties)
+        if self.char_uuid.startswith("0000") and self.char_uuid.endswith("-0000-1000-8000-00805f9b34fb"):
+            self.short_uuid = f"0x{self.char_uuid[4:8]}"
+        else:
+            self.short_uuid = f"{self.char_uuid.split('-')[0]}..."
+
+        prop_map = {
+            "read": "R",
+            "write": "W",
+            "write-without-response": "W",
+            "notify": "N",
+            "indicate": "I",
+        }
+
+        # Create the abbreviated properties string
+        abbreviated_props = sorted(list(set([prop_map[p] for p in characteristic.properties if p in prop_map])))
+        self.char_properties = "/".join(abbreviated_props)
+
+        # Create the full properties string for the tooltip
+        self.full_char_properties = "\n".join(sorted(characteristic.properties))
 
         if "write" not in self.characteristic.properties and "write-without-response" not in self.characteristic.properties:
             self.ids.write_button.disabled = True
@@ -101,3 +165,12 @@ class CharacteristicFrameKivy(BoxLayout):
 
     def copy_to_clipboard(self, text):
         Clipboard.copy(text)
+        Toast(text='Copied!').show()
+
+    def show_info_popup(self):
+        popup = InfoPopup(title="Full UUID", text=self.char_uuid, copy_callback=self.copy_to_clipboard)
+        popup.open()
+
+    def show_properties_popup(self):
+        popup = InfoPopup(title="Properties", text=self.full_char_properties, copy_callback=self.copy_to_clipboard)
+        popup.open()

@@ -18,14 +18,22 @@
         size_hint_y: None
         height: '30dp'
         Label:
-            text: f"UUID: {root.char_uuid}"
+            text: root.short_uuid
             font_size: '16sp'
             halign: 'left'
             text_size: self.width, None
         Button:
-            text: 'Copy'
-            size_hint_x: 0.2
-            on_release: root.copy_to_clipboard(root.char_uuid)
+            text: 'ⓘ'
+            size_hint_x: 0.1
+            on_release: root.show_info_popup()
+        Button:
+            text: root.char_properties
+            font_size: '14sp'
+            halign: 'right'
+            text_size: self.width, None
+            size_hint_x: 0.3
+            background_color: (0,0,0,0)  # Make it look like a label
+            on_release: root.show_properties_popup()
 
     Label:
         id: user_description_label
@@ -36,24 +44,15 @@
         size_hint_y: None
         height: 0 if not self.text else '20dp'
 
-    Label:
-        text: f"Properties: {root.char_properties}"
-        font_size: '14sp'
-        halign: 'left'
-        text_size: self.width, None
-
     BoxLayout:
         size_hint_y: None
         height: '30dp'
-        Label:
-            text: 'Value:'
-            size_hint_x: 0.2
         TextInput:
             id: value_input
             text: root.char_value
-            size_hint_x: 0.4
+            size_hint_x: 0.6
         Button:
-            text: 'Copy'
+            text: '📋'
             size_hint_x: 0.1
             on_release: root.copy_to_clipboard(root.char_value)
         Spinner:
