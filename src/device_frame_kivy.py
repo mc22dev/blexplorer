@@ -1,6 +1,6 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.behaviors import ButtonBehavior
-from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
+from kivy.properties import ObjectProperty, StringProperty, BooleanProperty, ColorProperty
 from kivy.app import App
 from kivy.core.clipboard import Clipboard
 from kivy.uix.popup import Popup
@@ -11,6 +11,7 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     device = ObjectProperty(None)
     stats = ObjectProperty(None)
     is_selected = BooleanProperty(False)
+    indicator_color = ColorProperty([0, 0, 0, 0])  # Default to transparent
 
     device_name = StringProperty("Unknown")
     device_address = StringProperty("")

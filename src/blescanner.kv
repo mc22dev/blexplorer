@@ -57,8 +57,14 @@
                         size_hint_y: None
                         height: self.texture_size[1] if self.opacity else 0
 
+                GlobalRSSIGraph:
+                    id: global_rssi_graph
+                    size_hint_y: 0.4
+                    device_data: app.global_graph_data if app else {}
+
                 ScrollView:
                     id: device_scroll_view
+                    size_hint_y: 0.6
                     GridLayout:
                         id: device_list
                         cols: 1

@@ -8,6 +8,16 @@
     on_release: app.connect_to_device(root)
     background_color: app.theme.primary if root.is_selected else app.theme.secondary
 
+    Widget:
+        size_hint_x: None
+        width: '20dp'
+        canvas:
+            Color:
+                rgba: root.indicator_color
+            Ellipse:
+                size: (12, 12)
+                pos: self.center_x - 6, self.center_y - 6
+
     Button:
         text: "Connect"
         size_hint_x: 0.2

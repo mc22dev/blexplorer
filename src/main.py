@@ -12,7 +12,7 @@ from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.lang import Builder
 from kivy.clock import Clock
-from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty
+from kivy.properties import ListProperty, StringProperty, BooleanProperty, ObjectProperty, DictProperty
 from kivy.uix.popup import Popup
 from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserListView
@@ -34,6 +34,7 @@ from parameter_window import ParameterWindow
 from config_manager import ConfigManager
 from ota_window import OTAWindow
 from theme import theme_manager
+from global_rssi_graph import GlobalRSSIGraph
 
 
 def resource_path(relative_path):
@@ -54,6 +55,7 @@ Builder.load_file(resource_path('descriptorframekivy.kv'))
 Builder.load_file(resource_path('collapsibleframekivy.kv'))
 Builder.load_file(resource_path('parameterwindow.kv'))
 Builder.load_file(resource_path('otawindow.kv'))
+Builder.load_file(resource_path('globalrssigraph.kv'))
 
 
 class MainLayout(BoxLayout):
@@ -124,6 +126,7 @@ class BLEScannerApp(App):
     disconnect_button = ObjectProperty(None)
     refresh_button = ObjectProperty(None)
     upload_button = ObjectProperty(None)
+    global_graph_data = DictProperty({})
 
     def open_parameter_window(self):
         """Opens the parameter window."""
@@ -299,6 +302,9 @@ class BLEScannerApp(App):
             self.selected_device_frame.is_selected = False
             self.selected_device_frame = None
         self.root.ids.device_list.clear_widgets()
+        if 'global_rssi_graph' in self.root.ids:
+            self.root.ids.global_rssi_graph.clear_graph()
+        self.global_graph_data = {}
         self.device_frames = {}
         self.discovered_devices_batch = []
         self.scan_stats = {}
@@ -350,14 +356,20 @@ class BLEScannerApp(App):
         """Periodically processes the batch of discovered devices."""
         while True:
             self._process_device_batch()
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(1.0)
 
     def _process_device_batch(self, *args):
         """Processes the batch of discovered devices and updates the UI."""
         # Sort by RSSI to show the strongest signals first
         sorted_batch = sorted(self.discovered_devices_batch, key=lambda x: x[1].rssi, reverse=True)
+        if not sorted_batch:
+            return
+
         for device, adv_data in sorted_batch:
             self._populate_device_ui(device, adv_data)
+
+        # Manually dispatch the event once after processing the whole batch
+        self.property('global_graph_data').dispatch(self)
         self.discovered_devices_batch = []
 
     def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
@@ -369,6 +381,12 @@ class BLEScannerApp(App):
 
         stats = self.scan_stats[device.address]
         stats.update(adv_data)
+
+        # Update the global graph data
+        self.global_graph_data[device.address] = {
+            'rssi': stats.rssi_values,
+            'timestamps': stats.timestamps
+        }
 
         if device.address in self.device_frames:
             # Update existing frame only if data has changed to avoid unnecessary UI redraws
@@ -383,6 +401,11 @@ class BLEScannerApp(App):
             frame = DeviceFrameKivy(device=device, stats=stats)
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
+
+        # Assign the color from the graph to the device frame
+        if 'global_rssi_graph' in self.root.ids:
+            graph = self.root.ids.global_rssi_graph
+            frame.indicator_color = graph.get_device_color(device.address)
 
     def connect_to_device(self, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""

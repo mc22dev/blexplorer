@@ -46,8 +46,7 @@ class CachedService:
 
 class DeviceScanStats:
     """A class to hold and calculate statistics for a scanned device."""
-    def __init__(self, max_samples=100):
-        self.max_samples = max_samples
+    def __init__(self):
         self.rssi_values: List[int] = []
         self.timestamps: List[float] = []
         self.periods: List[float] = []
@@ -65,19 +64,13 @@ class DeviceScanStats:
         """Updates the statistics with new advertisement data."""
         self.adv_data = adv_data
         self.rssi_values.append(adv_data.rssi)
-        if len(self.rssi_values) > self.max_samples:
-            self.rssi_values.pop(0)
 
         current_time = time.monotonic()
         if self.timestamps:
             self.last_period = (current_time - self.timestamps[-1]) * 1000  # in ms
             self.periods.append(self.last_period)
-            if len(self.periods) > self.max_samples:
-                self.periods.pop(0)
 
         self.timestamps.append(current_time)
-        if len(self.timestamps) > self.max_samples:
-            self.timestamps.pop(0)
 
         if self.rssi_values:
             self.min_rssi = min(self.rssi_values)
