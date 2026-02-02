@@ -313,6 +313,8 @@ class BLEScannerApp(App):
 
     def _process_device_batch(self, *args):
         """Processes the batch of discovered devices and updates the UI."""
+        if self.is_shutting_down:
+            return
         # Sort by RSSI to show the strongest signals first
         sorted_batch = sorted(self.discovered_devices_batch, key=lambda x: x[1].rssi, reverse=True)
         if not sorted_batch:
