@@ -1,16 +1,35 @@
-.PHONY: android install run-android run-local mrproper logcat windows windows-on-linux
+.PHONY: all android install run-android run-local mrproper logcat windows windows-on-linux linux packages
 
-# Build the Android debug APK
-android:
+# Extract package metadata from the buildozer.spec file
+PACKAGE_NAME := $(shell grep '^package.name =' buildozer.spec | cut -d' ' -f3)
+VERSION := $(shell grep '^version =' buildozer.spec | cut -d' ' -f3)
+
+# Build for all platforms
+all: linux windows-on-linux android
+
+# Create the packages directory
+packages:
+	mkdir -p tmp/packages
+
+# Build the Android debug APK and package it
+android: packages
 	./scripts/build_android.sh
+	cp tmp/bin/*.apk tmp/packages/$(PACKAGE_NAME)-$(VERSION)-android.apk
 
 # Build the Windows executable (must be run on a Windows machine)
-windows:
+windows: packages
 	./scripts/build_windows.bat
+	(cd tmp/dist/BLEScanner && zip -r ../../packages/$(PACKAGE_NAME)-$(VERSION)-windows.zip . -x "*_internal*")
 
-# Build the Windows executable on Linux using Wine
-windows-on-linux:
+# Build the Windows executable on Linux using Wine and package it
+windows-on-linux: packages
 	./scripts/build_windows_on_linux.sh
+	(cd tmp/dist/BLEScanner && zip -r ../../packages/$(PACKAGE_NAME)-$(VERSION)-windows.zip . -x "*_internal*")
+
+# Build the Linux executable and package it
+linux: packages
+	./scripts/build_linux.sh
+	(cd tmp/dist/BLEScanner && tar -czf ../../packages/$(PACKAGE_NAME)-$(VERSION)-linux.tar.gz --exclude='./_internal' .)
 
 # Install the APK on a connected device
 install: android
