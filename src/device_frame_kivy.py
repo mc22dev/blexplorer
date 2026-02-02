@@ -1,7 +1,6 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty, ColorProperty
-from kivy.app import App
 from kivy.core.clipboard import Clipboard
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
@@ -12,7 +11,9 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     stats = ObjectProperty(None)
     is_selected = BooleanProperty(False)
     is_graph_selected = BooleanProperty(True)
-    indicator_color = ColorProperty([0, 0, 0, 0])  # Default to transparent
+    indicator_color = ColorProperty([0, 0, 0, 0])
+    primary_color = ColorProperty([0, 0, 0, 0])
+    secondary_color = ColorProperty([0, 0, 0, 0])
 
     device_name = StringProperty("Unknown")
     custom_device_name = StringProperty("")
@@ -28,8 +29,8 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
 
     def on_device(self, instance, value):
         """Handles updates to the device object."""
-        app = App.get_running_app()
-        self.custom_device_name = app.config_manager.get_device_name(self.device.address) or ""
+        if self.config_manager:
+            self.custom_device_name = self.config_manager.get_device_name(self.device.address) or ""
         self.device_name = self.device.name or "Unknown"
         self.device_address = self.device.address
 
@@ -83,15 +84,21 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
                 self.manufacturer_data = self.full_manufacturer_data
 
 
-    def __init__(self, **kwargs):
+    def __init__(self, config_manager=None, **kwargs):
+        self.config_manager = config_manager
         super().__init__(**kwargs)
         self.register_event_type('on_graph_selection_change')
+        self.register_event_type('on_connect_request')
         # Trigger the on_... methods to populate the UI initially
         self.on_device(self, self.device)
         self.on_stats(self, self.stats)
 
     def on_graph_selection_change(self, *args):
         """Event dispatched when the graph selection changes."""
+        pass
+
+    def on_connect_request(self, *args):
+        """Event dispatched when the user wants to connect to the device."""
         pass
 
     def toggle_graph_selection(self):
@@ -117,8 +124,8 @@ class DeviceFrameKivy(ButtonBehavior, BoxLayout):
 
     def save_custom_name(self, name):
         """Saves the custom name for the device."""
-        app = App.get_running_app()
-        app.config_manager.set_device_name(self.device.address, name)
+        if self.config_manager:
+            self.config_manager.set_device_name(self.device.address, name)
         self.custom_device_name = name
         popup = Popup(title='Saved',
                       content=Label(text=f'Name saved for {self.device.address}.'),
