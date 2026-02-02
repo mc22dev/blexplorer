@@ -118,6 +118,7 @@ class BLEScannerApp(MDApp):
     VERSION = "1.0.0"
     is_scanning = BooleanProperty(False)
     is_connected = BooleanProperty(False)
+    is_connecting = BooleanProperty(False)
 
     scan_button = ObjectProperty(None)
     disconnect_button = ObjectProperty(None)
@@ -274,7 +275,7 @@ class BLEScannerApp(MDApp):
         self.characteristic_frames = {}
         self.device_frames = {}
         self.device_cache = DeviceCache()
-        self.selected_device = None
+        self.selected_device_frame = None
         self.discovered_devices_batch = []
         self.scan_stats = {}
         return MainLayout()
@@ -297,6 +298,9 @@ class BLEScannerApp(MDApp):
 
     def scan_for_devices(self, *args):
         """Initiates a scan for nearby BLE devices."""
+        if self.selected_device_frame:
+            self.selected_device_frame.is_selected = False
+            self.selected_device_frame = None
         self.root.ids.device_list.clear_widgets()
         self.device_frames = {}
         self.discovered_devices_batch = []
@@ -316,12 +320,17 @@ class BLEScannerApp(MDApp):
         self.ble_manager.scan_for_devices(adapter, timeout)
         Clock.schedule_once(self.on_scan_finished, timeout)
 
+    def stop_scan(self, *args):
+        """Stops the BLE scan."""
+        if self.is_scanning:
+            self.ble_manager.stop_scan()
+            Clock.unschedule(self._process_device_batch)
+            self._process_device_batch()  # Process any remaining devices
+            self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
+            self.is_scanning = False
+
     def on_scan_finished(self, *args):
-        self.ble_manager.stop_scan()
-        Clock.unschedule(self._process_device_batch)
-        self._process_device_batch()  # Process any remaining devices
-        self.log_with_timestamp("Scan stopped.", LogLevel.INFO)
-        self.is_scanning = False
+        self.stop_scan()
 
     def filter_devices(self, search_term):
         """Filters the device list based on the search term."""
@@ -372,9 +381,19 @@ class BLEScannerApp(MDApp):
             self.device_frames[device.address] = frame
             self.root.ids.device_list.add_widget(frame)
 
-    def connect_to_device(self, device: BLEDevice):
+    def connect_to_device(self, device_frame: DeviceFrameKivy):
         """Connects to the selected device."""
-        self.selected_device = device
+        if self.is_scanning:
+            self.stop_scan()
+
+        if self.selected_device_frame:
+            self.selected_device_frame.is_selected = False
+
+        self.selected_device_frame = device_frame
+        self.selected_device_frame.is_selected = True
+
+        device = device_frame.device
+        self.is_connecting = True
         self.log_with_timestamp(f"Connecting to {device.address} ({device.name})...", LogLevel.INFO)
         adapter = self.adapter if self.adapter != "Default" else None
         self.ble_manager.connect_to_device(device.address, adapter)
@@ -392,11 +411,15 @@ class BLEScannerApp(MDApp):
     def _update_connection_ui(self, is_connected: bool):
         """Updates the UI based on the connection status."""
         self.is_connected = is_connected
+        self.is_connecting = False
         if is_connected:
             self.log_with_timestamp("Device connected.", LogLevel.SUCCESS)
             self.discover_attributes()
             self.root.ids.bottom_nav.switch_tab('device_screen')
         else:
+            if self.selected_device_frame:
+                self.selected_device_frame.is_selected = False
+                self.selected_device_frame = None
             # The BLEManager now logs the disconnection event.
             # We just need to update the UI state.
             self.root.ids.characteristic_list.clear_widgets()
@@ -408,8 +431,8 @@ class BLEScannerApp(MDApp):
         self.characteristic_frames = {}
 
         cached_services_data = None
-        if self.selected_device:
-            cached_services_data = self.device_cache.load_device(self.selected_device.address)
+        if self.selected_device_frame:
+            cached_services_data = self.device_cache.load_device(self.selected_device_frame.device.address)
             if cached_services_data:
                 self.log_with_timestamp("Loading services from cache...", LogLevel.DEBUG)
                 cached_services = [CachedService(s) for s in cached_services_data]

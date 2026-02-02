@@ -10,7 +10,8 @@
         size_hint_y: None
         height: self.minimum_height
         padding: "8dp"
-        on_release: app.connect_to_device(root.device)
+        on_release: app.connect_to_device(root)
+        md_bg_color: app.theme_cls.primary_light if root.is_selected else app.theme_cls.bg_light
 
         MDBoxLayout:
             adaptive_height: True

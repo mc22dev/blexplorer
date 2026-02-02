@@ -1,5 +1,5 @@
 from kivymd.uix.boxlayout import MDBoxLayout
-from kivy.properties import ObjectProperty, StringProperty
+from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
 from kivy.app import App
 from kivy.core.clipboard import Clipboard
 from kivymd.uix.dialog import MDDialog
@@ -8,6 +8,7 @@ from kivy.core.window import Window
 class DeviceFrameKivy(MDBoxLayout):
     device = ObjectProperty(None)
     stats = ObjectProperty(None)
+    is_selected = BooleanProperty(False)
 
     device_name = StringProperty("Unknown")
     device_address = StringProperty("")

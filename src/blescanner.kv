@@ -31,6 +31,17 @@
                         height: '48dp'
                         on_text: app.filter_devices(self.text)
 
+                    MDBoxLayout:
+                        orientation: 'vertical'
+                        adaptive_height: True
+                        MDLabel:
+                            text: "Connecting..."
+                            halign: "center"
+                            theme_text_color: "Secondary"
+                            opacity: 1 if app.is_connecting else 0
+                            size_hint_y: None
+                            height: self.texture_size[1] if self.opacity else 0
+
                     ScrollView:
                         id: device_scroll_view
                         MDBoxLayout:
