@@ -60,6 +60,26 @@
                         orientation: 'horizontal'
                         size_hint_y: None
                         height: '30dp'
+
+                        Label:
+                            text: 'RSSI Min:'
+                        TextInput:
+                            id: rssi_min_input
+                            multiline: False
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: '30dp'
+                        Label:
+                            text: 'RSSI Max:'
+                        TextInput:
+                            id: rssi_max_input
+                            multiline: False
+
+                    BoxLayout:
+                        orientation: 'horizontal'
+                        size_hint_y: None
+                        height: '30dp'
                         Label:
                             text: "Auto-connect to device:"
                         CheckBox:
