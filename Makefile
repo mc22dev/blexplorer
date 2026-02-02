@@ -2,7 +2,7 @@
 
 # Extract package metadata from the buildozer.spec and _version.py files
 PACKAGE_NAME := $(shell grep '^package.name =' buildozer.spec | cut -d' ' -f3)
-VERSION := $(shell grep "^__version__" src/_version.py | cut -d'"' -f2)
+VERSION := $(shell grep "^__version__" src/blescanner/_version.py | cut -d'"' -f2)
 
 # --- Environment Setup ---
 VENV_DIR := tmp/venv
@@ -40,10 +40,11 @@ packages:
 # --- Build Targets ---
 
 # Build the Android debug APK and package it
-android: setup packages
+android: setup
 	. $(VENV_ACTIVATE_UNIX); \
 	export JAVA_HOME="$$(dirname $$(dirname $$(readlink -f $$(which java))) | sed 's/java-[^-]*/java-17/')"; \
 	buildozer android debug
+	mkdir -p tmp/packages
 	cp tmp/bin/*.apk tmp/packages/$(PACKAGE_NAME)-$(VERSION)-android.apk
 
 # Build the Windows executable (must be run on a Windows machine)

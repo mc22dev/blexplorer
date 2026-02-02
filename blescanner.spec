@@ -13,12 +13,15 @@ if sys.platform == 'win32':
     kivy_deps_trees = [Tree(p) for p in (sdl2.dep_bins + glew.dep_bins)]
 
 
-a = Analysis(['src/blescanner/__main__.py'],
+a = Analysis(['src/main.py'],
              pathex=['.'],
              binaries=[],
              datas=[('src/blescanner/assets', 'blescanner/assets'),
                     ('src/blescanner/ui/main.kv', 'blescanner/ui'),
-                    ('src/blescanner/tools/ble_scanner/ble_scanner.kv', 'blescanner/tools/ble_scanner')],
+                    ('src/blescanner/ui/settings_popup.kv', 'blescanner/ui'),
+                    ('src/blescanner/ui/serial_monitor_settings.kv', 'blescanner/ui'),
+                    ('src/blescanner/tools/ble_scanner/ble_scanner.kv', 'blescanner/tools/ble_scanner'),
+                    ('src/blescanner/tools/serial_monitor/serial_monitor.kv', 'blescanner/tools/serial_monitor')],
              hiddenimports=[
                  'kivy.core.image.img_sdl2',
                  'kivy.core.text.text_sdl2',
