@@ -212,7 +212,19 @@ class BLEManager:
         """The core logic for the OTA upload, following the Telink protocol."""
         self.logger_callback(f"Starting OTA upload for {filepath}", LogLevel.INFO)
         self.ota_notification_queue = asyncio.Queue()
+        ota_service_uuid = self.config_manager.get_setting('ota', 'service_uuid')
         ota_characteristic_uuid = self.config_manager.get_setting('ota', 'characteristic_uuid')
+
+        # Verify that the service and characteristic exist on the device
+        ota_service = self.client.services.get_service(ota_service_uuid)
+        if not ota_service:
+            self.logger_callback(f"OTA service {ota_service_uuid} not found on the device.", LogLevel.ERROR)
+            return
+
+        ota_characteristic = ota_service.get_characteristic(ota_characteristic_uuid)
+        if not ota_characteristic:
+            self.logger_callback(f"OTA characteristic {ota_characteristic_uuid} not found within the OTA service.", LogLevel.ERROR)
+            return
 
         try:
             with open(filepath, "rb") as f:

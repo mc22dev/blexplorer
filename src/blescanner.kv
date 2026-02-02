@@ -1,25 +1,33 @@
 #:kivy 2.0.0
 
+#:include scanner_screen.kv
+#:include device_screen.kv
+#:include log_screen.kv
+
 <MainLayout>:
     orientation: 'vertical'
+
     BoxLayout:
         id: main_toolbar
         size_hint_y: None
         height: "48dp"
         canvas.before:
             Color:
-                rgba: app.theme.header_bg
+                rgba: app.theme.header_bg if app else (0,0,0,1)
             Rectangle:
                 pos: self.pos
                 size: self.size
+
         Label:
             text: "BLE Scanner"
             size_hint_x: 3
+
         TooltipButton:
             font_name: "MaterialIcons"
             text: "\U000F0493"
             on_release: app.open_parameter_window()
             tooltip_text: "Settings"
+
         TooltipButton:
             id: scan_button
             font_name: "MaterialIcons"
@@ -27,6 +35,7 @@
             on_release: app.scan_for_devices()
             disabled: app.is_scanning if app else True
             tooltip_text: "Scan for devices"
+
         TooltipButton:
             id: disconnect_button
             font_name: "MaterialIcons"
@@ -34,130 +43,24 @@
             on_release: app.disconnect_from_device()
             disabled: not app.is_connected if app else True
             tooltip_text: "Disconnect"
+
     TabbedPanel:
         id: bottom_nav
         do_default_tab: False
+
         TabbedPanelItem:
             text: 'Scanner'
-            BoxLayout:
-                orientation: 'vertical'
-                BoxLayout:
-                    size_hint_y: None
-                    height: '48dp'
-                    TextInput:
-                        id: search_input
-                        hint_text: 'Filter devices'
-                        on_text: app.filter_devices(self.text)
-                    Button:
-                        id: clear_filter_button
-                        text: 'Clear'
-                        size_hint_x: None
-                        width: '80dp'
-                        on_release: app.clear_device_filter()
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_y: None
-                    height: self.children[0].height
-                    Label:
-                        text: "Connecting..."
-                        halign: "center"
-                        color: app.theme.secondary if app else (0, 0, 0, 0)
-                        opacity: 1 if app and app.is_connecting else 0
-                        size_hint_y: None
-                        height: self.texture_size[1] if self.opacity else 0
-                GlobalRSSIGraph:
-                    id: global_rssi_graph
-                    size_hint_y: 0.4
-                    device_data: app.global_graph_data if app else {}
-                ScrollView:
-                    id: device_scroll_view
-                    size_hint_y: 0.6
-                    GridLayout:
-                        id: device_list
-                        cols: 1
-                        size_hint_y: None
-                        height: self.minimum_height
+            ScannerScreen:
+                id: scanner_screen
+
         TabbedPanelItem:
             id: device_screen_tab
             text: 'Device'
             disabled: not app.is_connected if app else True
-            BoxLayout:
-                orientation: 'vertical'
-                BoxLayout:
-                    id: device_toolbar
-                    size_hint_y: None
-                    height: "48dp"
-                    canvas.before:
-                        Color:
-                            rgba: app.theme.header_bg
-                        Rectangle:
-                            pos: self.pos
-                            size: self.size
-                    Label:
-                        text: "Device Info"
-                    TooltipButton:
-                        id: refresh_button
-                        font_name: "MaterialIcons"
-                        text: "\U000F0450"
-                        on_release: app.read_all_characteristics()
-                        disabled: not app.is_connected if app else True
-                        tooltip_text: "Read all characteristics"
-                    TooltipButton:
-                        id: upload_button
-                        font_name: "MaterialIcons"
-                        text: "\U000F0552"
-                        on_release: app.open_ota_window()
-                        disabled: not app.is_connected if app else True
-                        tooltip_text: "OTA Upload"
-                ScrollView:
-                    id: char_scroll_view
-                    GridLayout:
-                        id: characteristic_list
-                        cols: 1
-                        size_hint_y: None
-                        height: self.minimum_height
-                        Label:
-                            text: 'Characteristics will appear here'
+            DeviceScreen:
+                id: device_screen
+
         TabbedPanelItem:
             text: 'Log'
-            BoxLayout:
-                orientation: 'vertical'
-                BoxLayout:
-                    id: log_toolbar
-                    size_hint_y: None
-                    height: "48dp"
-                    canvas.before:
-                        Color:
-                            rgba: app.theme.header_bg
-                        Rectangle:
-                            pos: self.pos
-                            size: self.size
-                    Label:
-                        text: "Log"
-                    TooltipButton:
-                        font_name: "MaterialIcons"
-                        text: "\U000F01B4"
-                        on_release: app.clear_log()
-                        tooltip_text: "Clear log"
-                    TooltipButton:
-                        font_name: "MaterialIcons"
-                        text: "\U000F0193"
-                        on_release: app.show_save_dialog()
-                        tooltip_text: "Save log"
-                    CheckBox:
-                        id: autoscroll_checkbox
-                        active: True
-                        size_hint_x: None
-                        width: "48dp"
-                    Label:
-                        text: "Auto-scroll"
-                        size_hint_x: 2
-                ScrollView:
-                    id: log_scroll_view
-                    TextInput:
-                        id: log_view
-                        text: ''
-                        multiline: True
-                        readonly: True
-                        size_hint_y: None
-                        height: self.minimum_height
+            LogScreen:
+                id: log_screen
