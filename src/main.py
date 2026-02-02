@@ -368,8 +368,8 @@ class BLEScannerApp(App):
         for device, adv_data in sorted_batch:
             self._populate_device_ui(device, adv_data)
 
-        # Manually dispatch the event once after processing the whole batch
-        self.property('global_graph_data').dispatch(self)
+        # Reassign the dictionary to trigger the update on the Kivy property
+        self.global_graph_data = self.global_graph_data.copy()
         self.discovered_devices_batch = []
 
     def _populate_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
