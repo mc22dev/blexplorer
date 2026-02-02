@@ -17,6 +17,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.button import Button
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.label import Label
+from kivy.core.text import LabelBase
 from kivy.core.window import Window
 
 from file_chooser_dialog import FileChooserDialog
@@ -50,6 +51,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # Load the kv files for the custom widgets
+LabelBase.register(name="MaterialIcons", fn_regular=resource_path("icons/materialdesignicons-webfont.ttf"))
 Builder.load_file(resource_path('deviceframekivy.kv'))
 Builder.load_file(resource_path('characteristicframekivy.kv'))
 Builder.load_file(resource_path('descriptorframekivy.kv'))
@@ -512,7 +514,12 @@ class BLEScannerApp(App):
                     for diff in diffs:
                         self.log_with_timestamp(f"- {diff}", LogLevel.INFO)
                     self.log_with_timestamp("Refreshing UI with live data...", LogLevel.INFO)
-                    self.discover_attributes()
+                    self.root.ids.characteristic_list.clear_widgets()
+                    self.characteristic_frames = {}
+                    all_characteristics = [char for service in self.ble_manager.client.services for char in
+                                           service.characteristics]
+                    all_characteristics.sort(key=lambda c: (c.service_uuid, c.uuid))
+                    self.populate_characteristic_ui(all_characteristics)
                 else:
                     self.log_with_timestamp("No differences found.", LogLevel.DEBUG)
 

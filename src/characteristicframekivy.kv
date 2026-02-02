@@ -57,7 +57,8 @@
                     text: root.char_value
                     size_hint_x: 0.6
                 Button:
-                    text: 'Copy'
+                    font_name: "MaterialIcons"
+                    text: '\U000F018F'
                     on_release: root.copy_to_clipboard(root.char_value)
                 Spinner:
                     id: format_spinner
