@@ -4,42 +4,6 @@
     BoxLayout:
         orientation: 'vertical'
 
-        # Main Toolbar
-        BoxLayout:
-            id: main_toolbar
-            size_hint_y: None
-            height: "48dp"
-            canvas.before:
-                Color:
-                    rgba: app.theme.header_bg if app else (0.1, 0.1, 0.1, 1)
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-            Label:
-                text: "Serial Monitor"
-                size_hint_x: 3
-
-            TooltipButton:
-                id: refresh_ports_button
-                font_name: "MaterialIcons"
-                text: "\U000F0450"  # Refresh icon
-                on_release: root.refresh_serial_ports()
-                tooltip_text: "Refresh ports"
-
-            TooltipButton:
-                id: save_button
-                font_name: "MaterialIcons"
-                text: "\U000F0193"  # Save icon
-                on_release: root.save_log()
-                tooltip_text: "Save data"
-
-            TooltipButton:
-                id: clear_button
-                font_name: "MaterialIcons"
-                text: "\U000F05DC"  # Broom icon
-                on_release: root.clear_log()
-                tooltip_text: "Clear data"
-
         # Connection Settings Toolbar
         BoxLayout:
             id: connection_toolbar
@@ -52,31 +16,58 @@
                 id: port_spinner
                 text: 'Select Port'
                 values: []
-                size_hint_x: 0.4
+                size_hint_x: 0.25
+
+            TooltipButton:
+                id: refresh_ports_button
+                font_name: "MaterialIcons"
+                text: "\U000F0450"  # Refresh icon
+                on_release: root.refresh_serial_ports()
+                tooltip_text: "Refresh ports"
+                size_hint_x: None
+                width: self.height
 
             Spinner:
                 id: bitrate_spinner
                 text: '115200'
                 values: ['9600', '19200', '38400', '57600', '115200', '230400', '460800', '921600']
-                size_hint_x: 0.2
+                size_hint_x: 0.15
 
             Spinner:
                 id: databits_spinner
                 text: '8'
                 values: ['5', '6', '7', '8']
-                size_hint_x: 0.1
+                size_hint_x: 0.08
 
             Spinner:
                 id: parity_spinner
                 text: 'N'
                 values: ['N', 'E', 'O', 'M', 'S']
-                size_hint_x: 0.1
+                size_hint_x: 0.08
 
             Spinner:
                 id: stopbits_spinner
                 text: '1'
                 values: ['1', '1.5', '2']
-                size_hint_x: 0.1
+                size_hint_x: 0.08
+
+            TooltipButton:
+                id: save_button
+                font_name: "MaterialIcons"
+                text: "\U000F0193"  # Save icon
+                on_release: root.save_log()
+                tooltip_text: "Save data"
+                size_hint_x: None
+                width: self.height
+
+            TooltipButton:
+                id: clear_button
+                font_name: "MaterialIcons"
+                text: "\U000F05DC"  # Broom icon
+                on_release: root.clear_log()
+                tooltip_text: "Clear data"
+                size_hint_x: None
+                width: self.height
 
             Button:
                 id: connect_button
@@ -90,8 +81,9 @@
             TextInput:
                 id: output_text
                 text: root.output_text
-                readonly: True
+                readonly: False
                 font_name: root.font_name
+                font_size: root.font_size
                 size_hint_y: None
                 height: self.minimum_height
 
@@ -100,13 +92,28 @@
             size_hint_y: None
             height: "48dp"
             padding: "5dp"
+            spacing: "5dp"
 
             TextInput:
                 id: input_text
                 hint_text: "Enter data to send"
                 multiline: False
+                on_text_validate: root.send_data()
                 font_name: "Roboto"
-                size_hint_x: 0.8
+                size_hint_x: 0.5
+
+            Spinner:
+                id: eol_spinner
+                text: 'None'
+                values: ['None', 'LF', 'CR', 'LF/CR', 'Hex']
+                size_hint_x: 0.15
+
+            TextInput:
+                id: delay_input
+                hint_text: "Delay (ms)"
+                input_filter: "int"
+                text: "0"
+                size_hint_x: 0.15
 
             Button:
                 id: send_button
@@ -114,3 +121,27 @@
                 on_release: root.send_data()
                 disabled: not root.is_connected
                 size_hint_x: 0.2
+        # Status Bar
+        BoxLayout:
+            size_hint_y: None
+            height: "24dp"
+            canvas.before:
+                Color:
+                    rgba: app.theme.header_bg if app else (0.1, 0.1, 0.1, 1)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            Label:
+                text: f"RX: {root.rx_bytes} bytes"
+                size_hint_x: 0.25
+            Label:
+                text: root.rx_speed_str
+                size_hint_x: 0.25
+            Widget:
+                size_hint_x: 0.0
+            Label:
+                text: f"TX: {root.tx_bytes} bytes"
+                size_hint_x: 0.25
+            Label:
+                text: root.tx_speed_str
+                size_hint_x: 0.25

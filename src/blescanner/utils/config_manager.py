@@ -49,7 +49,10 @@ class ConfigManager:
             },
             'serial_monitor': {
                 'font_name': 'Roboto',
-                'last_used_port': ''
+                'font_size': '12',
+                'last_used_port': '',
+                'eol': 'None',
+                'char_delay': '0'
             },
             'device_names': {}
         }
@@ -117,18 +120,23 @@ class ConfigManager:
         self.config.read_dict(self.defaults)
         self._save_config()
 
-    def get_setting(self, section: str, option: str) -> str:
+    def get_setting(self, section: str, option: str, default=None) -> str:
         """
         Gets a setting value for a given section and option.
 
         Args:
             section: The section in the INI file.
             option: The option within the section.
+            default: An optional fallback value if the setting is not found.
 
         Returns:
             The value of the setting as a string, or the default value if not found.
         """
-        return self.config.get(section, option, fallback=self.defaults.get(section, {}).get(option))
+        fallback_value = default
+        if fallback_value is None:
+            fallback_value = self.defaults.get(section, {}).get(option)
+        return self.config.get(section, option, fallback=fallback_value)
+
 
     def get_default_setting(self, section: str, option: str) -> str:
         """
