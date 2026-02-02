@@ -16,6 +16,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.core.window import Window
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
@@ -92,6 +93,8 @@ class BLEScannerApp(App):
         self.root.ids.save_log_button.bind(on_release=self.show_save_dialog)
         self.root.ids.adapter_spinner.bind(on_text=self.on_adapter_selected)
 
+        Window.bind(on_keyboard=self._on_keyboard)
+
         if kivy_platform == 'android':
             self.request_android_permissions()
         else:
@@ -133,6 +136,21 @@ class BLEScannerApp(App):
         self.log_with_timestamp("Requesting Android permissions...")
         request_permissions(permissions, self._on_permissions_callback)
 
+    def _on_keyboard(self, window, key, scancode, codepoint, modifier):
+        """
+        Handles keyboard shortcuts.
+        """
+        if 'ctrl' in modifier:
+            if codepoint == 'q':
+                self.stop()
+            elif codepoint == 's':
+                if not self.is_scan_button_disabled:
+                    self.scan_for_devices()
+            elif codepoint == 'd':
+                if not self.root.ids.disconnect_button.disabled:
+                    self.disconnect_from_device()
+            elif codepoint == 'l':
+                self.clear_log()
 
     def build(self):
         self.ble_manager = BLEManager(
