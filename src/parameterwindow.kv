@@ -1,71 +1,51 @@
 #:kivy 2.0.0
-#:import theme_manager theme.theme_manager
 
 <ParameterWindow>:
     title: 'Parameters'
     size_hint: 0.6, 0.4
     auto_dismiss: False
 
-    canvas.before:
-        Color:
-            rgba: theme_manager.background
-        Rectangle:
-            pos: self.pos
-            size: self.size
-
-    BoxLayout:
+    MDBoxLayout:
         orientation: 'vertical'
         padding: '10dp'
         spacing: '10dp'
 
-        BoxLayout:
+        MDBoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
             height: '30dp'
 
-            Label:
+            MDLabel:
                 text: 'Scan Timeout:'
-                color: theme_manager.text
-            TextInput:
+            MDTextField:
                 id: scan_timeout_input
                 text: '5.0'
                 multiline: False
-                background_color: theme_manager.input_bg
-                foreground_color: theme_manager.input_fg
 
-        BoxLayout:
+        MDBoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
             height: '30dp'
 
-            Label:
+            MDLabel:
                 text: 'Theme:'
-                color: theme_manager.text
             Spinner:
                 id: theme_spinner
                 text: 'Dark'
                 values: ['Light', 'Dark']
-                background_color: theme_manager.button_bg
-                color: theme_manager.button_fg
 
-        BoxLayout:
+        MDBoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
             height: '40dp'
             spacing: '10dp'
 
-            Button:
+            MDRaisedButton:
                 text: 'Restore Defaults'
                 on_release: app.restore_default_parameters(root)
-                background_color: theme_manager.button_bg
-                color: theme_manager.button_fg
-            Button:
+            MDRaisedButton:
                 text: 'OK'
                 on_release: app.update_parameters(root)
-                background_color: theme_manager.button_bg
-                color: theme_manager.button_fg
-            Button:
+            MDRaisedButton:
                 text: 'Cancel'
                 on_release: root.dismiss()
-                background_color: theme_manager.button_bg
-                color: theme_manager.button_fg

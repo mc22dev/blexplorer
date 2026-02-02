@@ -1,5 +1,4 @@
 #:kivy 2.0.0
-#:import theme_manager theme.theme_manager
 
 <DescriptorFrameKivy>:
     orientation: 'vertical'
@@ -7,46 +6,32 @@
     spacing: '5dp'
     size_hint_y: None
     height: self.minimum_height
+    md_bg_color: app.theme_cls.bg_light
 
-    canvas.before:
-        Color:
-            rgba: theme_manager.secondary
-        Rectangle:
-            pos: self.pos
-            size: self.size
-
-    Label:
+    MDLabel:
         text: f"Descriptor UUID: {root.desc_uuid}"
-        font_size: '14sp'
+        font_style: 'Body1'
         halign: 'left'
         text_size: self.width, None
-        color: theme_manager.text
 
-    BoxLayout:
+    MDBoxLayout:
         size_hint_y: None
         height: '30dp'
-        Label:
+        MDLabel:
             text: 'Value:'
             size_hint_x: 0.2
-            color: theme_manager.text
-        TextInput:
+        MDTextField:
             id: value_input
             text: root.desc_value
             size_hint_x: 0.8
-            background_color: theme_manager.input_bg
-            foreground_color: theme_manager.input_fg
 
-    BoxLayout:
+    MDBoxLayout:
         size_hint_y: None
         height: '30dp'
         spacing: '5dp'
-        Button:
+        MDRaisedButton:
             id: read_button
             text: 'Read'
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
+        MDRaisedButton:
             id: write_button
             text: 'Write'
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg

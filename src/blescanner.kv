@@ -1,139 +1,87 @@
 #:kivy 2.0.0
-#:import theme_manager theme.theme_manager
 
 <MainLayout>:
     orientation: 'vertical'
-    canvas.before:
-        Color:
-            rgba: theme_manager.background
-        Rectangle:
-            pos: self.pos
-            size: self.size
 
-    # Top Adapter Bar
-    BoxLayout:
-        size_hint_y: None
-        height: '48dp'
-        padding: '5dp'
-        spacing: '5dp'
+    MDTopAppBar:
+        id: main_toolbar
+        title: "BLE Scanner"
+        left_action_items: [["cog-outline", lambda x: app.open_parameter_window()]]
+        right_action_items: [["bluetooth-scan", lambda x: app.scan_for_devices()], ["logout", lambda x: app.disconnect_from_device()]]
 
-        Label:
-            text: 'Adapter:'
-            size_hint_x: None
-            width: '80dp'
-            color: theme_manager.text
-        Spinner:
-            id: adapter_spinner
-            text: 'Default'
-            values: ['Default']
-            size_hint_x: 0.3
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
-            text: 'Refresh'
-            size_hint_x: 0.1
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
-            id: scan_button
-            text: 'Scan'
-            size_hint_x: 0.1
-            disabled: app.is_scan_button_disabled
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
-            id: parameter_button
-            text: 'Parameters'
-            size_hint_x: 0.15
-            on_release: app.open_parameter_window()
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
-            id: disconnect_button
-            text: 'Disconnect'
-            size_hint_x: 0.2
-            disabled: True
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
+    MDScreen:
+        MDBottomNavigation:
+            id: bottom_nav
+            panel_color: app.theme_cls.bg_light
 
-    # Main Content Area
-    BoxLayout:
-        orientation: 'horizontal'
+            MDBottomNavigationItem:
+                name: 'scanner_screen'
+                text: 'Scanner'
+                icon: 'bluetooth'
 
-        # Left Pane: Device List
-        BoxLayout:
-            orientation: 'vertical'
-            size_hint_x: 0.4
-
-            TextInput:
-                id: search_input
-                hint_text: 'Filter devices'
-                size_hint_y: None
-                height: '30dp'
-                on_text: app.filter_devices(self.text)
-                background_color: theme_manager.input_bg
-                foreground_color: theme_manager.input_fg
-
-            ScrollView:
-                id: device_scroll_view
-                do_scroll_x: False
-                BoxLayout:
-                    id: device_list
+                MDBoxLayout:
                     orientation: 'vertical'
-                    size_hint_y: None
-                    height: self.minimum_height
 
-        # Right Pane: Characteristics and Log
-        BoxLayout:
-            orientation: 'vertical'
-            size_hint_x: 0.6
+                    Spinner:
+                        id: adapter_spinner
+                        text: 'Default'
+                        values: ['Default']
+                        size_hint_y: None
+                        height: "48dp"
+                        on_text: app.on_adapter_selected(self, self.text)
 
-            # Toolbar
-            BoxLayout:
-                size_hint_y: None
-                height: '48dp'
-                padding: '5dp'
-                spacing: '5dp'
+                    MDTextField:
+                        id: search_input
+                        hint_text: 'Filter devices'
+                        size_hint_y: None
+                        height: '48dp'
+                        on_text: app.filter_devices(self.text)
 
-                Button:
-                    id: read_all_button
-                    text: 'Read All'
-                    disabled: True
-                    background_color: theme_manager.button_bg
-                    color: theme_manager.button_fg
-                Button:
-                    id: clear_log_button
-                    text: 'Clear Log'
-                    background_color: theme_manager.button_bg
-                    color: theme_manager.button_fg
-                Button:
-                    id: save_log_button
-                    text: 'Save Log'
-                    background_color: theme_manager.button_bg
-                    color: theme_manager.button_fg
-                Button:
-                    id: ota_button
-                    text: 'OTA'
-                    on_release: app.open_ota_window()
-                    background_color: theme_manager.button_bg
-                    color: theme_manager.button_fg
+                    ScrollView:
+                        id: device_scroll_view
+                        MDBoxLayout:
+                            id: device_list
+                            orientation: 'vertical'
+                            size_hint_y: None
+                            height: self.minimum_height
 
-            ScrollView:
-                id: char_scroll_view
-                do_scroll_x: False
-                BoxLayout:
-                    id: characteristic_list
+            MDBottomNavigationItem:
+                name: 'device_screen'
+                text: 'Device'
+                icon: 'cellphone-link'
+                disabled: not app.is_connected
+
+                MDBoxLayout:
                     orientation: 'vertical'
-                    size_hint_y: None
-                    height: self.minimum_height
-                    Label:
-                        text: 'Characteristics will appear here'
-                        color: theme_manager.text
 
-            TextInput:
-                id: log_view
-                text: ''
-                readonly: True
-                size_hint_y: 0.4
-                background_color: theme_manager.input_bg
-                foreground_color: theme_manager.input_fg
+                    MDTopAppBar:
+                        id: device_toolbar
+                        title: "Device Info"
+                        right_action_items: [["refresh", lambda x: app.read_all_characteristics()], ["upload", lambda x: app.open_ota_window()]]
+
+                    ScrollView:
+                        id: char_scroll_view
+                        MDBoxLayout:
+                            id: characteristic_list
+                            orientation: 'vertical'
+                            size_hint_y: None
+                            height: self.minimum_height
+                            MDLabel:
+                                text: 'Characteristics will appear here'
+
+            MDBottomNavigationItem:
+                name: 'log_screen'
+                text: 'Log'
+                icon: 'text-box-outline'
+
+                MDBoxLayout:
+                    orientation: 'vertical'
+                    MDTopAppBar:
+                        id: log_toolbar
+                        title: "Log"
+                        right_action_items: [["delete", lambda x: app.clear_log()], ["content-save", lambda x: app.show_save_dialog()]]
+                    MDTextField:
+                        id: log_view
+                        text: ''
+                        multiline: True
+                        readonly: True

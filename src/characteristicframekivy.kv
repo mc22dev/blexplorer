@@ -1,108 +1,82 @@
 #:kivy 2.0.0
-#:import theme_manager theme.theme_manager
 
 <CharacteristicFrameKivy>:
     orientation: 'vertical'
-    padding: '10dp'
-    spacing: '5dp'
     size_hint_y: None
     height: self.minimum_height
+    padding: '4dp'
 
-    canvas.before:
-        Color:
-            rgba: theme_manager.secondary
-        Rectangle:
-            pos: self.pos
-            size: self.size
-
-    BoxLayout:
+    MDCard:
+        orientation: 'vertical'
         size_hint_y: None
-        height: '30dp'
-        Label:
-            text: root.short_uuid
-            font_size: '16sp'
-            halign: 'left'
-            text_size: self.width, None
-            color: theme_manager.text
-        Button:
-            text: 'ⓘ'
-            size_hint_x: 0.1
-            on_release: root.show_info_popup()
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
-            text: root.char_properties
-            font_size: '14sp'
-            halign: 'right'
-            text_size: self.width, None
-            size_hint_x: 0.3
-            background_color: (0,0,0,0)
-            color: theme_manager.text
-            on_release: root.show_properties_popup()
+        height: self.minimum_height
+        on_release: root.toggle_collapse()
 
-    Label:
-        id: user_description_label
-        text: ""
-        font_size: '14sp'
-        halign: 'left'
-        text_size: self.width, None
-        size_hint_y: None
-        height: 0 if not self.text else '20dp'
-        color: theme_manager.text
+        ThreeLineAvatarIconListItem:
+            text: root.char_name
+            secondary_text: root.char_uuid
+            tertiary_text: root.full_char_properties
 
-    BoxLayout:
-        size_hint_y: None
-        height: '30dp'
-        TextInput:
-            id: value_input
-            text: root.char_value
-            size_hint_x: 0.6
-            background_color: theme_manager.input_bg
-            foreground_color: theme_manager.input_fg
-        Button:
-            text: '📋'
-            size_hint_x: 0.1
-            on_release: root.copy_to_clipboard(root.char_value)
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Spinner:
-            id: format_spinner
-            text: 'Hex'
-            values: ['Hex', 'ASCII', 'JSON', 'Int8', 'UInt8', 'Int16', 'UInt16', 'Int32', 'UInt32', 'Float32', 'Float64']
-            size_hint_x: 0.3
-            on_text: root.on_format_change(self.text)
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
+            IconLeftWidget:
+                icon: "bluetooth"
 
-    BoxLayout:
-        size_hint_y: None
-        height: '30dp'
-        spacing: '5dp'
-        Button:
-            id: read_button
-            text: 'Read'
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        Button:
-            id: write_button
-            text: 'Write'
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        ToggleButton:
-            id: subscribe_button
-            text: 'Subscribe'
-            background_color: theme_manager.button_bg
-            color: theme_manager.button_fg
-        BoxLayout:
-            id: write_controls
+        MDBoxLayout:
+            id: content
+            orientation: 'vertical'
+            padding: '10dp'
+            spacing: '10dp'
             size_hint_y: None
-            height: '30dp' if root.characteristic and ("write" in root.characteristic.properties or "write-without-response" in root.characteristic.properties) else 0
-            opacity: 1 if root.characteristic and ("write" in root.characteristic.properties or "write-without-response" in root.characteristic.properties) else 0
-            disabled: not (root.characteristic and ("write" in root.characteristic.properties or "write-without-response" in root.characteristic.properties))
+            height: 0 if root.collapsed else self.minimum_height
+            opacity: 0 if root.collapsed else 1
 
-            Spinner:
-                id: write_mode_spinner
-                text: 'ASCII'
-                values: ['ASCII', 'Hex']
-                background_color: theme_manager.button_bg
-                color: theme_manager.button_fg
+            MDLabel:
+                id: user_description_label
+                text: ""
+                font_style: 'Body1'
+                halign: 'left'
+                text_size: self.width, None
+                size_hint_y: None
+                height: 0 if not self.text else '20dp'
+
+            MDBoxLayout:
+                size_hint_y: None
+                height: '48dp'
+                MDTextField:
+                    id: value_input
+                    text: root.char_value
+                    size_hint_x: 0.6
+                MDIconButton:
+                    icon: 'content-copy'
+                    on_release: root.copy_to_clipboard(root.char_value)
+                Spinner:
+                    id: format_spinner
+                    text: 'Hex'
+                    values: ['Hex', 'ASCII', 'JSON', 'Int8', 'UInt8', 'Int16', 'UInt16', 'Int32', 'UInt32', 'Float32', 'Float64']
+                    size_hint_x: 0.3
+                    on_text: root.on_format_change(self.text)
+
+            MDBoxLayout:
+                size_hint_y: None
+                height: '48dp'
+                spacing: '10dp'
+                MDRaisedButton:
+                    id: read_button
+                    text: 'Read'
+                MDRaisedButton:
+                    id: write_button
+                    text: 'Write'
+                MDSwitch:
+                    id: subscribe_button
+                MDLabel:
+                    text: 'Subscribe'
+
+            MDBoxLayout:
+                id: write_controls
+                size_hint_y: None
+                height: '48dp' if root.characteristic and ("write" in root.characteristic.properties or "write-without-response" in root.characteristic.properties) else 0
+                opacity: 1 if root.characteristic and ("write" in root.characteristic.properties or "write-without-response" in root.characteristic.properties) else 0
+
+                Spinner:
+                    id: write_mode_spinner
+                    text: 'ASCII'
+                    values: ['ASCII', 'Hex']
