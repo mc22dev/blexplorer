@@ -54,17 +54,18 @@ windows: setup-windows packages
 # Build the Windows executable on Linux using Wine and package it
 windows-on-linux: setup packages
 	. $(VENV_ACTIVATE_UNIX); \
+	rm -rf tmp/build tmp/dist; \
 	export WINEPREFIX="$(PWD)/tmp/.wine"; \
 	export WINEARCH=win64; \
 	PYTHON_VERSION="3.9.13"; \
 	PYTHON_INSTALLER_URL="https://www.python.org/ftp/python/$${PYTHON_VERSION}/python-$${PYTHON_VERSION}-amd64.exe"; \
 	PYTHON_INSTALLER_FILENAME="tmp/python-$${PYTHON_VERSION}-amd64.exe"; \
 	PYTHON_SHORT_VERSION="$${PYTHON_VERSION%.*}"; \
-	PYTHON_DIR_VERSION="$${PYTHON_SHORT_VERSION/./}"; \
+	PYTHON_DIR_VERSION="$$(echo $$PYTHON_SHORT_VERSION | sed 's/\.//')"; \
 	WINE_PYTHON_PATH="$$WINEPREFIX/drive_c/users/$$USER/AppData/Local/Programs/Python/Python$$PYTHON_DIR_VERSION"; \
 	WINE_PYTHON_EXE="$$WINE_PYTHON_PATH/python.exe"; \
 	WINE_PYINSTALLER_EXE="$$WINE_PYTHON_PATH/Scripts/pyinstaller.exe"; \
-	if ! command -v wine &> /dev/null; then \
+	if ! command -v wine > /dev/null 2>&1; then \
 		echo "Error: 'wine' command not found."; \
 		exit 1; \
 	fi; \
