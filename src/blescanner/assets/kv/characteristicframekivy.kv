@@ -43,7 +43,7 @@
 
             Label:
                 id: user_description_label
-                text: ""
+                text: root.user_description
                 halign: 'left'
                 text_size: self.width, None
                 size_hint_y: None
@@ -59,7 +59,9 @@
                 Button:
                     font_name: "MaterialIcons"
                     text: '\U000F018F'
-                    on_release: root.copy_to_clipboard(root.char_value)
+                    size_hint_x: None
+                    width: self.height
+                    on_release: root.show_copy_popup()
                 Spinner:
                     id: format_spinner
                     text: 'ASCII'

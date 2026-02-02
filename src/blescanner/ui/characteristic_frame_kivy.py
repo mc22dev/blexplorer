@@ -1,36 +1,12 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty
-from kivy.core.clipboard import Clipboard
 import struct
 import json
-from kivy.uix.popup import Popup
-from kivy.uix.label import Label
-from kivy.uix.button import Button
-from kivy.clock import Clock
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
-
 from blescanner.ble.gatt import GATT_CHARACTERISTICS
+from .copy_popup import CopyPopup
 
-
-class InfoPopup(Popup):
-    def __init__(self, title, text, copy_callback, **kwargs):
-        content = BoxLayout(orientation='vertical')
-        content.add_widget(Label(text=text))
-        button_layout = BoxLayout(size_hint_y=None, height='44dp')
-        copy_button = Button(text='COPY')
-        copy_button.bind(on_release=lambda x: copy_callback(text))
-        button_layout.add_widget(copy_button)
-        close_button = Button(text='CLOSE')
-        close_button.bind(on_release=self.dismiss)
-        button_layout.add_widget(close_button)
-        content.add_widget(button_layout)
-        super().__init__(
-            title=title,
-            content=content,
-            size_hint=(0.8, 0.5),
-            **kwargs
-        )
 
 class CharacteristicFrameKivy(BoxLayout):
     characteristic = ObjectProperty(None)
@@ -38,6 +14,7 @@ class CharacteristicFrameKivy(BoxLayout):
     char_name = StringProperty('')
     full_char_properties = StringProperty('')
     char_value = StringProperty('')
+    user_description = StringProperty('')
     raw_value = ObjectProperty(b'')
     collapsed = BooleanProperty(False)
 
@@ -46,6 +23,7 @@ class CharacteristicFrameKivy(BoxLayout):
         self.characteristic = characteristic
         self.char_uuid = characteristic.uuid
         self.char_name = self.characteristic.description or "Unknown Characteristic"
+        self._copy_selection_state = set()
 
         # Create the full properties string for the tooltip
         self.full_char_properties = ", ".join(sorted(characteristic.properties))
@@ -66,7 +44,7 @@ class CharacteristicFrameKivy(BoxLayout):
             short_uuid = "0" + short_uuid
         user_description = GATT_CHARACTERISTICS.get(short_uuid.lower())
         if user_description:
-            self.ids.user_description_label.text = user_description
+            self.user_description = user_description
 
     def _is_printable_ascii(self, data: bytes) -> bool:
         """Checks if byte data is empty or contains only printable ASCII characters."""
@@ -137,10 +115,28 @@ class CharacteristicFrameKivy(BoxLayout):
         except (struct.error, UnicodeDecodeError):
             self.char_value = "Invalid Format"
 
-    def copy_to_clipboard(self, text):
-        Clipboard.copy(text)
-        popup = Popup(title='Copied!', content=Label(text='Copied!'), size_hint=(None, None), size=(200, 100))
+    def show_copy_popup(self):
+        """Displays a popup to select what to copy."""
+        data_to_copy = {
+            "char_name": {"name": "Characteristic Name", "value": self.char_name},
+            "char_uuid": {"name": "Characteristic UUID", "value": self.char_uuid},
+            "full_char_properties": {"name": "Properties", "value": self.full_char_properties},
+            "user_description": {"name": "User Description", "value": self.user_description},
+            "char_value": {"name": "Value", "value": self.char_value},
+        }
+
+        popup = CopyPopup(
+            title='Copy Characteristic Info',
+            data_dict=data_to_copy,
+            selection_state=self._copy_selection_state,
+            save_callback=self._save_copy_selection
+        )
         popup.open()
+
+    def _save_copy_selection(self, selection):
+        """Saves the current selection of checkboxes."""
+        self._copy_selection_state = selection
+
 
     def toggle_collapse(self):
         self.collapsed = not self.collapsed
