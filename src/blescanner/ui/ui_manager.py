@@ -40,18 +40,23 @@ class UIManager:
             self.display_message_in_device_tab("No connected device")
             self.app_state.characteristic_frames = {}
 
+    @property
+    def ble_scanner_screen(self):
+        """Gets the BLE scanner screen widget."""
+        return self.root.ids.screen_manager.get_screen('ble_scanner')
+
     def switch_to_device_tab(self):
         """Switches the main view to the device screen tab."""
-        self.root.ids.bottom_nav.switch_to(self.root.ids.device_screen_tab)
+        self.ble_scanner_screen.ids.bottom_nav.switch_to(self.ble_scanner_screen.ids.device_screen_tab)
 
     def clear_characteristic_list(self):
         """Clears the characteristic list in the device screen."""
-        self.root.ids.device_screen.ids.characteristic_list.clear_widgets()
+        self.ble_scanner_screen.ids.device_screen.ids.characteristic_list.clear_widgets()
 
     def display_message_in_device_tab(self, message: str):
         """Displays a message in the device tab (e.g., 'No connected device')."""
         self.clear_characteristic_list()
-        self.root.ids.device_screen.ids.characteristic_list.add_widget(
+        self.ble_scanner_screen.ids.device_screen.ids.characteristic_list.add_widget(
             Label(text=message)
         )
 
