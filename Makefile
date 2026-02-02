@@ -1,4 +1,4 @@
-.PHONY: all android install run-android run run-windows clean logcat windows windows-on-linux linux packages run-windows-on-linux
+.PHONY: all android install run-android run-android-emulator stop-android-emulator run run-windows clean logcat windows windows-on-linux linux packages run-windows-on-linux
 
 # Extract package metadata from the buildozer.spec and _version.py files
 PACKAGE_NAME := $(shell grep '^package.name =' buildozer.spec | cut -d' ' -f3)
@@ -95,9 +95,22 @@ install: android
 run-android: android
 	. $(VENV_ACTIVATE_UNIX); buildozer android run
 
+# Run the app on an emulator (will also install if needed)
+run-android-emulator: android
+	./start_emulator.sh
+	. $(VENV_ACTIVATE_UNIX); \
+	export BUILDOZER_OVERRIDE_ANDROID_ADB_ARGS="-e"; \
+	adb wait-for-device; \
+	buildozer android run
+
 # Run the Windows executable on Linux using Wine
 run-windows-on-linux: windows-on-linux
 	WINEPREFIX="$(PWD)/tmp/.wine" wine tmp/dist/BLEScanner/blescanner.exe
+
+# Stop any running emulators
+stop-android-emulator:
+	. $(VENV_ACTIVATE_UNIX); \
+	adb devices | grep emulator | cut -f1 | while read -r line; do adb -s $$line emu kill; done
 
 # Clean all build artifacts and virtual environments
 clean:
