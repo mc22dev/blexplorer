@@ -12,3 +12,4 @@ dbus-fast
 pytest-asyncio
 pyserial
 pyserial-asyncio
+psutil
