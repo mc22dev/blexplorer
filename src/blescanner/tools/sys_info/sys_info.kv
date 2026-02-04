@@ -1,0 +1,130 @@
+#:kivy 2.0.0
+
+<DiskItem>:
+    orientation: 'vertical'
+    size_hint_y: None
+    height: "100dp"
+    padding: "5dp"
+    canvas.before:
+        Color:
+            rgba: (0.5, 0.5, 0.5, 1)
+        Line:
+            width: 1
+            rectangle: self.x, self.y, self.width, self.height
+    Label:
+        text: "Device: " + root.device + " (" + root.fstype + ")"
+        halign: 'left'
+        text_size: self.size
+    Label:
+        text: "Mount: " + root.mountpoint
+        halign: 'left'
+        text_size: self.size
+    Label:
+        text: "Usage: " + root.used + " / " + root.total + " (" + root.percent + ")"
+        halign: 'left'
+        text_size: self.size
+    Label:
+        text: "Free: " + root.free
+        halign: 'left'
+        text_size: self.size
+
+<SysInfoScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: "10dp"
+        spacing: "10dp"
+
+        ScrollView:
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: "20dp"
+
+                # OS Info
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Label:
+                        text: "Operating System"
+                        bold: True
+                        size_hint_y: None
+                        height: "30dp"
+                        halign: 'left'
+                        text_size: self.size
+                        color: app.theme.accent if app else (1, 1, 1, 1)
+                    Label:
+                        text: root.os_info
+                        size_hint_y: None
+                        height: self.texture_size[1]
+                        halign: 'left'
+                        text_size: self.size
+
+                # CPU Info
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Label:
+                        text: "CPU"
+                        bold: True
+                        size_hint_y: None
+                        height: "30dp"
+                        halign: 'left'
+                        text_size: self.size
+                        color: app.theme.accent if app else (1, 1, 1, 1)
+                    Label:
+                        text: root.cpu_info
+                        size_hint_y: None
+                        height: self.texture_size[1]
+                        halign: 'left'
+                        text_size: self.size
+
+                # Memory Info
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Label:
+                        text: "Memory"
+                        bold: True
+                        size_hint_y: None
+                        height: "30dp"
+                        halign: 'left'
+                        text_size: self.size
+                        color: app.theme.accent if app else (1, 1, 1, 1)
+                    Label:
+                        text: root.memory_info
+                        size_hint_y: None
+                        height: self.texture_size[1]
+                        halign: 'left'
+                        text_size: self.size
+
+                # Disk Info
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    Label:
+                        text: "Filesystem"
+                        bold: True
+                        size_hint_y: None
+                        height: "30dp"
+                        halign: 'left'
+                        text_size: self.size
+                        color: app.theme.accent if app else (1, 1, 1, 1)
+
+                    RecycleView:
+                        id: disk_rv
+                        data: root.disk_data
+                        viewclass: 'DiskItem'
+                        size_hint_y: None
+                        height: "400dp"
+                        RecycleBoxLayout:
+                            default_size: None, dp(100)
+                            default_size_hint: 1, None
+                            size_hint_y: None
+                            height: self.minimum_height
+                            orientation: 'vertical'
+                            spacing: "5dp"
