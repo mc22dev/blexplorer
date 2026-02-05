@@ -103,7 +103,9 @@ class TerminalScreen(Screen):
         self.refresh_serial_ports()
         Window.bind(on_key_down=self._on_key_down)
         if self.is_connected:
-            self.ids.hidden_input.focus = True
+            def _focus(dt):
+                self.ids.hidden_input.focus = True
+            Clock.schedule_once(_focus, 0.1)
         if not self._update_event:
             self._update_event = Clock.schedule_interval(self.update_ui, 1.0 / 30.0)
 
@@ -292,13 +294,17 @@ class TerminalScreen(Screen):
     def on_touch_down(self, touch):
         res = super().on_touch_down(touch)
 
-        # If the user clicked on a settings input, let it keep focus
-        if any(ti.focus for ti in [self.ids.host_input, self.ids.port_input, self.ids.user_input, self.ids.password_input]):
-            return res
+        # Delay focus check to allow focus to settle after touch processing
+        def _check_focus(dt):
+            # If the user clicked on a settings input, let it keep focus
+            if any(ti.focus for ti in [self.ids.host_input, self.ids.port_input, self.ids.user_input, self.ids.password_input]):
+                return
 
-        # Otherwise, if connected, ensure the hidden terminal input has focus
-        if self.is_connected:
-             self.ids.hidden_input.focus = True
+            # Otherwise, if connected, ensure the hidden terminal input has focus
+            if self.is_connected:
+                 self.ids.hidden_input.focus = True
+
+        Clock.schedule_once(_check_focus)
         return res
 
     def _on_key_down(self, window, key, scancode, codepoint, modifier):
