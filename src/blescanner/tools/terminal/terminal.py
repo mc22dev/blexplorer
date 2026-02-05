@@ -195,6 +195,59 @@ class TerminalScreen(Screen):
             except Exception as e:
                 logger.error(f"Error feeding data: {e}")
 
+    def get_line_markup(self, y):
+        line_str = ""
+        current_fg = None
+        current_bold = False
+
+        row = self.pyte_screen.buffer[y]
+        cursor_x = self.pyte_screen.cursor.x
+        cursor_y = self.pyte_screen.cursor.y
+
+        for x in range(self.pyte_screen.columns):
+            char = row[x]
+            is_cursor = (x == cursor_x and y == cursor_y)
+
+            # Check if style changed OR it's the cursor
+            # If it's the cursor, we force a style change to highlight it
+            style_changed = (char.fg != current_fg or char.bold != current_bold or is_cursor)
+
+            if style_changed:
+                # Close previous tags
+                if current_bold: line_str += "[/b]"
+                if current_fg and current_fg in COLOR_MAP: line_str += "[/color]"
+
+                # Open new tags
+                current_fg = char.fg
+                current_bold = char.bold
+
+                if is_cursor:
+                    # Cursor highlight: let's use a bright color, e.g., yellow
+                    line_str += "[color=ffff00][b]"
+                else:
+                    if current_fg and current_fg in COLOR_MAP:
+                        line_str += f"[color={COLOR_MAP[current_fg]}]"
+                    if current_bold:
+                        line_str += "[b]"
+
+            # Escape markup characters
+            c = char.data
+            if c == '[': c = '[['
+            elif c == ']': c = ']]'
+            line_str += c
+
+            if is_cursor:
+                line_str += "[/b][/color]"
+                # Force style reset for next char
+                current_fg = "RESET"
+                current_bold = False
+
+        # Close tags at end of line
+        if current_bold: line_str += "[/b]"
+        if current_fg and current_fg in COLOR_MAP: line_str += "[/color]"
+
+        return line_str
+
     def update_ui(self, dt):
         if not self.pyte_screen.any_changes:
             return
@@ -202,60 +255,16 @@ class TerminalScreen(Screen):
         self.pyte_screen.any_changes = False
         new_data = []
         for y in range(self.pyte_screen.lines):
-            line_str = ""
-            current_fg = None
-            current_bold = False
-
-            row = self.pyte_screen.buffer[y]
-            for x in range(self.pyte_screen.columns):
-                char = row[x]
-
-                # Check if style changed
-                style_changed = (char.fg != current_fg or char.bold != current_bold)
-
-                if style_changed:
-                    # Close previous tags
-                    if current_bold: line_str += "[/b]"
-                    if current_fg and current_fg in COLOR_MAP: line_str += "[/color]"
-
-                    # Open new tags
-                    current_fg = char.fg
-                    current_bold = char.bold
-
-                    if current_fg and current_fg in COLOR_MAP:
-                         line_str += f"[color={COLOR_MAP[current_fg]}]"
-                    if current_bold:
-                        line_str += "[b]"
-
-                # Escape markup characters
-                c = char.data
-                if c == '[': c = '[['
-                elif c == ']': c = ']]'
-                line_str += c
-
-            # Close tags at end of line
-            if current_bold: line_str += "[/b]"
-            if current_fg and current_fg in COLOR_MAP: line_str += "[/color]"
-
-            new_data.append({'text': line_str})
+            new_data.append({'text': self.get_line_markup(y)})
 
         self.output_data = new_data
-        # Scroll to bottom if needed (usually terminal stays at same lines)
-        # self.ids.rv.scroll_y = 0
-
-    def send_input(self):
-        text = self.ids.input_text.text
-        if not self.is_connected:
-            return
-
-        self._send_to_connection(text + "\n")
-        self.ids.input_text.text = ""
 
     def _on_key_down(self, window, key, scancode, codepoint, modifier):
         if not self.manager or self.manager.current != self.name:
             return
 
-        if self.ids.input_text.focus:
+        # Don't capture keys if any settings input has focus
+        if any(ti.focus for ti in [self.ids.host_input, self.ids.port_input, self.ids.user_input, self.ids.password_input]):
             return
 
         if not self.is_connected:
@@ -269,7 +278,17 @@ class TerminalScreen(Screen):
             276: '\x1b[D', # Left
             13: '\r',      # Enter
             8: '\x7f',     # Backspace
+            9: '\t',      # Tab
+            27: '\x1b',    # Escape
         }
+
+        if 'ctrl' in modifier:
+            if codepoint:
+                # Basic Ctrl+Key support (A=1, B=2, ...)
+                val = ord(codepoint.lower()) - ord('a') + 1
+                if 1 <= val <= 26:
+                    self._send_to_connection(chr(val))
+                    return True
 
         if key in key_map:
             self._send_to_connection(key_map[key])
