@@ -145,6 +145,7 @@ class BLEScannerApp(App):
         self.scan_timeout = self.config_manager.get_setting('scan', 'timeout')
         self.adapter = self.config_manager.get_setting('bluetooth', 'adapter')
         self.theme = theme_manager
+        self.platform_utils = platform_utils
         theme_manager.set_theme(self.config_manager.get_setting('theme', 'name'))
 
         # Set up the graph with configured RSSI limits
