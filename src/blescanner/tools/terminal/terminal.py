@@ -313,7 +313,7 @@ class TerminalScreen(Screen):
 
         # Don't capture keys if any settings input has focus
         if any(ti.focus for ti in [self.ids.host_input, self.ids.port_input, self.ids.user_input, self.ids.password_input]):
-            return
+            return False
 
         if not self.is_connected:
             return
