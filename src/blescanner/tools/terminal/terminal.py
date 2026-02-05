@@ -7,6 +7,7 @@ from kivy.properties import BooleanProperty, StringProperty, ListProperty, Numer
 from kivy.clock import Clock
 from kivy.uix.recycleview.views import RecycleDataViewBehavior
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.textinput import TextInput
 from kivy.core.window import Window
 import serial
 from blescanner.models import LogLevel
@@ -35,6 +36,17 @@ COLOR_MAP = {
     'cyan': '06989a',
     'white': 'd3d7cf',
 }
+
+class TerminalInput(TextInput):
+    """
+    A hidden TextInput to handle complex text input (dead keys, IME).
+    """
+    def insert_text(self, substring, from_undo=False):
+        app = App.get_running_app()
+        screen = app.root.ids.screen_manager.get_screen('terminal')
+        if screen.is_connected:
+            screen._send_to_connection(substring)
+        return # Don't actually insert text into the widget
 
 class TerminalRow(RecycleDataViewBehavior, BoxLayout):
     text = StringProperty("")
@@ -90,13 +102,14 @@ class TerminalScreen(Screen):
     def on_enter(self, *args):
         self.refresh_serial_ports()
         Window.bind(on_key_down=self._on_key_down)
-        Window.bind(on_textinput=self._on_text_input)
+        if self.is_connected:
+            self.ids.hidden_input.focus = True
         if not self._update_event:
             self._update_event = Clock.schedule_interval(self.update_ui, 1.0 / 30.0)
 
     def on_leave(self, *args):
         Window.unbind(on_key_down=self._on_key_down)
-        Window.unbind(on_textinput=self._on_text_input)
+        self.ids.hidden_input.focus = False
         if self._update_event:
             self._update_event.cancel()
             self._update_event = None
@@ -143,6 +156,7 @@ class TerminalScreen(Screen):
                 )
 
                 self.is_connected = True
+                self.ids.hidden_input.focus = True
                 self.log(f"Connected to {host} via SSH")
 
             elif protocol == 'Telnet':
@@ -152,6 +166,7 @@ class TerminalScreen(Screen):
                 # telnetlib3.open_connection returns (reader, writer)
                 self.reader, self.writer = await telnetlib3.open_connection(host, int(port_str))
                 self.is_connected = True
+                self.ids.hidden_input.focus = True
                 self.log(f"Connected to {host} via Telnet")
                 asyncio.create_task(self._telnet_read_loop())
 
@@ -165,6 +180,7 @@ class TerminalScreen(Screen):
                     baudrate=baudrate
                 )
                 self.is_connected = True
+                self.ids.hidden_input.focus = True
                 self.log(f"Connected to {serial_port} at {baudrate} bps")
 
         except Exception as e:
@@ -273,18 +289,17 @@ class TerminalScreen(Screen):
 
         self.output_data = new_data
 
-    def _on_text_input(self, window, text):
-        if not self.manager or self.manager.current != self.name:
-            return
+    def on_touch_down(self, touch):
+        res = super().on_touch_down(touch)
 
-        # Don't capture text if any settings input has focus
+        # If the user clicked on a settings input, let it keep focus
         if any(ti.focus for ti in [self.ids.host_input, self.ids.port_input, self.ids.user_input, self.ids.password_input]):
-            return
+            return res
 
-        if not self.is_connected:
-            return
-
-        self._send_to_connection(text)
+        # Otherwise, if connected, ensure the hidden terminal input has focus
+        if self.is_connected:
+             self.ids.hidden_input.focus = True
+        return res
 
     def _on_key_down(self, window, key, scancode, codepoint, modifier):
         if not self.manager or self.manager.current != self.name:
