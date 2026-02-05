@@ -64,3 +64,36 @@ def test_calculator_hex_names():
     calc.expression = "A + B"
     calc.calculate()
     assert calc.dec_display == "21"
+
+def test_calculator_keyboard_input():
+    calc = CalculatorScreen()
+    # Mock manager to bypass focus check if needed, but we check self.name
+    calc.name = 'calculator'
+    class MockManager:
+        current = 'calculator'
+    calc.manager = MockManager()
+
+    # Simulate typing '1'
+    calc._on_key_down(None, 49, None, '1', [])
+    assert calc.expression == '1'
+
+    # Simulate typing '+'
+    calc._on_key_down(None, 43, None, '+', [])
+    assert calc.expression == '1+'
+
+    # Simulate typing 'A'
+    calc._on_key_down(None, 97, None, 'a', [])
+    assert calc.expression == '1+A'
+
+    # Simulate Backspace
+    calc._on_key_down(None, 8, None, None, [])
+    assert calc.expression == '1+'
+
+    # Simulate Clear (Escape)
+    calc._on_key_down(None, 27, None, None, [])
+    assert calc.expression == ''
+
+    # Test 0x prefix typing
+    calc._on_key_down(None, 48, None, '0', [])
+    calc._on_key_down(None, 120, None, 'x', [])
+    assert calc.expression == '0x'

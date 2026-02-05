@@ -1,5 +1,6 @@
 from kivy.uix.screenmanager import Screen
 from kivy.properties import StringProperty, NumericProperty, BooleanProperty
+from kivy.core.window import Window
 from simpleeval import SimpleEval
 import logging
 
@@ -103,3 +104,46 @@ class CalculatorScreen(Screen):
 
     def toggle_signed(self):
         self.is_signed = not self.is_signed
+
+    def on_enter(self, *args):
+        Window.bind(on_key_down=self._on_key_down)
+
+    def on_leave(self, *args):
+        Window.unbind(on_key_down=self._on_key_down)
+
+    def _on_key_down(self, window, key, scancode, codepoint, modifier):
+        if not self.manager or self.manager.current != self.name:
+            return
+
+        # Key mapping
+        # Digits and letters
+        if codepoint and codepoint.isalnum():
+            char = codepoint.upper()
+            if char in "0123456789ABCDEF":
+                # Handle 0x and 0b prefixes correctly if typed
+                if char in "ABCDEF" or char in "0123456789":
+                    self.add_to_expression(char)
+                return
+            elif char == 'X' and self.expression.endswith('0'):
+                self.add_to_expression('x')
+                return
+            elif char == 'B' and self.expression.endswith('0'):
+                # 'B' is also a hex digit, so it would be caught above if in "ABCDEF"
+                # But if we want to support '0b' specifically:
+                # Actually, B is in ABCDEF.
+                # If expression is '0', typing 'B' will add 'B'.
+                # Maybe we should check specifically for '0b'
+                pass
+
+        # Operators
+        if codepoint and codepoint in "+-*/%&|^~(),<>":
+            self.add_to_expression(codepoint)
+            return
+
+        # Special keys
+        if key == 8: # Backspace
+            self.backspace()
+        elif key == 127: # Delete
+            self.clear_expression()
+        elif key == 27: # Escape
+            self.clear_expression()
