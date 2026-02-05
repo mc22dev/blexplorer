@@ -239,6 +239,14 @@ class BLEScannerApp(App):
             tool_list.add_widget(btn)
 
     def switch_tool(self, tool_id, tool_name):
+        current_screen = self.root.ids.screen_manager.current_screen
+        if hasattr(current_screen, 'on_pre_leave_check'):
+            if current_screen.on_pre_leave_check(lambda: self._do_switch_tool(tool_id, tool_name)):
+                return
+
+        self._do_switch_tool(tool_id, tool_name)
+
+    def _do_switch_tool(self, tool_id, tool_name):
         self.root.ids.screen_manager.current = tool_id
         self.root.ids.tool_title.text = tool_name
         if self.root.nav_drawer_open:

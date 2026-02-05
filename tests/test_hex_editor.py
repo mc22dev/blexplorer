@@ -93,3 +93,23 @@ def test_hex_editor_keypad_input(hex_editor):
     hex_editor._on_key_down(None, 263, None, None, [])
     # 'e' -> '7'
     assert hex_editor.data[1] == ord('7')
+
+def test_hex_editor_is_dirty(hex_editor):
+    assert hex_editor.is_dirty is False
+    hex_editor.cursor_offset = 0
+    # Edit a nibble
+    hex_editor._on_key_down(None, ord('A'), None, 'A', [])
+    assert hex_editor.is_dirty is True
+
+    hex_editor.is_dirty = False
+    hex_editor.insert_byte()
+    assert hex_editor.is_dirty is True
+
+    hex_editor.is_dirty = False
+    hex_editor.delete_byte()
+    assert hex_editor.is_dirty is True
+
+    hex_editor.is_dirty = False
+    # "Hello" was modified to "\xA8ello" by the first test step
+    hex_editor.replace("ello", "world", is_hex=False)
+    assert hex_editor.is_dirty is True

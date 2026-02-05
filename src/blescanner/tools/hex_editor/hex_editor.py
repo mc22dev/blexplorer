@@ -6,6 +6,9 @@ from kivy.properties import ObjectProperty, StringProperty, ListProperty, Numeri
 from kivy.core.window import Window
 from kivy.uix.recycleview.views import RecycleDataViewBehavior
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
+from kivy.uix.button import Button
 from blescanner.models import LogLevel
 
 logger = logging.getLogger(__name__)
@@ -36,6 +39,7 @@ class HexEditorScreen(Screen):
     cursor_offset = NumericProperty(0)
     cursor_sub_offset = NumericProperty(0) # 0 or 1 for hex digits
     edit_in_hex = BooleanProperty(True)
+    is_dirty = BooleanProperty(False)
     status_text = StringProperty("No file loaded")
 
     view_data = ListProperty([])
@@ -63,18 +67,20 @@ class HexEditorScreen(Screen):
                 self.data = bytearray(f.read())
             self.filepath = filepath
             self.cursor_offset = 0
+            self.is_dirty = False
             self.update_view_data()
             self.status_text = f"Loaded {filepath} ({len(self.data)} bytes)"
         except Exception as e:
             self.app.log_with_timestamp(f"Error loading file: {e}", LogLevel.ERROR)
         self.app.ui_manager.dismiss_popup()
 
-    def save_file_dialog(self):
+    def save_file_dialog(self, on_success_callback=None):
+        from functools import partial
         if not self.data:
             return
-        self.app.ui_manager.show_save_dialog("Save File", self._save_file)
+        self.app.ui_manager.show_save_dialog("Save File", partial(self._save_file, on_success_callback=on_success_callback))
 
-    def _save_file(self, path, selection):
+    def _save_file(self, path, selection, on_success_callback=None):
         if not selection:
             self.app.ui_manager.dismiss_popup()
             return
@@ -85,6 +91,9 @@ class HexEditorScreen(Screen):
             self.filepath = filepath
             self.status_text = f"Saved to {filepath}"
             self.app.log_with_timestamp(f"File saved: {filepath}", LogLevel.SUCCESS)
+            self.is_dirty = False
+            if on_success_callback:
+                on_success_callback()
         except Exception as e:
             self.app.log_with_timestamp(f"Error saving file: {e}", LogLevel.ERROR)
         self.app.ui_manager.dismiss_popup()
@@ -148,12 +157,14 @@ class HexEditorScreen(Screen):
     def insert_byte(self):
         if self.data is not None:
             self.data.insert(self.cursor_offset, 0)
+            self.is_dirty = True
             self.update_view_data()
             self.status_text = f"Inserted byte at {self.cursor_offset:08X}. Total: {len(self.data)} bytes"
 
     def delete_byte(self):
         if self.data and self.cursor_offset < len(self.data):
             del self.data[self.cursor_offset]
+            self.is_dirty = True
             if self.cursor_offset >= len(self.data) and self.data:
                 self.cursor_offset = len(self.data) - 1
             self.update_view_data()
@@ -206,6 +217,7 @@ class HexEditorScreen(Screen):
             idx = self.data.find(s_bytes, self.cursor_offset)
             if idx != -1:
                 self.data[idx:idx+len(s_bytes)] = r_bytes
+                self.is_dirty = True
                 self.update_view_data()
                 self.status_text = f"Replaced at {idx:08X}"
             else:
@@ -236,11 +248,15 @@ class HexEditorScreen(Screen):
                 current_byte = self.data[self.cursor_offset]
                 if self.cursor_sub_offset == 0:
                     new_byte = (val << 4) | (current_byte & 0x0F)
-                    self.data[self.cursor_offset] = new_byte
+                    if new_byte != current_byte:
+                        self.data[self.cursor_offset] = new_byte
+                        self.is_dirty = True
                     self.cursor_sub_offset = 1
                 else:
                     new_byte = (current_byte & 0xF0) | val
-                    self.data[self.cursor_offset] = new_byte
+                    if new_byte != current_byte:
+                        self.data[self.cursor_offset] = new_byte
+                        self.is_dirty = True
                     self.cursor_sub_offset = 0
                     if self.cursor_offset < len(self.data) - 1:
                         self.cursor_offset += 1
@@ -256,7 +272,9 @@ class HexEditorScreen(Screen):
             if val is not None:
                 if val > 255:
                     return False
-                self.data[self.cursor_offset] = val
+                if self.data[self.cursor_offset] != val:
+                    self.data[self.cursor_offset] = val
+                    self.is_dirty = True
                 if self.cursor_offset < len(self.data) - 1:
                     self.cursor_offset += 1
                 self.update_view_data()
@@ -286,4 +304,35 @@ class HexEditorScreen(Screen):
             self.scroll_to_offset(self.cursor_offset)
             return True
 
+        return False
+
+    def on_pre_leave_check(self, on_confirm_callback):
+        if self.is_dirty:
+            content = BoxLayout(orientation='vertical', padding=10, spacing=10)
+            content.add_widget(Label(text="You have unsaved changes.\nDo you want to save before leaving?"))
+
+            btns = BoxLayout(size_hint_y=None, height=40, spacing=10)
+            save_btn = Button(text="Save")
+            discard_btn = Button(text="Discard")
+            cancel_btn = Button(text="Cancel")
+            btns.add_widget(save_btn)
+            btns.add_widget(discard_btn)
+            btns.add_widget(cancel_btn)
+            content.add_widget(btns)
+
+            popup = Popup(title="Unsaved Changes", content=content, size_hint=(0.6, 0.4))
+
+            def on_save(instance):
+                popup.dismiss()
+                self.save_file_dialog(on_success_callback=on_confirm_callback)
+
+            def on_discard(instance):
+                popup.dismiss()
+                on_confirm_callback()
+
+            save_btn.bind(on_release=on_save)
+            discard_btn.bind(on_release=on_discard)
+            cancel_btn.bind(on_release=popup.dismiss)
+            popup.open()
+            return True
         return False
