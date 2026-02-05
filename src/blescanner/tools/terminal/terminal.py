@@ -90,11 +90,13 @@ class TerminalScreen(Screen):
     def on_enter(self, *args):
         self.refresh_serial_ports()
         Window.bind(on_key_down=self._on_key_down)
+        Window.bind(on_textinput=self._on_text_input)
         if not self._update_event:
             self._update_event = Clock.schedule_interval(self.update_ui, 1.0 / 30.0)
 
     def on_leave(self, *args):
         Window.unbind(on_key_down=self._on_key_down)
+        Window.unbind(on_textinput=self._on_text_input)
         if self._update_event:
             self._update_event.cancel()
             self._update_event = None
@@ -271,6 +273,19 @@ class TerminalScreen(Screen):
 
         self.output_data = new_data
 
+    def _on_text_input(self, window, text):
+        if not self.manager or self.manager.current != self.name:
+            return
+
+        # Don't capture text if any settings input has focus
+        if any(ti.focus for ti in [self.ids.host_input, self.ids.port_input, self.ids.user_input, self.ids.password_input]):
+            return
+
+        if not self.is_connected:
+            return
+
+        self._send_to_connection(text)
+
     def _on_key_down(self, window, key, scancode, codepoint, modifier):
         if not self.manager or self.manager.current != self.name:
             return
@@ -304,9 +319,6 @@ class TerminalScreen(Screen):
 
         if key in key_map:
             self._send_to_connection(key_map[key])
-            return True
-        elif codepoint:
-            self._send_to_connection(codepoint)
             return True
 
         return False
