@@ -76,3 +76,20 @@ def test_hex_editor_invalid_codepoint(hex_editor):
     result = hex_editor._on_key_down(None, None, None, "€", [])
     assert result is False
     assert hex_editor.data[0] == ord('H') # Should not change
+
+def test_hex_editor_keypad_input(hex_editor):
+    hex_editor.edit_in_hex = True
+    hex_editor.cursor_offset = 0
+    hex_editor.cursor_sub_offset = 0
+    # Keypad 5 (code 261)
+    hex_editor._on_key_down(None, 261, None, None, [])
+    # 0x48 ('H') -> 0x58 ('X')
+    assert hex_editor.data[0] == 0x58
+    assert hex_editor.cursor_sub_offset == 1
+
+    hex_editor.edit_in_hex = False
+    hex_editor.cursor_offset = 1
+    # Keypad 7 (code 263)
+    hex_editor._on_key_down(None, 263, None, None, [])
+    # 'e' -> '7'
+    assert hex_editor.data[1] == ord('7')

@@ -226,8 +226,13 @@ class HexEditorScreen(Screen):
 
         # Handle numeric keypad and digits/letters for editing
         if self.edit_in_hex:
-            if codepoint and codepoint.upper() in "0123456789ABCDEF":
+            val = None
+            if key and 256 <= key <= 265: # Numpad 0-9
+                val = key - 256
+            elif codepoint and codepoint.upper() in "0123456789ABCDEF":
                 val = int(codepoint, 16)
+
+            if val is not None:
                 current_byte = self.data[self.cursor_offset]
                 if self.cursor_sub_offset == 0:
                     new_byte = (val << 4) | (current_byte & 0x0F)
@@ -242,8 +247,13 @@ class HexEditorScreen(Screen):
                 self.update_view_data()
                 return True
         else:
-            if codepoint:
+            val = None
+            if key and 256 <= key <= 265: # Numpad 0-9
+                val = ord(str(key - 256))
+            elif codepoint:
                 val = ord(codepoint)
+
+            if val is not None:
                 if val > 255:
                     return False
                 self.data[self.cursor_offset] = val
