@@ -152,6 +152,16 @@ class HexEditorScreen(Screen):
             self.update_view_data()
             self.status_text = f"Deleted byte at {self.cursor_offset:08X}. Total: {len(self.data)} bytes"
 
+    def scroll_to_offset(self, offset):
+        if not self.data:
+            return
+        row_index = offset // 16
+        total_rows = (len(self.data) + 15) // 16
+        if total_rows > 1:
+            self.ids.rv.scroll_y = 1.0 - (row_index / (total_rows - 1))
+        else:
+            self.ids.rv.scroll_y = 1.0
+
     def search(self, pattern, is_hex):
         if not pattern:
             return
@@ -169,7 +179,7 @@ class HexEditorScreen(Screen):
                 self.cursor_offset = idx
                 self.update_view_data()
                 self.status_text = f"Found at {idx:08X}"
-                self.ids.rv.scroll_to_index(idx // 16)
+                self.scroll_to_offset(idx)
             else:
                 self.status_text = "Pattern not found"
         except Exception as e:
@@ -198,6 +208,10 @@ class HexEditorScreen(Screen):
 
     def _on_key_down(self, window, key, scancode, codepoint, modifier):
         if not self.manager or self.manager.current != self.name:
+            return
+
+        # Don't process keys if any TextInput has focus
+        if any(ti.focus for ti in [self.ids.search_input, self.ids.replace_input]):
             return
 
         if not self.data:
@@ -235,24 +249,24 @@ class HexEditorScreen(Screen):
         if key == 273: # Up
             self.cursor_offset = max(0, self.cursor_offset - 16)
             self.update_view_data()
-            self.ids.rv.scroll_to_index(self.cursor_offset // 16)
+            self.scroll_to_offset(self.cursor_offset)
             return True
         elif key == 274: # Down
             self.cursor_offset = min(len(self.data) - 1, self.cursor_offset + 16)
             self.update_view_data()
-            self.ids.rv.scroll_to_index(self.cursor_offset // 16)
+            self.scroll_to_offset(self.cursor_offset)
             return True
         elif key == 275: # Right
             self.cursor_offset = min(len(self.data) - 1, self.cursor_offset + 1)
             self.cursor_sub_offset = 0
             self.update_view_data()
-            self.ids.rv.scroll_to_index(self.cursor_offset // 16)
+            self.scroll_to_offset(self.cursor_offset)
             return True
         elif key == 276: # Left
             self.cursor_offset = max(0, self.cursor_offset - 1)
             self.cursor_sub_offset = 0
             self.update_view_data()
-            self.ids.rv.scroll_to_index(self.cursor_offset // 16)
+            self.scroll_to_offset(self.cursor_offset)
             return True
 
         return False

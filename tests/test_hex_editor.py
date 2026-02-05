@@ -16,6 +16,11 @@ def hex_editor(mock_app):
     screen = HexEditorScreen(name='hex_editor')
     screen.manager = MagicMock()
     screen.manager.current = 'hex_editor'
+    screen.ids.search_input = MagicMock()
+    screen.ids.search_input.focus = False
+    screen.ids.replace_input = MagicMock()
+    screen.ids.replace_input.focus = False
+    screen.ids.rv = MagicMock()
     screen.data = bytearray(b"Hello World! This is a test.")
     return screen
 
