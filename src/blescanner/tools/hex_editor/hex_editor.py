@@ -197,7 +197,7 @@ class HexEditorScreen(Screen):
             self.status_text = f"Replace error: {e}"
 
     def _on_key_down(self, window, key, scancode, codepoint, modifier):
-        if self.manager.current != self.name:
+        if not self.manager or self.manager.current != self.name:
             return
 
         if not self.data:
@@ -222,7 +222,10 @@ class HexEditorScreen(Screen):
                 return True
         else:
             if codepoint:
-                self.data[self.cursor_offset] = ord(codepoint)
+                val = ord(codepoint)
+                if val > 255:
+                    return False
+                self.data[self.cursor_offset] = val
                 if self.cursor_offset < len(self.data) - 1:
                     self.cursor_offset += 1
                 self.update_view_data()

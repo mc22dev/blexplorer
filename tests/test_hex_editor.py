@@ -14,6 +14,8 @@ def mock_app(monkeypatch):
 @pytest.fixture
 def hex_editor(mock_app):
     screen = HexEditorScreen(name='hex_editor')
+    screen.manager = MagicMock()
+    screen.manager.current = 'hex_editor'
     screen.data = bytearray(b"Hello World! This is a test.")
     return screen
 
@@ -61,3 +63,11 @@ def test_hex_editor_replace_hex(hex_editor):
     # 48 65 6C 6C 6F -> 48 69 21 21 21
     hex_editor.replace("48656C6C6F", "4869212121", is_hex=True)
     assert b"Hi!!!" in hex_editor.data
+
+def test_hex_editor_invalid_codepoint(hex_editor):
+    hex_editor.edit_in_hex = False
+    hex_editor.cursor_offset = 0
+    # Test a multi-byte unicode character
+    result = hex_editor._on_key_down(None, None, None, "€", [])
+    assert result is False
+    assert hex_editor.data[0] == ord('H') # Should not change
