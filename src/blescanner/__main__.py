@@ -220,6 +220,12 @@ class BLEScannerApp(App):
 
         self.populate_tool_list()
 
+        last_tool_id = self.config_manager.get_setting('general', 'last_tool_id', default='ble_scanner')
+        last_tool_name = self.config_manager.get_setting('general', 'last_tool_name', default='BLE Scanner')
+        if last_tool_id != 'ble_scanner':
+            # Use a small delay to ensure the UI is fully initialized
+            Clock.schedule_once(lambda dt: self.switch_tool(last_tool_id, last_tool_name), 0.1)
+
     def populate_tool_list(self):
         tool_list = self.root.ids.tool_list
         tools = {
@@ -251,6 +257,8 @@ class BLEScannerApp(App):
         self.root.ids.tool_title.text = tool_name
         if self.root.nav_drawer_open:
             self.root.toggle_nav_drawer()
+        self.config_manager.set_setting('general', 'last_tool_id', tool_id)
+        self.config_manager.set_setting('general', 'last_tool_name', tool_name)
 
     def on_stop(self):
         """Called when the application is stopping."""

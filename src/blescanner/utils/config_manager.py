@@ -47,6 +47,10 @@ class ConfigManager:
             'logging': {
                 'level': 'DEBUG'
             },
+            'general': {
+                'last_tool_id': 'ble_scanner',
+                'last_tool_name': 'BLE Scanner'
+            },
             'serial_monitor': {
                 'font_name': 'Roboto',
                 'font_size': '12',
