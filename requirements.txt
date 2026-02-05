@@ -14,3 +14,4 @@ pyserial
 pyserial-asyncio
 psutil
 simpleeval
+scapy

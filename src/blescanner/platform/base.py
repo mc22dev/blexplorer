@@ -79,3 +79,17 @@ class PlatformUtilsBase(ABC):
         Creates a platform-specific serial connection.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_local_ip_and_mask(self) -> Tuple[str, str]:
+        """
+        Retrieves the local IP address and netmask.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_arp_table(self) -> dict:
+        """
+        Retrieves the ARP table as a dictionary mapping IP addresses to MAC addresses.
+        """
+        raise NotImplementedError
