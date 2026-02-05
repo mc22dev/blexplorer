@@ -7,7 +7,7 @@
     padding: ['5dp', 0]
     canvas.before:
         Color:
-            rgba: (0.15, 0.15, 0.15, 1) if root.index % 2 == 0 else (0.1, 0.1, 0.1, 1)
+            rgba: (0.15, 0.15, 0.15, 1) if (root.index if root.index is not None else 0) % 2 == 0 else (0.1, 0.1, 0.1, 1)
         Rectangle:
             pos: self.pos
             size: self.size

@@ -11,7 +11,7 @@ from blescanner.models import LogLevel
 logger = logging.getLogger(__name__)
 
 class HexEditorRow(RecycleDataViewBehavior, BoxLayout):
-    index = None
+    index = NumericProperty(0)
     offset_text = StringProperty("")
     hex_text = StringProperty("")
     ascii_text = StringProperty("")
