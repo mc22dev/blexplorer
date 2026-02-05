@@ -132,15 +132,12 @@ class TerminalScreen(Screen):
                 self.log(f"Connecting to {host}:{port_str} via SSH...")
                 self.connection = await asyncssh.connect(host, port=int(port_str), username=user, password=password, known_hosts=None)
 
-                # create_session is the reliable way to use a custom session factory
-                self.chan, self.session = await self.connection.create_session(
+                # create_shell correctly initializes an interactive shell with a session factory
+                self.chan, self.session = await self.connection.create_shell(
                     lambda: SSHClientSession(self),
                     term_type='xterm-color',
                     term_size=(self.columns, self.rows)
                 )
-
-                # Explicitly request a shell for interactive use
-                await self.chan.request_shell()
 
                 self.is_connected = True
                 self.log(f"Connected to {host} via SSH")
