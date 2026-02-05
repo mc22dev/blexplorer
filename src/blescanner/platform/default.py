@@ -63,3 +63,45 @@ class DefaultPlatformUtils(PlatformUtilsBase):
         return await serial_asyncio.create_serial_connection(
             loop, protocol_factory, url, **kwargs
         )
+
+    def get_local_ip_and_mask(self) -> Tuple[str, str]:
+        """
+        Retrieves the local IP address and netmask using psutil.
+        """
+        import psutil
+        import socket
+        for interface, addrs in psutil.net_if_addrs().items():
+            for addr in addrs:
+                if addr.family == socket.AF_INET and not addr.address.startswith("127."):
+                    return addr.address, addr.netmask
+        return None, None
+
+    def get_arp_table(self) -> dict:
+        """
+        Retrieves the ARP table by running the 'arp -a' command.
+        """
+        import subprocess
+        import re
+        import platform
+
+        arp_table = {}
+        try:
+            if platform.system() == "Windows":
+                output = subprocess.check_output(["arp", "-a"]).decode("ascii", errors="ignore")
+                # Format: 192.168.1.1         00-11-22-33-44-55     dynamic
+                for line in output.splitlines():
+                    match = re.search(r"(\d+\.\d+\.\d+\.\d+)\s+([0-9a-fA-F:-]{17})", line)
+                    if match:
+                        ip, mac = match.groups()
+                        arp_table[ip] = mac.replace("-", ":").lower()
+            else:
+                # Assuming generic Unix if not specifically handled
+                output = subprocess.check_output(["arp", "-n"]).decode("ascii", errors="ignore")
+                for line in output.splitlines():
+                    match = re.search(r"(\d+\.\d+\.\d+\.\d+)\s+.*?\s+([0-9a-fA-F:]{17})", line)
+                    if match:
+                        ip, mac = match.groups()
+                        arp_table[ip] = mac.lower()
+        except Exception:
+            pass
+        return arp_table

@@ -1,0 +1,138 @@
+<DeviceNode>:
+    orientation: 'vertical'
+    padding: '5dp'
+    canvas.before:
+        Color:
+            rgba: (0.15, 0.15, 0.15, 0.9) if not self.is_local else (0.1, 0.25, 0.1, 0.9)
+        RoundedRectangle:
+            pos: self.pos
+            size: self.size
+            radius: [10,]
+        Color:
+            rgba: (0.3, 0.3, 0.3, 1)
+        Line:
+            rounded_rectangle: (self.x, self.y, self.width, self.height, 10)
+            width: 1.2
+
+    Label:
+        text: "\U0000F0302" if root.is_local else "\U0000F01B3" # laptop vs devices icons
+        font_name: "MaterialIcons"
+        font_size: '32sp'
+        size_hint_y: 0.4
+        color: (0.4, 0.8, 1, 1) if not root.is_local else (0.4, 1, 0.4, 1)
+
+    Label:
+        text: root.ip
+        font_size: '12sp'
+        bold: True
+        size_hint_y: 0.2
+
+    Label:
+        text: root.mac
+        font_size: '10sp'
+        size_hint_y: 0.2
+        color: (0.7, 0.7, 0.7, 1)
+
+    Label:
+        text: root.manufacturer
+        font_size: '9sp'
+        size_hint_y: 0.2
+        shorten: True
+        shorten_from: 'right'
+        color: (0.5, 0.5, 0.5, 1)
+
+    Button:
+        text: "Scan Ports"
+        size_hint_y: 0.2
+        font_size: '10sp'
+        on_release: app.root.ids.screen_manager.get_screen('network_scanner').show_port_scan(root.ip)
+
+<NetworkScannerScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: '10dp'
+        spacing: '10dp'
+
+        BoxLayout:
+            size_hint_y: None
+            height: '48dp'
+            spacing: '10dp'
+
+            Button:
+                text: "Start Network Scan"
+                on_release: root.start_scan()
+                disabled: root.is_scanning
+                size_hint_x: 0.25
+
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: 0.45
+                ProgressBar:
+                    value: root.scan_progress
+                    max: 100
+                Label:
+                    text: f"{int(root.scan_progress)}%"
+                    font_size: '10sp'
+
+            Label:
+                text: root.status_text
+                size_hint_x: 0.3
+                halign: 'right'
+                valign: 'middle'
+                text_size: self.size
+                font_size: '12sp'
+
+        NetworkGraph:
+            id: graph
+            devices: root.discovered_devices
+            canvas.before:
+                Color:
+                    rgba: (0.05, 0.05, 0.05, 1)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+<PortScanPopup>:
+    orientation: 'vertical'
+    padding: '10dp'
+    spacing: '10dp'
+
+    BoxLayout:
+        size_hint_y: None
+        height: '30dp'
+        Label:
+            text: "Target: [b]" + root.ip + "[/b]"
+            markup: True
+        Label:
+            text: root.status
+            color: (0.8, 0.8, 0.8, 1)
+
+    ProgressBar:
+        size_hint_y: None
+        height: '4dp'
+        value: root.progress
+        max: 100
+
+    RecycleView:
+        id: rv
+        data: [{'text': f"[b]{item['proto']} {item['port']}[/b] ({item['service']}): [color=00ff00]{item['status']}[/color]", 'markup': True} for item in root.results]
+        viewclass: 'Label'
+        canvas.before:
+            Color:
+                rgba: (0.1, 0.1, 0.1, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        RecycleBoxLayout:
+            default_size: None, dp(30)
+            default_size_hint: 1, None
+            size_hint_y: None
+            height: self.minimum_height
+            orientation: 'vertical'
+            padding: '10dp'
+
+    Button:
+        text: "Close"
+        size_hint_y: None
+        height: '48dp'
+        on_release: root.parent.parent.parent.dismiss()

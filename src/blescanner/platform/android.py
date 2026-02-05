@@ -126,6 +126,65 @@ class AndroidPlatformUtils(PlatformUtilsBase):
 
         return devices
 
+    def get_local_ip_and_mask(self) -> Tuple[str, str]:
+        """
+        Retrieves the local IP address and netmask on Android using JNI.
+        """
+        try:
+            Context = autoclass('android.content.Context')
+            WifiManager = autoclass('android.net.wifi.WifiManager')
+            activity = PythonActivity.mActivity
+            wifi_manager = activity.getSystemService(Context.WIFI_SERVICE)
+            dhcp_info = wifi_manager.getDhcpInfo()
+
+            ip_int = dhcp_info.ipAddress
+            mask_int = dhcp_info.netmask
+
+            def int_to_ip(i):
+                return f"{i & 0xFF}.{(i >> 8) & 0xFF}.{(i >> 16) & 0xFF}.{(i >> 24) & 0xFF}"
+
+            ip = int_to_ip(ip_int)
+            mask = int_to_ip(mask_int)
+
+            if ip == "0.0.0.0":
+                # Try another way if WiFi dhcp info is not available
+                import socket
+                import psutil
+                for interface, addrs in psutil.net_if_addrs().items():
+                    for addr in addrs:
+                        if addr.family == socket.AF_INET and not addr.address.startswith("127."):
+                            return addr.address, addr.netmask
+
+            return ip, mask
+        except Exception as e:
+            logger.error(f"Error getting IP on Android: {e}")
+            import socket
+            import psutil
+            for interface, addrs in psutil.net_if_addrs().items():
+                for addr in addrs:
+                    if addr.family == socket.AF_INET and not addr.address.startswith("127."):
+                        return addr.address, addr.netmask
+            return None, None
+
+    def get_arp_table(self) -> dict:
+        """
+        Retrieves the ARP table by reading /proc/net/arp on Android.
+        """
+        arp_table = {}
+        try:
+            with open("/proc/net/arp", "r") as f:
+                next(f)
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        ip = parts[0]
+                        mac = parts[3]
+                        if mac != "00:00:00:00:00:00":
+                            arp_table[ip] = mac.lower()
+        except Exception as e:
+            logger.error(f"Error reading ARP table on Android: {e}")
+        return arp_table
+
     def list_serial_ports(self) -> List[SerialPort]:
         """
         Lists available serial ports using the usb-serial-for-android library.

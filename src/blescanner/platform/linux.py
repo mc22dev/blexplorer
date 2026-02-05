@@ -46,3 +46,25 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
                 logger.error(f"Error getting bonded devices on Linux: {e}")
 
         return devices
+
+    def get_arp_table(self) -> dict:
+        """
+        Retrieves the ARP table by reading /proc/net/arp on Linux.
+        """
+        arp_table = {}
+        try:
+            with open("/proc/net/arp", "r") as f:
+                # Skip header
+                next(f)
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        ip = parts[0]
+                        mac = parts[3]
+                        if mac != "00:00:00:00:00:00":
+                            arp_table[ip] = mac.lower()
+        except Exception as e:
+            logger.error(f"Error reading ARP table on Linux: {e}")
+            # Fallback to default
+            return super().get_arp_table()
+        return arp_table
