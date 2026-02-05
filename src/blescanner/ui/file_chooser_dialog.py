@@ -15,6 +15,7 @@ class FileChooserDialog(BoxLayout):
         self.mode = mode
 
         self.file_chooser = FileChooserListView(path=os.getcwd())
+        self.file_chooser.bind(on_submit=self.on_file_submit)
         self.add_widget(self.file_chooser)
 
         if self.mode == 'save':
@@ -30,6 +31,15 @@ class FileChooserDialog(BoxLayout):
         self.cancel_button.bind(on_release=self.on_cancel)
         button_box.add_widget(self.cancel_button)
         self.add_widget(button_box)
+
+    def on_file_submit(self, instance, selection, touch):
+        if not selection:
+            return
+
+        if self.mode == 'save':
+            self.filename_input.text = os.path.basename(selection[0])
+
+        self.on_action(None)
 
     def on_action(self, instance):
         if self.mode == 'save':
