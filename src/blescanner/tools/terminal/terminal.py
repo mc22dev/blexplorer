@@ -129,8 +129,9 @@ class TerminalScreen(Screen):
                 if not asyncssh:
                     self.log("asyncssh not installed", LogLevel.ERROR)
                     return
+                self.log(f"Connecting to {host}:{port_str} via SSH...")
                 self.connection = await asyncssh.connect(host, port=int(port_str), username=user, password=password, known_hosts=None)
-                self.chan, self.session = await self.connection.create_session(SSHClientSession(self), term_type='xterm-color', term_size=(self.columns, self.rows))
+                self.chan, self.session = await self.connection.create_shell(lambda: SSHClientSession(self), term_type='xterm-color', width=self.columns, height=self.rows)
                 self.is_connected = True
                 self.log(f"Connected to {host} via SSH")
 
@@ -318,11 +319,11 @@ class TerminalScreen(Screen):
     def log(self, message, level=LogLevel.INFO):
         self.app.log_with_timestamp(f"[Terminal] {message}", level)
 
-class SSHClientSession(asyncio.Protocol):
+class SSHClientSession(asyncssh.SSHClientSession if asyncssh else object):
     def __init__(self, screen):
         self.screen = screen
 
-    def data_received(self, data):
+    def data_received(self, data, datatype):
         self.screen.feed_data(data)
 
     def connection_lost(self, exc):
