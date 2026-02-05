@@ -85,6 +85,7 @@ class TerminalScreen(Screen):
         self.protocol = None
         self.writer = None
         self.chan = None
+        self.process = None
         self._update_event = None
 
     def on_enter(self, *args):
@@ -132,12 +133,14 @@ class TerminalScreen(Screen):
                 self.log(f"Connecting to {host}:{port_str} via SSH...")
                 self.connection = await asyncssh.connect(host, port=int(port_str), username=user, password=password, known_hosts=None)
 
-                # create_shell correctly initializes an interactive shell with a session factory
-                self.chan, self.session = await self.connection.create_shell(
-                    lambda: SSHClientSession(self),
+                # create_process without a command starts a shell.
+                # If protocol_factory is provided, it returns (process, session).
+                self.process, self.session = await self.connection.create_process(
+                    protocol_factory=lambda: SSHClientSession(self),
                     term_type='xterm-color',
                     term_size=(self.columns, self.rows)
                 )
+                self.chan = self.process.channel
 
                 self.is_connected = True
                 self.log(f"Connected to {host} via SSH")
