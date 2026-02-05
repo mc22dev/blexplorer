@@ -39,8 +39,8 @@
             Color:
                 rgba: (1, 1, 1, 0.3) if root.selected_byte != -1 and root.edit_in_hex else (0, 0, 0, 0)
             Rectangle:
-                pos: (self.x + root.selected_byte * (self.width / 16), self.y) if root.selected_byte != -1 else (0,0)
-                size: (self.width / 16, self.height) if root.selected_byte != -1 else (0,0)
+                pos: (self.x + root.selected_byte * 3 * (self.texture_size[0] / 47) if self.texture_size[0] > 0 else 0, self.y) if root.selected_byte != -1 else (0,0)
+                size: (2 * (self.texture_size[0] / 47) if self.texture_size[0] > 0 else 0, self.height) if root.selected_byte != -1 else (0,0)
 
     Label:
         id: ascii_label
@@ -57,8 +57,8 @@
             Color:
                 rgba: (1, 1, 1, 0.3) if root.selected_byte != -1 and not root.edit_in_hex else (0, 0, 0, 0)
             Rectangle:
-                pos: (self.x + root.selected_byte * (self.width / 16), self.y) if root.selected_byte != -1 else (0,0)
-                size: (self.width / 16, self.height) if root.selected_byte != -1 else (0,0)
+                pos: (self.x + root.selected_byte * (self.texture_size[0] / 16) if self.texture_size[0] > 0 else 0, self.y) if root.selected_byte != -1 else (0,0)
+                size: (self.texture_size[0] / 16 if self.texture_size[0] > 0 else 0, self.height) if root.selected_byte != -1 else (0,0)
 
 <HexEditorScreen>:
     BoxLayout:

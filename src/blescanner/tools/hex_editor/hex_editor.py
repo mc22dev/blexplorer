@@ -96,6 +96,11 @@ class HexEditorScreen(Screen):
             hex_part = " ".join(f"{b:02X}" for b in chunk)
             ascii_part = "".join(chr(b) if 32 <= b <= 126 else "." for b in chunk)
 
+            # Pad for consistent alignment and cursor calculation
+            if len(chunk) < 16:
+                hex_part += " " * (47 - len(hex_part))
+                ascii_part += " " * (16 - len(ascii_part))
+
             # Highlight selected byte if it's in this row
             row_selected_byte = -1
             if i <= self.cursor_offset < i + 16:
@@ -119,18 +124,20 @@ class HexEditorScreen(Screen):
 
         if hex_label.collide_point(local_x, local_pos[1]):
             # Inside hex label. It has 16*3-1 characters = 47 chars
-            char_width = hex_label.width / 48
-            byte_index = int((local_x - hex_label.x) / (char_width * 3))
-            byte_index = max(0, min(15, byte_index))
-            self.edit_in_hex = True
-            self.cursor_offset = row_index * 16 + byte_index
-            self.cursor_sub_offset = 0
+            if hex_label.texture_size[0] > 0:
+                char_width = hex_label.texture_size[0] / 47
+                byte_index = int((local_x - hex_label.x) / (char_width * 3))
+                byte_index = max(0, min(15, byte_index))
+                self.edit_in_hex = True
+                self.cursor_offset = row_index * 16 + byte_index
+                self.cursor_sub_offset = 0
         elif ascii_label.collide_point(local_x, local_pos[1]):
             # Inside ascii label. 16 chars.
-            char_width = ascii_label.width / 16
-            byte_index = int((local_x - ascii_label.x) / char_width)
-            byte_index = max(0, min(15, byte_index))
-            self.edit_in_hex = False
+            if ascii_label.texture_size[0] > 0:
+                char_width = ascii_label.texture_size[0] / 16
+                byte_index = int((local_x - ascii_label.x) / char_width)
+                byte_index = max(0, min(15, byte_index))
+                self.edit_in_hex = False
             self.cursor_offset = row_index * 16 + byte_index
 
         if self.cursor_offset >= len(self.data):
