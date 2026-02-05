@@ -78,6 +78,7 @@
                     multiline: False
                     size_hint_x: 0.3
                     write_tab: False
+                    on_text_validate: root.toggle_connection()
 
             Button:
                 text: 'Connect' if not root.is_connected else 'Disconnect'
