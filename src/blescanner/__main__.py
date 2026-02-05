@@ -53,6 +53,7 @@ from blescanner.ui.file_chooser_dialog import FileChooserDialog
 from blescanner.tools.serial_monitor.serial_monitor import SerialMonitorScreen
 from blescanner.tools.sys_info.sys_info import SysInfoScreen
 from blescanner.tools.calculator.calculator import CalculatorScreen
+from blescanner.tools.hex_editor.hex_editor import HexEditorScreen
 from blescanner.ui.settings_popup import SettingsPopup
 from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
 
@@ -135,6 +136,7 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
         Builder.load_file(resource_path('tools/sys_info/sys_info.kv'))
         Builder.load_file(resource_path('tools/calculator/calculator.kv'))
+        Builder.load_file(resource_path('tools/hex_editor/hex_editor.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(
@@ -203,6 +205,9 @@ class BLEScannerApp(App):
         calculator_screen = CalculatorScreen(name='calculator')
         self.root.ids.screen_manager.add_widget(calculator_screen)
 
+        hex_editor_screen = HexEditorScreen(name='hex_editor')
+        self.root.ids.screen_manager.add_widget(hex_editor_screen)
+
         self.device_manager.ui_container = ble_scanner_screen.ids.scanner_screen.ids.device_list
         self.ui_manager.root = self.root
 
@@ -222,6 +227,7 @@ class BLEScannerApp(App):
             "serial_monitor": "Serial Monitor",
             "sys_info": "System Information",
             "calculator": "Calculator",
+            "hex_editor": "Hex Editor",
             "network_scanner": "Network Scanner",
             "serial_terminal": "Serial Terminal",
             "signal_generator": "Signal Generator",
