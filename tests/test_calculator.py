@@ -97,3 +97,34 @@ def test_calculator_keyboard_input():
     calc._on_key_down(None, 48, None, '0', [])
     calc._on_key_down(None, 120, None, 'x', [])
     assert calc.expression == '0x'
+
+def test_calculator_numpad_input():
+    calc = CalculatorScreen()
+    calc.name = 'calculator'
+    class MockManager:
+        current = 'calculator'
+    calc.manager = MockManager()
+
+    # Numpad 5
+    calc._on_key_down(None, 261, None, None, [])
+    assert calc.expression == '5'
+
+    # Numpad +
+    calc._on_key_down(None, 270, None, None, [])
+    assert calc.expression == '5+'
+
+    # Numpad 3
+    calc._on_key_down(None, 259, None, None, [])
+    assert calc.expression == '5+3'
+
+    # Final check
+    calc.calculate()
+    assert calc.dec_display == "8"
+
+def test_calculator_bitwise_not():
+    calc = CalculatorScreen()
+    calc.bit_length = 8
+    calc.expression = "~0"
+    calc.calculate()
+    # ~0 in 8-bit is 0xFF which is 255 unsigned
+    assert calc.dec_display == "255"

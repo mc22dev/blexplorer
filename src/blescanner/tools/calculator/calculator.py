@@ -2,6 +2,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.properties import StringProperty, NumericProperty, BooleanProperty
 from kivy.core.window import Window
 from simpleeval import SimpleEval
+import ast
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class CalculatorScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.evaluator = SimpleEval()
+
         self.evaluator.functions = {
             "ROR": self.ror,
             "ROL": self.rol,
@@ -115,6 +117,33 @@ class CalculatorScreen(Screen):
         if not self.manager or self.manager.current != self.name:
             return
 
+        # Handle Numpad
+        if 256 <= key <= 265: # Numpad 0-9
+            self.add_to_expression(str(key - 256))
+            return
+        elif key == 266: # Numpad .
+            self.add_to_expression('.')
+            return
+        elif key == 267: # Numpad /
+            self.add_to_expression('/')
+            return
+        elif key == 268: # Numpad *
+            self.add_to_expression('*')
+            return
+        elif key == 269: # Numpad -
+            self.add_to_expression('-')
+            return
+        elif key == 270: # Numpad +
+            self.add_to_expression('+')
+            return
+        elif key == 272: # Numpad =
+            # Live eval, so = doesn't need to do much, maybe just return
+            return
+        elif key == 271 or key == 13: # Numpad Enter or Main Enter
+            # For now, Enter doesn't do much because it's live-eval
+            # But we could use it to format or something.
+            return
+
         # Key mapping
         # Digits and letters
         if codepoint and codepoint.isalnum():
@@ -127,13 +156,6 @@ class CalculatorScreen(Screen):
             elif char == 'X' and self.expression.endswith('0'):
                 self.add_to_expression('x')
                 return
-            elif char == 'B' and self.expression.endswith('0'):
-                # 'B' is also a hex digit, so it would be caught above if in "ABCDEF"
-                # But if we want to support '0b' specifically:
-                # Actually, B is in ABCDEF.
-                # If expression is '0', typing 'B' will add 'B'.
-                # Maybe we should check specifically for '0b'
-                pass
 
         # Operators
         if codepoint and codepoint in "+-*/%&|^~(),<>":
