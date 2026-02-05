@@ -13,3 +13,4 @@ pytest-asyncio
 pyserial
 pyserial-asyncio
 psutil
+simpleeval
