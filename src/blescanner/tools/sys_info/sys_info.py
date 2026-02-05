@@ -1,6 +1,7 @@
 import psutil
 import platform
 import os
+import subprocess
 from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import StringProperty, ListProperty
@@ -37,15 +38,32 @@ class SysInfoScreen(Screen):
     def update_info(self, dt=None):
         # OS Info
         try:
-            os_name = platform.system()
+            system = platform.system()
+            release = platform.release()
+            version = platform.version()
+            arch = platform.machine()
+
+            flavor = system
             if kivy_platform == 'android':
-                os_name = "Android"
+                flavor = "Android"
+            elif system == 'Linux':
+                try:
+                    # freedesktop_os_release is available in Python 3.10+
+                    os_release = platform.freedesktop_os_release()
+                    flavor = os_release.get('PRETTY_NAME', 'Linux')
+                except (AttributeError, OSError):
+                    flavor = 'Linux'
+            elif system == 'Windows':
+                flavor = f"Windows {platform.release()}"
+            elif system == 'Darwin':
+                flavor = f"macOS {platform.mac_ver()[0]}"
 
             self.os_info = (
-                f"System: {os_name}\n"
-                f"Release: {platform.release()}\n"
-                f"Version: {platform.version()}\n"
-                f"Architecture: {platform.machine()}"
+                f"Flavor: {flavor}\n"
+                f"System: {system}\n"
+                f"Release: {release}\n"
+                f"Version: {version}\n"
+                f"Architecture: {arch}"
             )
         except Exception as e:
             self.os_info = f"Error getting OS info: {e}"
@@ -55,17 +73,39 @@ class SysInfoScreen(Screen):
             cpu_count_logical = psutil.cpu_count(logical=True)
             cpu_count_physical = psutil.cpu_count(logical=False)
 
+            cpu_name = "Unknown"
+            try:
+                if platform.system() == "Windows":
+                    cpu_name = platform.processor()
+                elif platform.system() == "Darwin":
+                    cpu_name = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"]).decode().strip()
+                elif platform.system() == "Linux":
+                    try:
+                        res = subprocess.check_output("grep -m 1 'model name' /proc/cpuinfo", shell=True).decode().strip()
+                        if ":" in res:
+                            cpu_name = res.split(":")[1].strip()
+                        else:
+                            # Try ARM Processor line
+                            res = subprocess.check_output("grep -m 1 'Processor' /proc/cpuinfo", shell=True).decode().strip()
+                            if ":" in res:
+                                cpu_name = res.split(":")[1].strip()
+                    except Exception:
+                        cpu_name = platform.processor() or "Unknown"
+            except Exception:
+                cpu_name = platform.processor() or "Unknown"
+
             freq = None
             try:
                 freq = psutil.cpu_freq()
             except Exception:
-                pass # cpu_freq might not be available
+                pass
 
             freq_str = f"{freq.current:.2f}MHz" if freq and freq.current else "N/A"
 
             self.cpu_info = (
+                f"Model: {cpu_name}\n"
                 f"Physical Cores: {cpu_count_physical}\n"
-                f"Total Cores: {cpu_count_logical}\n"
+                f"Logical Threads: {cpu_count_logical}\n"
                 f"Frequency: {freq_str}"
             )
         except Exception as e:
@@ -74,10 +114,13 @@ class SysInfoScreen(Screen):
         # Memory Info
         try:
             mem = psutil.virtual_memory()
+            swap = psutil.swap_memory()
             self.memory_info = (
-                f"Total: {self._format_bytes(mem.total)}\n"
-                f"Available: {self._format_bytes(mem.available)}\n"
-                f"Used: {self._format_bytes(mem.used)} ({mem.percent}%)"
+                f"RAM Total: {self._format_bytes(mem.total)}\n"
+                f"RAM Available: {self._format_bytes(mem.available)}\n"
+                f"RAM Used: {self._format_bytes(mem.used)} ({mem.percent}%)\n"
+                f"Swap Total: {self._format_bytes(swap.total)}\n"
+                f"Swap Used: {self._format_bytes(swap.used)} ({swap.percent}%)"
             )
         except Exception as e:
             self.memory_info = f"Error getting memory info: {e}"
