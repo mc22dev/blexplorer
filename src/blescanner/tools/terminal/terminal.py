@@ -52,6 +52,7 @@ class TerminalRow(RecycleDataViewBehavior, BoxLayout):
     index = NumericProperty(0)
     cursor_x = NumericProperty(-1)
     char_width = NumericProperty(10)
+    left_padding = NumericProperty(5)
 
     def refresh_view_attrs(self, rv, index, data):
         self.index = index

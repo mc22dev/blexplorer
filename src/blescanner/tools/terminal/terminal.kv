@@ -6,7 +6,7 @@
         Color:
             rgba: (1, 1, 0, 0.5) if root.cursor_x >= 0 else (0, 0, 0, 0)
         Rectangle:
-            pos: self.x + label.padding[0] + root.cursor_x * root.char_width, self.y
+            pos: self.x + root.left_padding + root.cursor_x * root.char_width, self.y
             size: root.char_width, self.height
     Label:
         id: label
@@ -17,7 +17,7 @@
         text_size: self.size
         halign: 'left'
         valign: 'middle'
-        padding: [5, 0]
+        padding: [root.left_padding, 0]
         on_texture_size:
             # Based on 80 columns fixed grid
             root.char_width = self.texture_size[0] / 80 if self.texture_size[0] > 0 else 10
