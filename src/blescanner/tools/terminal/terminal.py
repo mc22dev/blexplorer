@@ -10,6 +10,7 @@ from kivy.uix.recycleview.views import RecycleDataViewBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
 from blescanner.models import LogLevel
 
 # Optional imports for protocols
@@ -28,22 +29,22 @@ logger = logging.getLogger(__name__)
 # Standard ANSI colors mapped to Kivy-friendly hex (RGB)
 COLOR_MAP = {
     'black': '#000000',
-    'red': '#cc0000',
-    'green': '#4e9a06',
-    'yellow': '#c4a000',
-    'blue': '#3465a4',
-    'magenta': '#75507b',
-    'cyan': '#06989a',
-    'white': '#d3d7cf',
+    'red': '#cd0000',
+    'green': '#00cd00',
+    'yellow': '#cdcd00',
+    'blue': '#0000ee',
+    'magenta': '#cd00cd',
+    'cyan': '#00cdcd',
+    'white': '#e5e5e5',
     # Bright versions
-    'brightblack': '#555753',
-    'brightred': '#ef2929',
-    'brightgreen': '#8ae234',
-    'brightyellow': '#fce94f',
-    'brightblue': '#729fcf',
-    'brightmagenta': '#ad7fa8',
-    'brightcyan': '#34e2e2',
-    'brightwhite': '#eeeeec',
+    'brightblack': '#7f7f7f',
+    'brightred': '#ff0000',
+    'brightgreen': '#00ff00',
+    'brightyellow': '#ffff00',
+    'brightblue': '#5c5cff',
+    'brightmagenta': '#ff00ff',
+    'brightcyan': '#00ffff',
+    'brightwhite': '#ffffff',
 }
 
 class TerminalInput(TextInput):
@@ -63,10 +64,58 @@ class TerminalRow(RecycleDataViewBehavior, BoxLayout):
     cursor_x = NumericProperty(-1)
     char_width = NumericProperty(10)
     left_padding = NumericProperty(5)
+    bg_data = ListProperty([])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bind(pos=self._draw_backgrounds, size=self._draw_backgrounds, char_width=self._draw_backgrounds)
 
     def refresh_view_attrs(self, rv, index, data):
         self.index = index
-        return super().refresh_view_attrs(rv, index, data)
+        res = super().refresh_view_attrs(rv, index, data)
+        self._draw_backgrounds()
+        return res
+
+    def on_bg_data(self, instance, value):
+        self._draw_backgrounds()
+
+    def _draw_backgrounds(self, *args):
+        if not self.canvas:
+            return
+
+        self.canvas.before.clear()
+        if not self.bg_data:
+            return
+
+        with self.canvas.before:
+            i = 0
+            n = len(self.bg_data)
+            while i < n:
+                color_hex = self.bg_data[i]
+                # Default background is handled by the app's theme or transparency
+                # We only draw if it's not 'default' and not black (common terminal bg)
+                if color_hex == 'default' or color_hex == '#000000':
+                    i += 1
+                    continue
+
+                # Group adjacent same colors for better performance
+                start_i = i
+                while i < n and self.bg_data[i] == color_hex:
+                    i += 1
+
+                count = i - start_i
+
+                try:
+                    r = int(color_hex[1:3], 16) / 255.0
+                    g = int(color_hex[3:5], 16) / 255.0
+                    b = int(color_hex[5:7], 16) / 255.0
+                    Color(r, g, b, 1)
+                    Rectangle(
+                        pos=(self.x + self.left_padding + start_i * self.char_width, self.y),
+                        size=(count * self.char_width, self.height)
+                    )
+                except Exception:
+                    pass
 
 class KivyScreen(pyte.Screen):
     """
@@ -250,7 +299,7 @@ class TerminalScreen(Screen):
     def _get_color_hex(self, color, is_bg=False):
         """Resolves a pyte color to a hex string."""
         if color == 'default':
-            return '#000000' if is_bg else '#d3d7cf'
+            return '#000000' if is_bg else '#e5e5e5'
 
         if color in COLOR_MAP:
             return COLOR_MAP[color]
@@ -331,9 +380,12 @@ class TerminalScreen(Screen):
 
         for y in range(self.pyte_screen.lines):
             row_cursor_x = cursor_x if y == cursor_y else -1
+            row = self.pyte_screen.buffer[y]
+            bg_data = [self._get_color_hex(row[x].bg, is_bg=True) for x in range(self.columns)]
             new_data.append({
                 'text': self.get_line_markup(y),
-                'cursor_x': row_cursor_x
+                'cursor_x': row_cursor_x,
+                'bg_data': bg_data
             })
 
         self.output_data = new_data
