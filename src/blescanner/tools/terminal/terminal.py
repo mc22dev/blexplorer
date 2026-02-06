@@ -9,7 +9,6 @@ from kivy.uix.recycleview.views import RecycleDataViewBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.core.window import Window
-import serial
 from blescanner.models import LogLevel
 
 # Optional imports for protocols
@@ -27,14 +26,14 @@ logger = logging.getLogger(__name__)
 
 # Standard ANSI colors mapped to Kivy-friendly hex (RGB)
 COLOR_MAP = {
-    'black': '000000',
-    'red': 'cc0000',
-    'green': '4e9a06',
-    'yellow': 'c4a000',
-    'blue': '3465a4',
-    'magenta': '75507b',
-    'cyan': '06989a',
-    'white': 'd3d7cf',
+    'black': '#000000',
+    'red': '#cc0000',
+    'green': '#4e9a06',
+    'yellow': '#c4a000',
+    'blue': '#3465a4',
+    'magenta': '#75507b',
+    'cyan': '#06989a',
+    'white': '#d3d7cf',
 }
 
 class TerminalInput(TextInput):
@@ -51,6 +50,8 @@ class TerminalInput(TextInput):
 class TerminalRow(RecycleDataViewBehavior, BoxLayout):
     text = StringProperty("")
     index = NumericProperty(0)
+    cursor_x = NumericProperty(-1)
+    char_width = NumericProperty(10)
 
     def refresh_view_attrs(self, rv, index, data):
         self.index = index
@@ -233,16 +234,11 @@ class TerminalScreen(Screen):
         current_bold = False
 
         row = self.pyte_screen.buffer[y]
-        cursor_x = self.pyte_screen.cursor.x
-        cursor_y = self.pyte_screen.cursor.y
 
         for x in range(self.pyte_screen.columns):
             char = row[x]
-            is_cursor = (x == cursor_x and y == cursor_y)
 
-            # Check if style changed OR it's the cursor
-            # If it's the cursor, we force a style change to highlight it
-            style_changed = (char.fg != current_fg or char.bold != current_bold or is_cursor)
+            style_changed = (char.fg != current_fg or char.bold != current_bold)
 
             if style_changed:
                 # Close previous tags
@@ -253,26 +249,16 @@ class TerminalScreen(Screen):
                 current_fg = char.fg
                 current_bold = char.bold
 
-                if is_cursor:
-                    # Cursor highlight: let's use a bright color, e.g., yellow
-                    line_str += "[color=ffff00][b]"
-                else:
-                    if current_fg and current_fg in COLOR_MAP:
-                        line_str += f"[color={COLOR_MAP[current_fg]}]"
-                    if current_bold:
-                        line_str += "[b]"
+                if current_fg and current_fg in COLOR_MAP:
+                    line_str += f"[color={COLOR_MAP[current_fg]}]"
+                if current_bold:
+                    line_str += "[b]"
 
             # Escape markup characters
             c = char.data
             if c == '[': c = '[['
             elif c == ']': c = ']]'
             line_str += c
-
-            if is_cursor:
-                line_str += "[/b][/color]"
-                # Force style reset for next char
-                current_fg = "RESET"
-                current_bold = False
 
         # Close tags at end of line
         if current_bold: line_str += "[/b]"
@@ -286,8 +272,15 @@ class TerminalScreen(Screen):
 
         self.pyte_screen.any_changes = False
         new_data = []
+        cursor_x = self.pyte_screen.cursor.x
+        cursor_y = self.pyte_screen.cursor.y
+
         for y in range(self.pyte_screen.lines):
-            new_data.append({'text': self.get_line_markup(y)})
+            row_cursor_x = cursor_x if y == cursor_y else -1
+            new_data.append({
+                'text': self.get_line_markup(y),
+                'cursor_x': row_cursor_x
+            })
 
         self.output_data = new_data
 

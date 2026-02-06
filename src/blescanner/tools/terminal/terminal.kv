@@ -2,7 +2,14 @@
     orientation: 'horizontal'
     size_hint_y: None
     height: '20dp'
+    canvas.after:
+        Color:
+            rgba: (1, 1, 0, 0.5) if root.cursor_x >= 0 else (0, 0, 0, 0)
+        Rectangle:
+            pos: self.x + label.padding[0] + root.cursor_x * root.char_width, self.y
+            size: root.char_width, self.height
     Label:
+        id: label
         text: root.text
         markup: True
         font_name: 'UbuntuMono'
@@ -11,6 +18,9 @@
         halign: 'left'
         valign: 'middle'
         padding: [5, 0]
+        on_texture_size:
+            # Based on 80 columns fixed grid
+            root.char_width = self.texture_size[0] / 80 if self.texture_size[0] > 0 else 10
 
 <TerminalScreen>:
     TerminalInput:
