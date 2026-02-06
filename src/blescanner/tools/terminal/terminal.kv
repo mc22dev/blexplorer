@@ -44,7 +44,7 @@
                 text: 'SSH'
                 values: ['SSH', 'Telnet', 'Serial']
                 size_hint_x: None
-                width: '90dp'
+                width: '80dp'
                 on_text: root.on_protocol_change(self.text)
 
             # Network settings
@@ -69,7 +69,7 @@
                     hint_text: 'Port'
                     multiline: False
                     size_hint_x: None
-                    width: '40dp'
+                    width: '35dp'
                     write_tab: False
 
                 TextInput:
@@ -109,24 +109,45 @@
                     text: '115200'
                     values: ['9600', '19200', '38400', '57600', '115200']
                     size_hint_x: None
-                    width: '90dp'
+                    width: '80dp'
+
+                Spinner:
+                    id: databits_spinner
+                    text: '8'
+                    values: ['8', '7', '6', '5']
+                    size_hint_x: None
+                    width: '40dp'
+
+                Spinner:
+                    id: parity_spinner
+                    text: 'N'
+                    values: ['N', 'E', 'O', 'M', 'S']
+                    size_hint_x: None
+                    width: '40dp'
+
+                Spinner:
+                    id: stopbits_spinner
+                    text: '1'
+                    values: ['1', '1.5', '2']
+                    size_hint_x: None
+                    width: '45dp'
 
             Button:
                 text: 'Connect' if not root.is_connected else 'Disconnect'
                 size_hint_x: None
-                width: '90dp'
+                width: '85dp'
                 on_release: root.toggle_connection()
 
             Button:
                 text: 'Save'
                 size_hint_x: None
-                width: '70dp'
+                width: '60dp'
                 on_release: root.save_session()
 
             Button:
                 text: 'Clear'
                 size_hint_x: None
-                width: '70dp'
+                width: '60dp'
                 on_release: root.clear_terminal()
 
         RecycleView:

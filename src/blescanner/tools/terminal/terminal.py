@@ -177,11 +177,18 @@ class TerminalScreen(Screen):
             elif protocol == 'Serial':
                 serial_port = self.ids.port_spinner.text
                 baudrate = int(self.ids.bitrate_spinner.text)
+                bytesize = int(self.ids.databits_spinner.text)
+                parity = self.ids.parity_spinner.text
+                stopbits = float(self.ids.stopbits_spinner.text)
+
                 self.transport, self.protocol = await self.app.platform_utils.create_serial_connection(
                     asyncio.get_event_loop(),
                     lambda: SerialProtocol(self),
                     serial_port,
-                    baudrate=baudrate
+                    baudrate=baudrate,
+                    bytesize=bytesize,
+                    parity=parity,
+                    stopbits=stopbits
                 )
                 self.is_connected = True
                 self.ids.hidden_input.focus = True
