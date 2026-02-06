@@ -35,6 +35,15 @@ COLOR_MAP = {
     'magenta': '#75507b',
     'cyan': '#06989a',
     'white': '#d3d7cf',
+    # Bright versions
+    'brightblack': '#555753',
+    'brightred': '#ef2929',
+    'brightgreen': '#8ae234',
+    'brightyellow': '#fce94f',
+    'brightblue': '#729fcf',
+    'brightmagenta': '#ad7fa8',
+    'brightcyan': '#34e2e2',
+    'brightwhite': '#eeeeec',
 }
 
 class TerminalInput(TextInput):
@@ -154,9 +163,10 @@ class TerminalScreen(Screen):
 
                 # create_session without a command requests a shell automatically.
                 # It returns (channel, session).
+                # Using xterm-256color for better ncurses support.
                 self.chan, self.session = await self.connection.create_session(
                     lambda: SSHClientSession(self),
-                    term_type='xterm-color',
+                    term_type='xterm-256color',
                     term_size=(self.columns, self.rows)
                 )
 
@@ -237,31 +247,63 @@ class TerminalScreen(Screen):
             except Exception as e:
                 logger.error(f"Error feeding data: {e}")
 
+    def _get_color_hex(self, color, is_bg=False):
+        """Resolves a pyte color to a hex string."""
+        if color == 'default':
+            return '#000000' if is_bg else '#d3d7cf'
+
+        if color in COLOR_MAP:
+            return COLOR_MAP[color]
+
+        # Check for 256-color hex from pyte
+        if isinstance(color, str) and len(color) == 6 and all(c in '0123456789abcdefABCDEF' for c in color):
+            return '#' + color
+
+        return '#000000' if is_bg else '#d3d7cf'
+
     def get_line_markup(self, y):
         line_str = ""
         current_fg = None
         current_bold = False
+        current_underscore = False
 
         row = self.pyte_screen.buffer[y]
 
         for x in range(self.pyte_screen.columns):
             char = row[x]
 
-            style_changed = (char.fg != current_fg or char.bold != current_bold)
+            fg = char.fg
+            bg = char.bg
+            bold = char.bold
+            underscore = char.underscore
+
+            if char.reverse:
+                # Swap foreground and background for reverse video
+                fg, bg = bg, fg
+
+            # Note: Kivy's standard Label does not support a [background] tag in markup.
+            # We skip background colors for now to avoid displaying literal tags.
+            # We still track style changes for fg, bold, and underscore.
+            style_changed = (fg != current_fg or bold != current_bold or
+                             underscore != current_underscore)
 
             if style_changed:
-                # Close previous tags
+                # Close previous tags in reverse order of opening
+                if current_underscore: line_str += "[/u]"
                 if current_bold: line_str += "[/b]"
-                if current_fg and current_fg in COLOR_MAP: line_str += "[/color]"
+                if current_fg is not None and current_fg != 'default': line_str += "[/color]"
 
                 # Open new tags
-                current_fg = char.fg
-                current_bold = char.bold
+                current_fg = fg
+                current_bold = bold
+                current_underscore = underscore
 
-                if current_fg and current_fg in COLOR_MAP:
-                    line_str += f"[color={COLOR_MAP[current_fg]}]"
+                if current_fg != 'default':
+                    line_str += f"[color={self._get_color_hex(current_fg)}]"
                 if current_bold:
                     line_str += "[b]"
+                if current_underscore:
+                    line_str += "[u]"
 
             # Escape markup characters
             c = char.data
@@ -270,16 +312,19 @@ class TerminalScreen(Screen):
             line_str += c
 
         # Close tags at end of line
+        if current_underscore: line_str += "[/u]"
         if current_bold: line_str += "[/b]"
-        if current_fg and current_fg in COLOR_MAP: line_str += "[/color]"
+        if current_fg is not None and current_fg != 'default': line_str += "[/color]"
 
         return line_str
 
     def update_ui(self, dt):
-        if not self.pyte_screen.any_changes:
+        if not self.pyte_screen.dirty and not self.pyte_screen.any_changes:
             return
 
         self.pyte_screen.any_changes = False
+        self.pyte_screen.dirty.clear()
+
         new_data = []
         cursor_x = self.pyte_screen.cursor.x
         cursor_y = self.pyte_screen.cursor.y
@@ -320,16 +365,39 @@ class TerminalScreen(Screen):
         if not self.is_connected:
             return
 
+        # DECCKM (Cursor Keys Mode) is private mode 1.
+        # In pyte, private modes are stored shifted by 5: 1 << 5 = 32.
+        application_mode = 32 in self.pyte_screen.mode
+
         # Mapping for some keys
+        # Format: key_code: normal_sequence or (normal_sequence, app_mode_sequence)
         key_map = {
-            273: '\x1b[A', # Up
-            274: '\x1b[B', # Down
-            275: '\x1b[C', # Right
-            276: '\x1b[D', # Left
+            273: ('\x1b[A', '\x1bOA'), # Up
+            274: ('\x1b[B', '\x1bOB'), # Down
+            275: ('\x1b[C', '\x1bOC'), # Right
+            276: ('\x1b[D', '\x1bOD'), # Left
             13: '\r',      # Enter
             8: '\x7f',     # Backspace
-            9: '\t',      # Tab
+            9: '\t',       # Tab
             27: '\x1b',    # Escape
+            280: '\x1b[5~', # PageUp
+            281: '\x1b[6~', # PageDown
+            278: '\x1b[H',  # Home
+            279: '\x1b[F',  # End
+            277: '\x1b[2~', # Insert
+            127: '\x1b[3~', # Delete
+            282: '\x1bOP',  # F1
+            283: '\x1bOQ',  # F2
+            284: '\x1bOR',  # F3
+            285: '\x1bOS',  # F4
+            286: '\x1b[15~', # F5
+            287: '\x1b[17~', # F6
+            288: '\x1b[18~', # F7
+            289: '\x1b[19~', # F8
+            290: '\x1b[20~', # F9
+            291: '\x1b[21~', # F10
+            292: '\x1b[23~', # F11
+            293: '\x1b[24~', # F12
         }
 
         if 'ctrl' in modifier:
@@ -339,9 +407,15 @@ class TerminalScreen(Screen):
                 if 1 <= val <= 26:
                     self._send_to_connection(chr(val))
                     return True
+            # Note: Removed explicit key == 99 (Ctrl+C) as it's covered by codepoint logic
+            # on most platforms.
 
         if key in key_map:
-            self._send_to_connection(key_map[key])
+            seq = key_map[key]
+            if isinstance(seq, tuple):
+                self._send_to_connection(seq[1] if application_mode else seq[0])
+            else:
+                self._send_to_connection(seq)
             return True
 
         return False
