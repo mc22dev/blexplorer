@@ -47,90 +47,95 @@
                 width: '80dp'
                 on_text: root.on_protocol_change(self.text)
 
-            # Network settings
+            # Container for settings to avoid double spacing when one is hidden
             BoxLayout:
-                spacing: '5dp'
-                size_hint_x: 1 if protocol_spinner.text != 'Serial' else None
-                width: 0
-                opacity: 1 if protocol_spinner.text != 'Serial' else 0
-                disabled: protocol_spinner.text == 'Serial'
+                size_hint_x: 1
+                spacing: 0
 
-                TextInput:
-                    id: host_input
-                    text: '127.0.0.1'
-                    hint_text: 'Host'
-                    multiline: False
-                    size_hint_x: 0.4
-                    write_tab: False
+                # Network settings
+                BoxLayout:
+                    spacing: '5dp'
+                    size_hint_x: 1 if protocol_spinner.text != 'Serial' else None
+                    width: 0
+                    opacity: 1 if protocol_spinner.text != 'Serial' else 0
+                    disabled: protocol_spinner.text == 'Serial'
 
-                TextInput:
-                    id: port_input
-                    text: '22'
-                    hint_text: 'Port'
-                    multiline: False
-                    size_hint_x: None
-                    width: '35dp'
-                    write_tab: False
+                    TextInput:
+                        id: host_input
+                        text: '127.0.0.1'
+                        hint_text: 'Host'
+                        multiline: False
+                        size_hint_x: 0.4
+                        write_tab: False
 
-                TextInput:
-                    id: user_input
-                    text: 'root'
-                    hint_text: 'User'
-                    multiline: False
-                    size_hint_x: 0.3
-                    write_tab: False
+                    TextInput:
+                        id: port_input
+                        text: '22'
+                        hint_text: 'Port'
+                        multiline: False
+                        size_hint_x: None
+                        width: '35dp'
+                        write_tab: False
 
-                TextInput:
-                    id: password_input
-                    text: ''
-                    hint_text: 'Password'
-                    password: True
-                    multiline: False
-                    size_hint_x: 0.3
-                    write_tab: False
-                    on_text_validate: root.toggle_connection()
+                    TextInput:
+                        id: user_input
+                        text: 'root'
+                        hint_text: 'User'
+                        multiline: False
+                        size_hint_x: 0.3
+                        write_tab: False
 
-            # Serial settings
-            BoxLayout:
-                spacing: '5dp'
-                size_hint_x: 1 if protocol_spinner.text == 'Serial' else None
-                width: 0
-                opacity: 1 if protocol_spinner.text == 'Serial' else 0
-                disabled: protocol_spinner.text != 'Serial'
+                    TextInput:
+                        id: password_input
+                        text: ''
+                        hint_text: 'Password'
+                        password: True
+                        multiline: False
+                        size_hint_x: 0.3
+                        write_tab: False
+                        on_text_validate: root.toggle_connection()
 
-                Spinner:
-                    id: port_spinner
-                    text: 'Select Port'
-                    values: root.serial_ports
-                    on_press: root.refresh_serial_ports()
+                # Serial settings
+                BoxLayout:
+                    spacing: '5dp'
+                    size_hint_x: 1 if protocol_spinner.text == 'Serial' else None
+                    width: 0
+                    opacity: 1 if protocol_spinner.text == 'Serial' else 0
+                    disabled: protocol_spinner.text != 'Serial'
 
-                Spinner:
-                    id: bitrate_spinner
-                    text: '115200'
-                    values: ['9600', '19200', '38400', '57600', '115200']
-                    size_hint_x: None
-                    width: '80dp'
+                    Spinner:
+                        id: port_spinner
+                        text: 'Select Port'
+                        values: root.serial_ports
+                        on_press: root.refresh_serial_ports()
 
-                Spinner:
-                    id: databits_spinner
-                    text: '8'
-                    values: ['8', '7', '6', '5']
-                    size_hint_x: None
-                    width: '40dp'
+                    Spinner:
+                        id: bitrate_spinner
+                        text: '115200'
+                        values: ['9600', '19200', '38400', '57600', '115200']
+                        size_hint_x: None
+                        width: '80dp'
 
-                Spinner:
-                    id: parity_spinner
-                    text: 'N'
-                    values: ['N', 'E', 'O', 'M', 'S']
-                    size_hint_x: None
-                    width: '40dp'
+                    Spinner:
+                        id: databits_spinner
+                        text: '8'
+                        values: ['8', '7', '6', '5']
+                        size_hint_x: None
+                        width: '40dp'
 
-                Spinner:
-                    id: stopbits_spinner
-                    text: '1'
-                    values: ['1', '1.5', '2']
-                    size_hint_x: None
-                    width: '45dp'
+                    Spinner:
+                        id: parity_spinner
+                        text: 'N'
+                        values: ['N', 'E', 'O', 'M', 'S']
+                        size_hint_x: None
+                        width: '40dp'
+
+                    Spinner:
+                        id: stopbits_spinner
+                        text: '1'
+                        values: ['1', '1.5', '2']
+                        size_hint_x: None
+                        width: '45dp'
 
             Button:
                 text: 'Connect' if not root.is_connected else 'Disconnect'
