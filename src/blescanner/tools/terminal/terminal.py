@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import pyte
 from kivy.app import App
 from kivy.uix.screenmanager import Screen
@@ -370,12 +371,15 @@ class TerminalScreen(Screen):
             callback=self._on_save_session
         )
 
-    def _on_save_session(self, filepath):
+    def _on_save_session(self, path, selection):
         """
         Callback from the save dialog to write the terminal content to the chosen file.
         """
-        if not filepath:
+        if not selection:
+            self.app.ui_manager.dismiss_popup()
             return
+
+        filepath = os.path.join(path, selection[0])
         try:
             # Get the current display content from pyte screen
             # Strip trailing spaces from each line for a cleaner file
@@ -385,6 +389,7 @@ class TerminalScreen(Screen):
             self.log(f"Session saved to {filepath}")
         except Exception as e:
             self.log(f"Failed to save session: {e}", LogLevel.ERROR)
+        self.app.ui_manager.dismiss_popup()
 
     def log(self, message, level=LogLevel.INFO):
         self.app.log_with_timestamp(f"[Terminal] {message}", level)
