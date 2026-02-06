@@ -354,6 +354,31 @@ class TerminalScreen(Screen):
         self.pyte_screen.reset()
         self.pyte_screen.any_changes = True
 
+    def save_session(self):
+        """
+        Opens a save dialog to save the current terminal screen content to a file.
+        """
+        self.app.ui_manager.show_save_dialog(
+            title="Save Terminal Session",
+            callback=self._on_save_session
+        )
+
+    def _on_save_session(self, filepath):
+        """
+        Callback from the save dialog to write the terminal content to the chosen file.
+        """
+        if not filepath:
+            return
+        try:
+            # Get the current display content from pyte screen
+            # Strip trailing spaces from each line for a cleaner file
+            content = "\n".join(line.rstrip() for line in self.pyte_screen.display)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            self.log(f"Session saved to {filepath}")
+        except Exception as e:
+            self.log(f"Failed to save session: {e}", LogLevel.ERROR)
+
     def log(self, message, level=LogLevel.INFO):
         self.app.log_with_timestamp(f"[Terminal] {message}", level)
 

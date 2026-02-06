@@ -44,14 +44,14 @@
                 text: 'SSH'
                 values: ['SSH', 'Telnet', 'Serial']
                 size_hint_x: None
-                width: '100dp'
+                width: '90dp'
                 on_text: root.on_protocol_change(self.text)
 
             # Network settings
             BoxLayout:
                 spacing: '5dp'
-                size_hint_y: None
-                height: '40dp' if protocol_spinner.text != 'Serial' else 0
+                size_hint_x: 1 if protocol_spinner.text != 'Serial' else None
+                width: 0 if protocol_spinner.text == 'Serial' else 0
                 opacity: 1 if protocol_spinner.text != 'Serial' else 0
                 disabled: protocol_spinner.text == 'Serial'
 
@@ -69,7 +69,7 @@
                     hint_text: 'Port'
                     multiline: False
                     size_hint_x: None
-                    width: '60dp'
+                    width: '50dp'
                     write_tab: False
 
                 TextInput:
@@ -93,8 +93,20 @@
             Button:
                 text: 'Connect' if not root.is_connected else 'Disconnect'
                 size_hint_x: None
-                width: '100dp'
+                width: '90dp'
                 on_release: root.toggle_connection()
+
+            Button:
+                text: 'Save'
+                size_hint_x: None
+                width: '70dp'
+                on_release: root.save_session()
+
+            Button:
+                text: 'Clear'
+                size_hint_x: None
+                width: '70dp'
+                on_release: root.clear_terminal()
 
         # Serial settings (only shown when Serial is selected)
         BoxLayout:
@@ -133,15 +145,3 @@
                 orientation: 'vertical'
                 spacing: 0
 
-        BoxLayout:
-            size_hint_y: None
-            height: '40dp'
-            spacing: '5dp'
-
-            Widget: # Spacer
-
-            Button:
-                text: 'Clear'
-                size_hint_x: None
-                width: '80dp'
-                on_release: root.clear_terminal()
