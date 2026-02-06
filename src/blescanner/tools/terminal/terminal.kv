@@ -51,7 +51,7 @@
             BoxLayout:
                 spacing: '5dp'
                 size_hint_x: 1 if protocol_spinner.text != 'Serial' else None
-                width: 0 if protocol_spinner.text == 'Serial' else 0
+                width: 0
                 opacity: 1 if protocol_spinner.text != 'Serial' else 0
                 disabled: protocol_spinner.text == 'Serial'
 
@@ -69,7 +69,7 @@
                     hint_text: 'Port'
                     multiline: False
                     size_hint_x: None
-                    width: '50dp'
+                    width: '40dp'
                     write_tab: False
 
                 TextInput:
@@ -90,6 +90,27 @@
                     write_tab: False
                     on_text_validate: root.toggle_connection()
 
+            # Serial settings
+            BoxLayout:
+                spacing: '5dp'
+                size_hint_x: 1 if protocol_spinner.text == 'Serial' else None
+                width: 0
+                opacity: 1 if protocol_spinner.text == 'Serial' else 0
+                disabled: protocol_spinner.text != 'Serial'
+
+                Spinner:
+                    id: port_spinner
+                    text: 'Select Port'
+                    values: root.serial_ports
+                    on_press: root.refresh_serial_ports()
+
+                Spinner:
+                    id: bitrate_spinner
+                    text: '115200'
+                    values: ['9600', '19200', '38400', '57600', '115200']
+                    size_hint_x: None
+                    width: '90dp'
+
             Button:
                 text: 'Connect' if not root.is_connected else 'Disconnect'
                 size_hint_x: None
@@ -107,27 +128,6 @@
                 size_hint_x: None
                 width: '70dp'
                 on_release: root.clear_terminal()
-
-        # Serial settings (only shown when Serial is selected)
-        BoxLayout:
-            size_hint_y: None
-            height: '40dp' if protocol_spinner.text == 'Serial' else 0
-            opacity: 1 if protocol_spinner.text == 'Serial' else 0
-            disabled: protocol_spinner.text != 'Serial'
-            spacing: '5dp'
-
-            Spinner:
-                id: port_spinner
-                text: 'Select Port'
-                values: root.serial_ports
-                on_press: root.refresh_serial_ports()
-
-            Spinner:
-                id: bitrate_spinner
-                text: '115200'
-                values: ['9600', '19200', '38400', '57600', '115200']
-                size_hint_x: None
-                width: '100dp'
 
         RecycleView:
             id: rv
