@@ -56,6 +56,7 @@ from blescanner.tools.calculator.calculator import CalculatorScreen
 from blescanner.tools.hex_editor.hex_editor import HexEditorScreen
 from blescanner.tools.network_scanner.network_scanner import NetworkScannerScreen
 from blescanner.tools.terminal.terminal import TerminalScreen
+from blescanner.tools.audio_analyzer.audio_analyzer import AudioAnalyzerScreen
 from blescanner.ui.settings_popup import SettingsPopup
 from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
 
@@ -141,6 +142,7 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path('tools/hex_editor/hex_editor.kv'))
         Builder.load_file(resource_path('tools/network_scanner/network_scanner.kv'))
         Builder.load_file(resource_path('tools/terminal/terminal.kv'))
+        Builder.load_file(resource_path('tools/audio_analyzer/audio_analyzer.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(
@@ -218,6 +220,9 @@ class BLEScannerApp(App):
         terminal_screen = TerminalScreen(name='terminal')
         self.root.ids.screen_manager.add_widget(terminal_screen)
 
+        audio_analyzer_screen = AudioAnalyzerScreen(name='audio_analyzer')
+        self.root.ids.screen_manager.add_widget(audio_analyzer_screen)
+
         self.device_manager.ui_container = ble_scanner_screen.ids.scanner_screen.ids.device_list
         self.ui_manager.root = self.root
 
@@ -248,7 +253,7 @@ class BLEScannerApp(App):
             "terminal": "Terminal",
             "serial_terminal": "Serial Terminal",
             "signal_generator": "Signal Generator",
-            "audio_analyzer": "Audio Analyzer",
+            "audio_analyzer": "Audio Spectrum Analyzer",
         }
         for tool_id, tool_name in tools.items():
             btn = Button(text=tool_name, size_hint_y=None, height="48dp")

@@ -1,0 +1,38 @@
+#:kivy 2.0.0
+
+<AudioAnalyzerScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: "10dp"
+        spacing: "10dp"
+
+        BoxLayout:
+            size_hint_y: None
+            height: "48dp"
+            spacing: "10dp"
+            Button:
+                id: start_stop_button
+                text: "Start" if not root.is_running else "Stop"
+                on_release: root.toggle_running()
+            Label:
+                text: "Peak: " + root.peak_freq_text
+            Label:
+                text: "FPS: " + root.fps_text
+            Label:
+                text: root.status_text
+                color: (1, 0.5, 0.5, 1) if "Error" in root.status_text or "not found" in root.status_text else (1, 1, 1, 1)
+
+        SpectrumGraph:
+            id: spectrum_graph
+            magnitude_data: root.magnitude_data
+            frequencies: root.frequencies
+            is_log_x: True
+            is_log_y: True
+
+<SpectrumGraph>:
+    canvas.before:
+        Color:
+            rgba: 0.1, 0.1, 0.1, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
