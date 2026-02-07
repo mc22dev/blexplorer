@@ -308,11 +308,22 @@ class TerminalScreen(Screen):
         if isinstance(color, str) and len(color) == 6 and all(c in '0123456789abcdefABCDEF' for c in color):
             return '#' + color
 
-        return '#000000' if is_bg else '#d3d7cf'
+        return '#000000' if is_bg else '#e5e5e5'
+
+    def _get_char_colors(self, char):
+        """Returns (fg_hex, bg_hex) for a character, correctly handling reverse video."""
+        fg_hex = self._get_color_hex(char.fg, is_bg=False)
+        bg_hex = self._get_color_hex(char.bg, is_bg=True)
+
+        if char.reverse:
+            # When reversed, we swap the resolved hex colors.
+            # This ensures that reversed 'default' correctly becomes black-on-white.
+            return bg_hex, fg_hex
+        return fg_hex, bg_hex
 
     def get_line_markup(self, y):
         line_str = ""
-        current_fg = None
+        current_fg_hex = None
         current_bold = False
         current_underscore = False
 
@@ -320,35 +331,25 @@ class TerminalScreen(Screen):
 
         for x in range(self.pyte_screen.columns):
             char = row[x]
-
-            fg = char.fg
-            bg = char.bg
+            fg_hex, _ = self._get_char_colors(char)
             bold = char.bold
             underscore = char.underscore
 
-            if char.reverse:
-                # Swap foreground and background for reverse video
-                fg, bg = bg, fg
-
-            # Note: Kivy's standard Label does not support a [background] tag in markup.
-            # We skip background colors for now to avoid displaying literal tags.
-            # We still track style changes for fg, bold, and underscore.
-            style_changed = (fg != current_fg or bold != current_bold or
+            style_changed = (fg_hex != current_fg_hex or bold != current_bold or
                              underscore != current_underscore)
 
             if style_changed:
                 # Close previous tags in reverse order of opening
                 if current_underscore: line_str += "[/u]"
                 if current_bold: line_str += "[/b]"
-                if current_fg is not None and current_fg != 'default': line_str += "[/color]"
+                if current_fg_hex is not None: line_str += "[/color]"
 
                 # Open new tags
-                current_fg = fg
+                current_fg_hex = fg_hex
                 current_bold = bold
                 current_underscore = underscore
 
-                if current_fg != 'default':
-                    line_str += f"[color={self._get_color_hex(current_fg)}]"
+                line_str += f"[color={current_fg_hex}]"
                 if current_bold:
                     line_str += "[b]"
                 if current_underscore:
@@ -363,7 +364,7 @@ class TerminalScreen(Screen):
         # Close tags at end of line
         if current_underscore: line_str += "[/u]"
         if current_bold: line_str += "[/b]"
-        if current_fg is not None and current_fg != 'default': line_str += "[/color]"
+        if current_fg_hex is not None: line_str += "[/color]"
 
         return line_str
 
@@ -381,7 +382,7 @@ class TerminalScreen(Screen):
         for y in range(self.pyte_screen.lines):
             row_cursor_x = cursor_x if y == cursor_y else -1
             row = self.pyte_screen.buffer[y]
-            bg_data = [self._get_color_hex(row[x].bg, is_bg=True) for x in range(self.columns)]
+            bg_data = [self._get_char_colors(row[x])[1] for x in range(self.columns)]
             new_data.append({
                 'text': self.get_line_markup(y),
                 'cursor_x': row_cursor_x,
