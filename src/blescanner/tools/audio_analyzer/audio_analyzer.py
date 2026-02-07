@@ -35,6 +35,9 @@ class SpectrumGraph(Widget):
         if not self.magnitude_data or not self.frequencies:
             return
 
+        if len(self.magnitude_data) != len(self.frequencies):
+            return
+
         with self.canvas.after:
             Color(0, 1, 0, 1)  # Green for the spectrum
 
