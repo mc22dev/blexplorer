@@ -6,6 +6,7 @@
         padding: "10dp"
         spacing: "10dp"
 
+        # Top Bar
         BoxLayout:
             size_hint_y: None
             height: "48dp"
@@ -15,6 +16,8 @@
                 id: start_stop_button
                 text: "Start" if not root.is_running else "Stop"
                 on_release: root.toggle_running()
+                size_hint_x: None
+                width: "80dp"
             Label:
                 text: "Peak: " + root.peak_freq_text
             Label:
@@ -23,15 +26,112 @@
                 text: root.status_text
                 color: (1, 0.5, 0.5, 1) if "Error" in root.status_text or "not found" in root.status_text else (1, 1, 1, 1)
 
+        # Control Panel
+        BoxLayout:
+            size_hint_y: None
+            height: "120dp"
+            orientation: 'vertical'
+            spacing: "5dp"
+            padding: "5dp"
+            canvas.before:
+                Color:
+                    rgba: (0.2, 0.2, 0.2, 1)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            # Frequency Controls
+            BoxLayout:
+                spacing: "10dp"
+                Label:
+                    text: "Freq Range (Hz):"
+                    size_hint_x: None
+                    width: "120dp"
+                Label:
+                    text: str(int(root.min_freq))
+                    size_hint_x: None
+                    width: "50dp"
+                Slider:
+                    min: 20
+                    max: 5000
+                    value: root.min_freq
+                    on_value: root.min_freq = self.value
+                Slider:
+                    min: 5000
+                    max: 20000
+                    value: root.max_freq
+                    on_value: root.max_freq = self.value
+                Label:
+                    text: str(int(root.max_freq))
+                    size_hint_x: None
+                    width: "50dp"
+                ToggleButton:
+                    text: "Log X"
+                    state: 'down' if root.ids.spectrum_graph.is_log_x else 'normal'
+                    on_release: root.ids.spectrum_graph.is_log_x = not root.ids.spectrum_graph.is_log_x
+                    size_hint_x: None
+                    width: "60dp"
+
+            # Magnitude Controls
+            BoxLayout:
+                spacing: "10dp"
+                Label:
+                    text: "dB Range:"
+                    size_hint_x: None
+                    width: "120dp"
+                Label:
+                    text: str(int(root.min_db))
+                    size_hint_x: None
+                    width: "50dp"
+                Slider:
+                    min: -120
+                    max: -40
+                    value: root.min_db
+                    on_value: root.min_db = self.value
+                Slider:
+                    min: -40
+                    max: 20
+                    value: root.max_db
+                    on_value: root.max_db = self.value
+                Label:
+                    text: str(int(root.max_db))
+                    size_hint_x: None
+                    width: "50dp"
+                ToggleButton:
+                    text: "Log Y"
+                    state: 'down' if root.ids.spectrum_graph.is_log_y else 'normal'
+                    on_release: root.ids.spectrum_graph.is_log_y = not root.ids.spectrum_graph.is_log_y
+                    size_hint_x: None
+                    width: "60dp"
+
+            # FFT Size
+            BoxLayout:
+                spacing: "10dp"
+                Label:
+                    text: "FFT Size:"
+                    size_hint_x: None
+                    width: "120dp"
+                Spinner:
+                    text: str(int(root.fft_size))
+                    values: ["512", "1024", "2048", "4096", "8192"]
+                    on_text: root.fft_size = int(self.text)
+                    size_hint_x: None
+                    width: "100dp"
+                Widget: # Spacer
+
+        # Main Graph Area
         FloatLayout:
             SpectrumGraph:
                 id: spectrum_graph
                 magnitude_data: root.magnitude_data
                 frequencies: root.frequencies
-                is_log_x: True
-                is_log_y: True
+                min_freq: root.min_freq
+                max_freq: root.max_freq
+                min_db: root.min_db
+                max_db: root.max_db
                 pos_hint: {'x': 0, 'y': 0}
 
+            # Missing Dependency Overlay
             BoxLayout:
                 orientation: 'vertical'
                 padding: "20dp"
@@ -39,6 +139,7 @@
                 pos_hint: {'center_x': 0.5, 'center_y': 0.5}
                 size_hint: (0.8, 0.6)
                 opacity: 1 if not root.has_pyaudio else 0
+                disabled: root.has_pyaudio
                 canvas.before:
                     Color:
                         rgba: (0, 0, 0, 0.8)

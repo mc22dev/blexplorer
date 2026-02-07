@@ -3,7 +3,7 @@ import math
 import threading
 from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
-from kivy.properties import ListProperty, BooleanProperty, StringProperty, NumericProperty, ObjectProperty
+from kivy.properties import ListProperty, BooleanProperty, StringProperty, NumericProperty, ObjectProperty, OptionProperty
 from kivy.graphics import Color, Line, Rectangle
 from kivy.clock import Clock
 
@@ -25,7 +25,10 @@ class SpectrumGraph(Widget):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.bind(pos=self.update_graph, size=self.update_graph, magnitude_data=self.update_graph, frequencies=self.update_graph)
+        self.bind(pos=self.update_graph, size=self.update_graph, magnitude_data=self.update_graph,
+                  frequencies=self.update_graph, min_db=self.update_graph, max_db=self.update_graph,
+                  min_freq=self.update_graph, max_freq=self.update_graph, is_log_x=self.update_graph,
+                  is_log_y=self.update_graph)
 
     def update_graph(self, *args):
         self.canvas.after.clear()
@@ -52,11 +55,14 @@ class SpectrumGraph(Widget):
                 return
 
             # Magnitude to Y
+            db_range = self.max_db - self.min_db
+            if db_range == 0: db_range = 1e-5
+
             if self.is_log_y:
                 # Convert magnitude to dB
                 db = 20 * np.log10(np.maximum(m_filtered, 1e-10))
                 # Normalize dB to 0-1 range
-                norm_y = (db - self.min_db) / (self.max_db - self.min_db)
+                norm_y = (db - self.min_db) / db_range
             else:
                 # Linear scale normalized to 0-1 (assuming max magnitude is 1.0)
                 norm_y = m_filtered
@@ -64,12 +70,17 @@ class SpectrumGraph(Widget):
             norm_y = np.clip(norm_y, 0, 1)
 
             # Frequency to X
+            f_range = self.max_freq - self.min_freq
+            if f_range == 0: f_range = 1e-5
+
             if self.is_log_x:
                 min_log_f = math.log10(max(self.min_freq, 1))
                 max_log_f = math.log10(max(self.max_freq, 1))
-                norm_x = (np.log10(np.maximum(f_filtered, 1e-10)) - min_log_f) / (max_log_f - min_log_f)
+                log_f_range = max_log_f - min_log_f
+                if log_f_range == 0: log_f_range = 1e-5
+                norm_x = (np.log10(np.maximum(f_filtered, 1e-10)) - min_log_f) / log_f_range
             else:
-                norm_x = (f_filtered - self.min_freq) / (self.max_freq - self.min_freq)
+                norm_x = (f_filtered - self.min_freq) / f_range
 
             norm_x = np.clip(norm_x, 0, 1)
 
@@ -83,27 +94,28 @@ class SpectrumGraph(Widget):
             # Draw grid
             Color(1, 1, 1, 0.2)
             # Frequencies grid (Vertical lines)
-            freq_labels = [50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
+            # Dynamic grid based on range
+            freq_labels = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
             if self.is_log_x:
-                min_log_f = math.log10(max(self.min_freq, 1))
-                max_log_f = math.log10(max(self.max_freq, 1))
                 for f in freq_labels:
                     if f < self.min_freq or f > self.max_freq:
                         continue
-                    nx = (math.log10(f) - min_log_f) / (max_log_f - min_log_f)
+                    nx = (math.log10(f) - min_log_f) / log_f_range
                     Line(points=[x0 + nx * w, y0, x0 + nx * w, y0 + h], width=1)
             else:
                 for f in freq_labels:
                     if f < self.min_freq or f > self.max_freq:
                         continue
-                    nx = (f - self.min_freq) / (self.max_freq - self.min_freq)
+                    nx = (f - self.min_freq) / f_range
                     Line(points=[x0 + nx * w, y0, x0 + nx * w, y0 + h], width=1)
 
             # dB grid (Horizontal lines)
             if self.is_log_y:
-                db_labels = [-80, -60, -40, -20]
-                for db in db_labels:
-                    ny = (db - self.min_db) / (self.max_db - self.min_db)
+                db_step = 20
+                start_db = (int(self.min_db) // db_step) * db_step
+                for db in range(start_db, int(self.max_db) + 1, db_step):
+                    if db < self.min_db: continue
+                    ny = (db - self.min_db) / db_range
                     Line(points=[x0, y0 + ny * h, x0 + w, y0 + ny * h], width=1)
             else:
                 mag_labels = [0.25, 0.5, 0.75]
@@ -119,8 +131,14 @@ class AudioAnalyzerScreen(Screen):
     status_text = StringProperty("")
     has_pyaudio = BooleanProperty(HAS_PYAUDIO)
 
+    # Range properties
+    min_freq = NumericProperty(20)
+    max_freq = NumericProperty(20000)
+    min_db = NumericProperty(-100)
+    max_db = NumericProperty(0)
+    fft_size = NumericProperty(2048)
+
     RATE = 44100
-    CHUNK = 2048
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -130,9 +148,14 @@ class AudioAnalyzerScreen(Screen):
         self._frame_count = 0
         self._lock = threading.Lock()
         self._new_data = False
-        self._buffer = np.zeros(self.CHUNK)
+        self._buffer = np.zeros(int(self.fft_size))
         if not HAS_PYAUDIO:
             self.status_text = "PyAudio not found."
+
+    def on_fft_size(self, instance, value):
+        if self.is_running:
+            self.stop_audio()
+            self.start_audio()
 
     def toggle_running(self):
         if self.is_running:
@@ -154,9 +177,11 @@ class AudioAnalyzerScreen(Screen):
                 channels=1,
                 rate=self.RATE,
                 input=True,
-                frames_per_buffer=self.CHUNK,
+                frames_per_buffer=int(self.fft_size),
                 stream_callback=self._audio_callback
             )
+            with self._lock:
+                self._buffer = np.zeros(int(self.fft_size))
             self.is_running = True
             self.status_text = "Capturing audio..."
             Clock.schedule_interval(self.update_ui, 1.0 / 30.0)
