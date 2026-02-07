@@ -27,9 +27,9 @@ This project uses a `Makefile` to automate the build process for all supported p
 
 **Prerequisites:**
 
-You must install the development headers for Kivy's dependencies. On Debian-based systems (like Ubuntu), you can do this by running:
+You must install the development headers for Kivy and PyAudio dependencies. On Debian-based systems (like Ubuntu), you can do this by running:
 ```bash
-sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libglew-dev
+sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libglew-dev libportaudio2 portaudio19-dev
 ```
 
 To build a standalone executable for Linux, run the following command:
