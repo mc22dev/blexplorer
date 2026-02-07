@@ -19,4 +19,3 @@ pyte
 asyncssh
 telnetlib3
 numpy
-pyaudio

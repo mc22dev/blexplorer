@@ -6,7 +6,6 @@ from kivy.uix.widget import Widget
 from kivy.properties import ListProperty, BooleanProperty, StringProperty, NumericProperty, ObjectProperty
 from kivy.graphics import Color, Line, Rectangle
 from kivy.clock import Clock
-from kivy.utils import platform as kivy_platform
 
 try:
     import pyaudio
@@ -26,7 +25,7 @@ class SpectrumGraph(Widget):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.bind(pos=self.update_graph, size=self.update_graph, magnitude_data=self.update_graph)
+        self.bind(pos=self.update_graph, size=self.update_graph, magnitude_data=self.update_graph, frequencies=self.update_graph)
 
     def update_graph(self, *args):
         self.canvas.after.clear()
@@ -118,6 +117,7 @@ class AudioAnalyzerScreen(Screen):
     peak_freq_text = StringProperty("N/A")
     fps_text = StringProperty("0")
     status_text = StringProperty("")
+    has_pyaudio = BooleanProperty(HAS_PYAUDIO)
 
     RATE = 44100
     CHUNK = 2048
@@ -132,7 +132,7 @@ class AudioAnalyzerScreen(Screen):
         self._new_data = False
         self._buffer = np.zeros(self.CHUNK)
         if not HAS_PYAUDIO:
-            self.status_text = "PyAudio not found. Audio capture is unavailable."
+            self.status_text = "PyAudio not found."
 
     def toggle_running(self):
         if self.is_running:
@@ -145,7 +145,6 @@ class AudioAnalyzerScreen(Screen):
             return
 
         if not HAS_PYAUDIO:
-            self.status_text = "PyAudio not found."
             return
 
         try:

@@ -32,6 +32,11 @@ You must install the development headers for Kivy and PyAudio dependencies. On D
 sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libglew-dev libportaudio2 portaudio19-dev
 ```
 
+Note: `libportaudio2` and `portaudio19-dev` are required for the **Audio Spectrum Analyzer** tool. If you wish to use this tool, you should also install the `pyaudio` Python package:
+```bash
+pip install pyaudio
+```
+
 To build a standalone executable for Linux, run the following command:
 ```bash
 make linux
