@@ -1,0 +1,99 @@
+<WifiScannerScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: "10dp"
+        spacing: "10dp"
+
+        BoxLayout:
+            size_hint_y: None
+            height: "48dp"
+            spacing: "10dp"
+
+            Button:
+                text: "Start Scan" if not root.is_scanning else "Stop Scan"
+                on_release: root.toggle_scan()
+                size_hint_x: None
+                width: "120dp"
+                background_color: (0.2, 0.7, 0.2, 1) if not root.is_scanning else (0.7, 0.2, 0.2, 1)
+
+            Spinner:
+                text: root.band
+                values: ["2.4GHz", "5GHz"]
+                on_text: root.band = self.text
+                size_hint_x: None
+                width: "120dp"
+
+            Label:
+                text: root.status_text
+                halign: 'left'
+                text_size: self.size
+                valign: 'middle'
+                color: (0.7, 0.7, 0.7, 1)
+
+        RelativeLayout:
+            WifiGraph:
+                id: wifi_graph
+                aps: root.aps
+
+            # Y-axis labels
+            Label:
+                text: "-20"
+                font_size: '10sp'
+                size_hint: None, None
+                size: self.texture_size
+                pos: dp(5), root.ids.wifi_graph.height - dp(35)
+                color: (1, 1, 1, 0.5)
+            Label:
+                text: "-100"
+                font_size: '10sp'
+                size_hint: None, None
+                size: self.texture_size
+                pos: dp(5), dp(45)
+                color: (1, 1, 1, 0.5)
+
+            # X-axis labels
+            Label:
+                text: str(int(wifi_graph.min_freq)) + " MHz"
+                font_size: '10sp'
+                size_hint: None, None
+                size: self.texture_size
+                pos: dp(55), dp(10)
+                color: (1, 1, 1, 0.5)
+            Label:
+                text: str(int(wifi_graph.max_freq)) + " MHz"
+                font_size: '10sp'
+                size_hint: None, None
+                size: self.texture_size
+                pos: wifi_graph.width - self.width - dp(25), dp(10)
+                color: (1, 1, 1, 0.5)
+
+        BoxLayout:
+            size_hint_y: 0.4
+            orientation: 'vertical'
+            canvas.before:
+                Color:
+                    rgba: (1, 1, 1, 0.05)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+
+            Label:
+                text: "Access Points"
+                size_hint_y: None
+                height: "30dp"
+                bold: True
+                halign: 'left'
+                text_size: self.size
+                padding: "5dp", 0
+
+            RecycleView:
+                id: ap_list
+                data: [{'text': f"[b]{ap.ssid or 'Hidden'}[/b] ({ap.bssid})\nCh: {ap.channel} | {ap.frequency} MHz | [color=#ff5555]{ap.rssi} dBm[/color]", 'markup': True, 'halign': 'left', 'valign': 'middle', 'text_size': (self.width - dp(20), None)} for ap in root.aps]
+                viewclass: 'Label'
+                RecycleBoxLayout:
+                    default_size: None, dp(48)
+                    default_size_hint: 1, None
+                    size_hint_y: None
+                    height: self.minimum_height
+                    orientation: 'vertical'
+                    spacing: "2dp"

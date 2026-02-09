@@ -4,7 +4,7 @@ from typing import List, Callable, Tuple
 
 import serial_asyncio
 
-from .base import PlatformUtilsBase, BondedDevice, SerialPort
+from .base import PlatformUtilsBase, BondedDevice, SerialPort, WifiAccessPoint
 
 
 class DefaultPlatformUtils(PlatformUtilsBase):
@@ -105,3 +105,90 @@ class DefaultPlatformUtils(PlatformUtilsBase):
         except Exception:
             pass
         return arp_table
+
+    async def scan_wifi(self) -> List[WifiAccessPoint]:
+        """
+        Scans for available Wi-Fi access points on Windows using netsh.
+        """
+        import subprocess
+        import re
+        import platform
+
+        aps = []
+        if platform.system() == "Windows":
+            try:
+                cmd = ["netsh", "wlan", "show", "networks", "mode=bssid"]
+                # We use run_in_executor because netsh is blocking and doesn't have an easy async way here
+                loop = asyncio.get_running_loop()
+                output = await loop.run_in_executor(None, lambda: subprocess.check_output(cmd).decode("ascii", errors="ignore"))
+
+                current_ssid = ""
+                current_security = ""
+
+                # Parse netsh output
+                # SSID 1 : MyWiFi
+                #     Network type            : Infrastructure
+                #     Authentication          : WPA2-Personal
+                #     Encryption              : CCMP
+                #     BSSID 1                 : 00:11:22:33:44:55
+                #          Signal             : 80%
+                #          Radio type         : 802.11n
+                #          Channel            : 6
+
+                sections = output.split("SSID ")
+                for section in sections[1:]:
+                    lines = section.splitlines()
+                    if not lines: continue
+
+                    ssid = lines[0].split(":", 1)[1].strip()
+                    security = ""
+                    for line in lines:
+                        if "Authentication" in line:
+                            security = line.split(":", 1)[1].strip()
+                            break
+
+                    # Find BSSIDs in this SSID section
+                    bssids_data = section.split("BSSID ")
+                    for bssid_section in bssids_data[1:]:
+                        b_lines = bssid_section.splitlines()
+                        if not b_lines: continue
+
+                        bssid_match = re.search(r"([0-9a-fA-F:]{17})", b_lines[0])
+                        if not bssid_match: continue
+                        bssid = bssid_match.group(1)
+
+                        rssi = -100
+                        channel = 0
+                        for bl in b_lines:
+                            if "Signal" in bl:
+                                try:
+                                    sig_pct = int(bl.split(":", 1)[1].strip().replace("%", ""))
+                                    rssi = (sig_pct / 2) - 100
+                                except:
+                                    pass
+                            if "Channel" in bl:
+                                try:
+                                    channel = int(bl.split(":", 1)[1].strip())
+                                except:
+                                    pass
+
+                        # Derive frequency from channel
+                        frequency = 0
+                        if 1 <= channel <= 14:
+                            frequency = 2407 + (channel * 5)
+                            if channel == 14: frequency = 2484
+                        elif channel >= 36:
+                            frequency = 5000 + (channel * 5)
+
+                        aps.append(WifiAccessPoint(
+                            ssid=ssid,
+                            bssid=bssid,
+                            rssi=int(rssi),
+                            channel=channel,
+                            frequency=frequency,
+                            security=security
+                        ))
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error scanning Wi-Fi on Windows: {e}")
+        return aps
