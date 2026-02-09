@@ -4,6 +4,7 @@ from kivy.uix.screenmanager import Screen
 from kivy.properties import ListProperty, StringProperty, NumericProperty, BooleanProperty, DictProperty
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
+from kivy.uix.label import Label
 from kivy.graphics import Color, Line
 from kivy.app import App
 import colorsys
@@ -21,6 +22,8 @@ class WifiGraph(Widget):
                   min_freq=self.update_graph, max_freq=self.update_graph)
         self._device_colors = {}
         self._hue_iterator = 0.0
+        self._channel_labels = []
+        self._axis_label = None
 
     def get_ap_color(self, bssid):
         if bssid not in self._device_colors:
@@ -31,6 +34,12 @@ class WifiGraph(Widget):
 
     def update_graph(self, *args):
         self.canvas.after.clear()
+        for label in self._channel_labels:
+            self.remove_widget(label)
+        self._channel_labels.clear()
+        if self._axis_label:
+            self.remove_widget(self._axis_label)
+            self._axis_label = None
 
         padding_left = 50
         padding_bottom = 40
@@ -54,12 +63,41 @@ class WifiGraph(Widget):
                 y = graph_y + y_ratio * graph_height
                 Line(points=[graph_x, y, graph_x + graph_width, y], width=0.5)
 
-            # X-axis (Freq) grid
-            step = 20 if (self.max_freq - self.min_freq) < 200 else 100
-            for f in range(int(self.min_freq), int(self.max_freq) + 1, step):
-                x_ratio = (f - self.min_freq) / (self.max_freq - self.min_freq)
-                x = graph_x + x_ratio * graph_width
-                Line(points=[x, graph_y, x, graph_y + graph_height], width=0.5)
+            # X-axis (Freq) grid and channel labels
+            if self.aps:
+                self._axis_label = Label(text="Channel", font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.8), bold=True)
+                self._axis_label.pos = (graph_x + graph_width/2 - self._axis_label.width/2, graph_y - 40)
+                self.add_widget(self._axis_label)
+
+            if self.min_freq < 3000: # 2.4GHz
+                # Standard channels 1-13 (14 is rare)
+                channels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+                for ch in channels:
+                    f = 2412 + (ch - 1) * 5
+                    x_ratio = (f - self.min_freq) / (self.max_freq - self.min_freq)
+                    x = graph_x + x_ratio * graph_width
+                    if graph_x <= x <= graph_x + graph_width:
+                        Color(1, 1, 1, 0.1)
+                        Line(points=[x, graph_y, x, graph_y + graph_height], width=0.5)
+
+                        label = Label(text=str(ch), font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
+                        label.pos = (x - label.width/2, graph_y - 25)
+                        self.add_widget(label)
+                        self._channel_labels.append(label)
+            else: # 5GHz
+                # More channels, draw every 4 channels or so
+                for ch in range(36, 166, 4):
+                    f = 5000 + (ch * 5)
+                    x_ratio = (f - self.min_freq) / (self.max_freq - self.min_freq)
+                    x = graph_x + x_ratio * graph_width
+                    if graph_x <= x <= graph_x + graph_width:
+                        Color(1, 1, 1, 0.1)
+                        Line(points=[x, graph_y, x, graph_y + graph_height], width=0.5)
+
+                        label = Label(text=str(ch), font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
+                        label.pos = (x - label.width/2, graph_y - 25)
+                        self.add_widget(label)
+                        self._channel_labels.append(label)
 
             # Draw axes
             Color(1, 1, 1, 0.6)
@@ -113,6 +151,7 @@ class WifiGraph(Widget):
 class WifiScannerScreen(Screen):
     is_scanning = BooleanProperty(False)
     aps = ListProperty([])
+    ap_data = ListProperty([])
     band = StringProperty("2.4GHz")
     status_text = StringProperty("Ready")
 
@@ -145,6 +184,7 @@ class WifiScannerScreen(Screen):
             while self.is_scanning:
                 new_aps = await app.platform_utils.scan_wifi()
                 self.aps = new_aps
+                self._update_ap_data()
                 self.status_text = f"Last scan: {len(new_aps)} APs found"
                 await asyncio.sleep(5)
         except asyncio.CancelledError:
@@ -154,6 +194,17 @@ class WifiScannerScreen(Screen):
             logging.getLogger(__name__).error(f"Wifi scan loop error: {e}")
             self.status_text = f"Error: {e}"
             self.is_scanning = False
+
+    def _update_ap_data(self):
+        self.ap_data = [
+            {
+                'text': f"[b]{ap.ssid or 'Hidden'}[/b] ({ap.bssid})\nCh: {ap.channel} | {ap.frequency} MHz | [color=#ff5555]{ap.rssi} dBm[/color]",
+                'markup': True,
+                'halign': 'left',
+                'valign': 'middle'
+            }
+            for ap in self.aps
+        ]
 
     def on_band(self, instance, value):
         if value == "2.4GHz":

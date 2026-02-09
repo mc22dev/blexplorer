@@ -82,8 +82,8 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
             # Newer versions: device wifi list
             # Older versions or shorthands: dev wifi
             commands = [
-                ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "device wifi list"],
-                ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "dev wifi"]
+                ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "device", "wifi", "list"],
+                ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "dev", "wifi"]
             ]
 
             output = ""

@@ -88,7 +88,7 @@
 
             RecycleView:
                 id: ap_list
-                data: [{'text': f"[b]{ap.ssid or 'Hidden'}[/b] ({ap.bssid})\nCh: {ap.channel} | {ap.frequency} MHz | [color=#ff5555]{ap.rssi} dBm[/color]", 'markup': True, 'halign': 'left', 'valign': 'middle', 'text_size': (self.width - dp(20), None)} for ap in root.aps]
+                data: root.ap_data
                 viewclass: 'Label'
                 RecycleBoxLayout:
                     default_size: None, dp(48)
