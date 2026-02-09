@@ -135,12 +135,14 @@ class DefaultPlatformUtils(PlatformUtilsBase):
                 #          Radio type         : 802.11n
                 #          Channel            : 6
 
-                sections = output.split("SSID ")
+                # Split by "SSID " at the beginning of a line to avoid matching "BSSID"
+                sections = re.split(r"^\s*SSID\s+\d+\s*:\s*", output, flags=re.MULTILINE)
+                # The first section is the header before the first SSID
                 for section in sections[1:]:
                     lines = section.splitlines()
                     if not lines: continue
 
-                    ssid = lines[0].split(":", 1)[1].strip()
+                    ssid = lines[0].strip()
                     security = ""
                     for line in lines:
                         if "Authentication" in line:
@@ -148,7 +150,7 @@ class DefaultPlatformUtils(PlatformUtilsBase):
                             break
 
                     # Find BSSIDs in this SSID section
-                    bssids_data = section.split("BSSID ")
+                    bssids_data = re.split(r"^\s*BSSID\s+\d+\s*:\s*", section, flags=re.MULTILINE)
                     for bssid_section in bssids_data[1:]:
                         b_lines = bssid_section.splitlines()
                         if not b_lines: continue
@@ -182,7 +184,7 @@ class DefaultPlatformUtils(PlatformUtilsBase):
 
                         aps.append(WifiAccessPoint(
                             ssid=ssid,
-                            bssid=bssid,
+                            bssid=bssid.lower(),
                             rssi=int(rssi),
                             channel=channel,
                             frequency=frequency,

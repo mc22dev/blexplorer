@@ -216,8 +216,8 @@ class AndroidPlatformUtils(PlatformUtilsBase):
                     channel = (freq - 5000) // 5
 
                 aps.append(WifiAccessPoint(
-                    ssid=str(res.SSID),
-                    bssid=str(res.BSSID),
+                    ssid=str(res.SSID).strip('"'),
+                    bssid=str(res.BSSID).lower(),
                     rssi=int(res.level),
                     channel=channel,
                     frequency=freq,

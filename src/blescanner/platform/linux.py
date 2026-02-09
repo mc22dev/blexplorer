@@ -78,16 +78,27 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
 
         aps = []
         try:
-            # -t: terse output, -f: fields, device wifi list: list wifi APs
-            cmd = ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "device wifi list"]
-            process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-            stdout, stderr = await process.communicate()
+            # Try multiple command variants for compatibility
+            # Newer versions: device wifi list
+            # Older versions or shorthands: dev wifi
+            commands = [
+                ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "device wifi list"],
+                ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "dev wifi"]
+            ]
 
-            if process.returncode != 0:
-                logger.debug(f"nmcli failed or not available: {stderr.decode()}")
+            output = ""
+            for cmd in commands:
+                process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                stdout, stderr = await process.communicate()
+                if process.returncode == 0:
+                    output = stdout.decode("utf-8")
+                    break
+                else:
+                    logger.debug(f"nmcli variant {' '.join(cmd)} failed: {stderr.decode()}")
+
+            if not output:
                 return []
 
-            output = stdout.decode("utf-8")
             for line in output.splitlines():
                 if not line:
                     continue
@@ -137,7 +148,7 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
 
                     aps.append(WifiAccessPoint(
                         ssid=ssid,
-                        bssid=bssid,
+                        bssid=bssid.lower(),
                         rssi=int(rssi),
                         channel=channel,
                         frequency=frequency,
