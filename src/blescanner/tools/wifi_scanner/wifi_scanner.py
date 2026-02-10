@@ -7,6 +7,7 @@ from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.graphics import Color, Line
 from kivy.app import App
+from kivy.metrics import dp
 import colorsys
 
 class WifiGraph(Widget):
@@ -39,6 +40,7 @@ class WifiGraph(Widget):
         return self._device_colors[bssid]
 
     def update_graph(self, *args):
+        self.canvas.before.clear()
         self.canvas.after.clear()
         self.clear_widgets()
         self._channel_labels.clear()
@@ -57,40 +59,24 @@ class WifiGraph(Widget):
         if graph_width <= 0 or graph_height <= 0:
             return
 
-        with self.canvas.after:
+        with self.canvas.before:
             # Draw grid
             Color(1, 1, 1, 0.1)
-            # Y-axis (RSSI) grid and labels
+            # Y-axis (RSSI) grid
             for i in range(self.rssi_min, self.rssi_max + 1, 10):
                 y_ratio = (i - self.rssi_min) / (self.rssi_max - self.rssi_min)
                 y = graph_y + y_ratio * graph_height
                 Line(points=[graph_x, y, graph_x + graph_width, y], width=0.5)
 
-            # X-axis (Freq) grid and channel labels
-            if self.aps:
-                self._axis_label = Label(text="Channel", font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.8), bold=True)
-                self._axis_label.texture_update()
-                self._axis_label.size = self._axis_label.texture_size
-                self._axis_label.pos = (graph_x + graph_width/2 - self._axis_label.width/2, graph_y - dp(30))
-                self.add_widget(self._axis_label)
-
+            # X-axis (Freq) grid
             if self.min_freq < 3000: # 2.4GHz
-                # Standard channels 1-13 (14 is rare)
-                channels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-                for ch in channels:
+                # Standard channels 1-13
+                for ch in range(1, 14):
                     f = 2412 + (ch - 1) * 5
                     x_ratio = (f - self.min_freq) / (self.max_freq - self.min_freq)
                     x = graph_x + x_ratio * graph_width
                     if graph_x <= x <= graph_x + graph_width:
-                        Color(1, 1, 1, 0.1)
                         Line(points=[x, graph_y, x, graph_y + graph_height], width=0.5)
-
-                        label = Label(text=str(ch), font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
-                        label.texture_update()
-                        label.size = label.texture_size
-                        label.pos = (x - label.width/2, graph_y - dp(20))
-                        self.add_widget(label)
-                        self._channel_labels.append(label)
             else: # 5GHz
                 # More channels, draw every 4 channels or so
                 for ch in range(36, 166, 4):
@@ -98,19 +84,48 @@ class WifiGraph(Widget):
                     x_ratio = (f - self.min_freq) / (self.max_freq - self.min_freq)
                     x = graph_x + x_ratio * graph_width
                     if graph_x <= x <= graph_x + graph_width:
-                        Color(1, 1, 1, 0.1)
                         Line(points=[x, graph_y, x, graph_y + graph_height], width=0.5)
-
-                        label = Label(text=str(ch), font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
-                        label.pos = (x - label.width/2, graph_y - 25)
-                        self.add_widget(label)
-                        self._channel_labels.append(label)
 
             # Draw axes
             Color(1, 1, 1, 0.6)
             Line(points=[graph_x, graph_y, graph_x + graph_width, graph_y], width=1)
             Line(points=[graph_x, graph_y, graph_x, graph_y + graph_height], width=1)
 
+        # Labels are added as widgets, they will be between canvas.before and canvas.after
+        if self.aps:
+            self._axis_label = Label(text="Channel", font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.8), bold=True)
+            self._axis_label.texture_update()
+            self._axis_label.size = self._axis_label.texture_size
+            self._axis_label.pos = (graph_x + graph_width/2 - self._axis_label.width/2, graph_y - dp(30))
+            self.add_widget(self._axis_label)
+
+        if self.min_freq < 3000: # 2.4GHz
+            channels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+            for ch in channels:
+                f = 2412 + (ch - 1) * 5
+                x_ratio = (f - self.min_freq) / (self.max_freq - self.min_freq)
+                x = graph_x + x_ratio * graph_width
+                if graph_x <= x <= graph_x + graph_width:
+                    label = Label(text=str(ch), font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
+                    label.texture_update()
+                    label.size = label.texture_size
+                    label.pos = (x - label.width/2, graph_y - dp(20))
+                    self.add_widget(label)
+                    self._channel_labels.append(label)
+        else: # 5GHz
+            for ch in range(36, 166, 4):
+                f = 5000 + (ch * 5)
+                x_ratio = (f - self.min_freq) / (self.max_freq - self.min_freq)
+                x = graph_x + x_ratio * graph_width
+                if graph_x <= x <= graph_x + graph_width:
+                    label = Label(text=str(ch), font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
+                    label.texture_update()
+                    label.size = label.texture_size
+                    label.pos = (x - label.width/2, graph_y - dp(20))
+                    self.add_widget(label)
+                    self._channel_labels.append(label)
+
+        with self.canvas.after:
             if not self.aps:
                 return
 

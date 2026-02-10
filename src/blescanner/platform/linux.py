@@ -1,5 +1,7 @@
 
+import asyncio
 import logging
+import re
 from typing import List, Callable
 
 from dbus_fast import Variant
@@ -73,9 +75,6 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
         """
         Scans for available Wi-Fi access points on Linux using nmcli.
         """
-        import asyncio
-        import re
-
         aps = []
         try:
             # Try multiple command variants for compatibility
