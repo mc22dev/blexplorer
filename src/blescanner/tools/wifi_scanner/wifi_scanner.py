@@ -18,12 +18,18 @@ class WifiGraph(Widget):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.bind(aps=self.update_graph, size=self.update_graph, pos=self.update_graph,
-                  min_freq=self.update_graph, max_freq=self.update_graph)
+        self._update_event = None
+        self.bind(aps=self.schedule_update, size=self.schedule_update, pos=self.schedule_update,
+                  min_freq=self.schedule_update, max_freq=self.schedule_update)
         self._device_colors = {}
         self._hue_iterator = 0.0
         self._channel_labels = []
         self._axis_label = None
+
+    def schedule_update(self, *args):
+        if self._update_event:
+            self._update_event.cancel()
+        self._update_event = Clock.schedule_once(self.update_graph, 0)
 
     def get_ap_color(self, bssid):
         if bssid not in self._device_colors:
@@ -34,12 +40,9 @@ class WifiGraph(Widget):
 
     def update_graph(self, *args):
         self.canvas.after.clear()
-        for label in self._channel_labels:
-            self.remove_widget(label)
+        self.clear_widgets()
         self._channel_labels.clear()
-        if self._axis_label:
-            self.remove_widget(self._axis_label)
-            self._axis_label = None
+        self._axis_label = None
 
         padding_left = 50
         padding_bottom = 40
@@ -66,7 +69,9 @@ class WifiGraph(Widget):
             # X-axis (Freq) grid and channel labels
             if self.aps:
                 self._axis_label = Label(text="Channel", font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.8), bold=True)
-                self._axis_label.pos = (graph_x + graph_width/2 - self._axis_label.width/2, graph_y - 40)
+                self._axis_label.texture_update()
+                self._axis_label.size = self._axis_label.texture_size
+                self._axis_label.pos = (graph_x + graph_width/2 - self._axis_label.width/2, graph_y - dp(30))
                 self.add_widget(self._axis_label)
 
             if self.min_freq < 3000: # 2.4GHz
@@ -81,7 +86,9 @@ class WifiGraph(Widget):
                         Line(points=[x, graph_y, x, graph_y + graph_height], width=0.5)
 
                         label = Label(text=str(ch), font_size='10sp', size_hint=(None, None), color=(1, 1, 1, 0.5))
-                        label.pos = (x - label.width/2, graph_y - 25)
+                        label.texture_update()
+                        label.size = label.texture_size
+                        label.pos = (x - label.width/2, graph_y - dp(20))
                         self.add_widget(label)
                         self._channel_labels.append(label)
             else: # 5GHz
