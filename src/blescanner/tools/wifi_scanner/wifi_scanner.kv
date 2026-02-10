@@ -30,10 +30,36 @@
                 valign: 'middle'
                 color: (0.7, 0.7, 0.7, 1)
 
+        BoxLayout:
+            size_hint_y: None
+            height: "40dp"
+            spacing: "10dp"
+
+            TextInput:
+                id: search_input
+                hint_text: "Search SSID..."
+                text: root.search_text
+                multiline: False
+                on_text: root.search_text = self.text
+                size_hint_x: 0.6
+
+            Label:
+                text: "Interval:"
+                size_hint_x: None
+                width: "60dp"
+
+            Spinner:
+                text: str(int(root.scan_interval)) + "s"
+                values: ["1s", "2s", "5s", "10s", "30s"]
+                on_text: root.scan_interval = int(self.text.replace("s", ""))
+                size_hint_x: None
+                width: "80dp"
+
         RelativeLayout:
             WifiGraph:
                 id: wifi_graph
                 aps: root.aps
+                selected_bssid: root.selected_bssid
 
             # Y-axis labels
             Label:
@@ -98,7 +124,13 @@
                     orientation: 'vertical'
                     spacing: "2dp"
 
-<APLabel@Label>:
+<APLabel>:
+    canvas.before:
+        Color:
+            rgba: (1, 1, 1, 0.1) if self.is_selected else (0, 0, 0, 0)
+        Rectangle:
+            pos: self.pos
+            size: self.size
     text_size: self.width - dp(20), None
     halign: 'left'
     valign: 'middle'
