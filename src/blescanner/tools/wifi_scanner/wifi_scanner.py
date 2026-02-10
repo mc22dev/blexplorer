@@ -1,6 +1,8 @@
 import asyncio
 import math
 from kivy.uix.screenmanager import Screen
+from kivy.uix.recycleview.views import RecycleDataViewBehavior
+from kivy.uix.behaviors import ButtonBehavior
 from kivy.properties import ListProperty, StringProperty, NumericProperty, BooleanProperty, DictProperty
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
@@ -10,18 +12,25 @@ from kivy.app import App
 from kivy.metrics import dp
 import colorsys
 
+try:
+    from scapy.data import MANUFDB
+except ImportError:
+    MANUFDB = None
+
 class WifiGraph(Widget):
     aps = ListProperty([])
     min_freq = NumericProperty(2400)
     max_freq = NumericProperty(2500)
     rssi_min = NumericProperty(-100)
     rssi_max = NumericProperty(-20)
+    selected_bssid = StringProperty("")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._update_event = None
         self.bind(aps=self.schedule_update, size=self.schedule_update, pos=self.schedule_update,
-                  min_freq=self.schedule_update, max_freq=self.schedule_update)
+                  min_freq=self.schedule_update, max_freq=self.schedule_update,
+                  selected_bssid=self.schedule_update)
         self._device_colors = {}
         self._hue_iterator = 0.0
         self._channel_labels = []
@@ -134,8 +143,11 @@ class WifiGraph(Widget):
                 if not (self.min_freq <= ap.frequency <= self.max_freq):
                     continue
 
+                is_selected = ap.bssid == self.selected_bssid
                 color = self.get_ap_color(ap.bssid)
-                Color(*color, 0.7)
+                Color(*color, 1.0 if is_selected else 0.7)
+
+                line_width = 3.0 if is_selected else 1.5
 
                 # Center point
                 cx_ratio = (ap.frequency - self.min_freq) / (self.max_freq - self.min_freq)
@@ -168,7 +180,24 @@ class WifiGraph(Widget):
                     points.extend([px, py])
 
                 if len(points) >= 4:
-                    Line(points=points, width=1.5)
+                    Line(points=points, width=line_width)
+
+class APLabel(RecycleDataViewBehavior, ButtonBehavior, Label):
+    bssid = StringProperty("")
+    is_selected = BooleanProperty(False)
+    index = None
+
+    def refresh_view_attrs(self, rv, index, data):
+        self.index = index
+        return super().refresh_view_attrs(rv, index, data)
+
+    def on_release(self):
+        app = App.get_running_app()
+        screen = app.root.ids.screen_manager.get_screen('wifi_scanner')
+        if screen.selected_bssid == self.bssid:
+            screen.selected_bssid = ""
+        else:
+            screen.selected_bssid = self.bssid
 
 class WifiScannerScreen(Screen):
     is_scanning = BooleanProperty(False)
@@ -176,6 +205,10 @@ class WifiScannerScreen(Screen):
     ap_data = ListProperty([])
     band = StringProperty("2.4GHz")
     status_text = StringProperty("Ready")
+    search_text = StringProperty("")
+    selected_bssid = StringProperty("")
+    scan_interval = NumericProperty(5)
+    rssi_history = DictProperty({})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -208,7 +241,7 @@ class WifiScannerScreen(Screen):
                 self.aps = new_aps
                 self._update_ap_data()
                 self.status_text = f"Last scan: {len(new_aps)} APs found"
-                await asyncio.sleep(5)
+                await asyncio.sleep(self.scan_interval)
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -221,17 +254,43 @@ class WifiScannerScreen(Screen):
         # Sort by is_connected (desc) then by rssi (desc)
         sorted_aps = sorted(self.aps, key=lambda x: (x.is_connected, x.rssi), reverse=True)
 
-        self.ap_data = [
-            {
+        filtered_aps = sorted_aps
+        if self.search_text:
+            filtered_aps = [ap for ap in sorted_aps if self.search_text.lower() in (ap.ssid or "").lower()]
+
+        new_ap_data = []
+        for ap in filtered_aps:
+            # Signal trend
+            trend = ""
+            if ap.bssid in self.rssi_history:
+                prev_rssi = self.rssi_history[ap.bssid]
+                if ap.rssi > prev_rssi:
+                    trend = " [color=#55ff55]↑[/color]"
+                elif ap.rssi < prev_rssi:
+                    trend = " [color=#ff5555]↓[/color]"
+
+            self.rssi_history[ap.bssid] = ap.rssi
+            is_selected = ap.bssid == self.selected_bssid
+
+            new_ap_data.append({
+                'bssid': ap.bssid,
+                'is_selected': is_selected,
                 'text': (
                     f"{'[b][color=#55ff55]CONNECTED: [/color][/b]' if ap.is_connected else ''}"
+                    f"{'[b][color=#ffff55]SELECTED: [/color][/b]' if is_selected else ''}"
                     f"[b]{ap.ssid or 'Hidden'}[/b] ({ap.bssid})\n"
-                    f"Ch: {ap.channel} | {ap.frequency} MHz | [color=#ff5555]{ap.rssi} dBm[/color]\n"
-                    f"Security: {ap.security} | Mode: {ap.mode} | Rate: {ap.rate}"
+                    f"Ch: {ap.channel} | {ap.frequency} MHz | [color=#ff5555]{ap.rssi} dBm[/color]{trend}\n"
+                    f"Vendor: {self.get_vendor(ap.bssid)}\n"
+                    f"Security: {ap.security} | Mode: {ap.mode}"
                 )
-            }
-            for ap in sorted_aps
-        ]
+            })
+        self.ap_data = new_ap_data
+
+    def on_selected_bssid(self, instance, value):
+        self._update_ap_data()
+
+    def on_search_text(self, instance, value):
+        self._update_ap_data()
 
     def on_band(self, instance, value):
         if value == "2.4GHz":
@@ -240,6 +299,14 @@ class WifiScannerScreen(Screen):
         else:
             self.ids.wifi_graph.min_freq = 5100
             self.ids.wifi_graph.max_freq = 5900
+
+    def get_vendor(self, bssid):
+        if MANUFDB:
+            try:
+                return MANUFDB.get_manuf(bssid) or "Unknown"
+            except:
+                return "Unknown"
+        return "Unknown"
 
     def on_leave(self):
         self.stop_scan()
