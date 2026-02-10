@@ -10,6 +10,7 @@ from kivy.uix.recycleview.views import RecycleDataViewBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
 from blescanner.models import LogLevel
 
 # Optional imports for protocols
@@ -28,13 +29,22 @@ logger = logging.getLogger(__name__)
 # Standard ANSI colors mapped to Kivy-friendly hex (RGB)
 COLOR_MAP = {
     'black': '#000000',
-    'red': '#cc0000',
-    'green': '#4e9a06',
-    'yellow': '#c4a000',
-    'blue': '#3465a4',
-    'magenta': '#75507b',
-    'cyan': '#06989a',
-    'white': '#d3d7cf',
+    'red': '#cd0000',
+    'green': '#00cd00',
+    'yellow': '#cdcd00',
+    'blue': '#0000ee',
+    'magenta': '#cd00cd',
+    'cyan': '#00cdcd',
+    'white': '#e5e5e5',
+    # Bright versions
+    'brightblack': '#7f7f7f',
+    'brightred': '#ff0000',
+    'brightgreen': '#00ff00',
+    'brightyellow': '#ffff00',
+    'brightblue': '#5c5cff',
+    'brightmagenta': '#ff00ff',
+    'brightcyan': '#00ffff',
+    'brightwhite': '#ffffff',
 }
 
 class TerminalInput(TextInput):
@@ -54,10 +64,58 @@ class TerminalRow(RecycleDataViewBehavior, BoxLayout):
     cursor_x = NumericProperty(-1)
     char_width = NumericProperty(10)
     left_padding = NumericProperty(5)
+    bg_data = ListProperty([])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bind(pos=self._draw_backgrounds, size=self._draw_backgrounds, char_width=self._draw_backgrounds)
 
     def refresh_view_attrs(self, rv, index, data):
         self.index = index
-        return super().refresh_view_attrs(rv, index, data)
+        res = super().refresh_view_attrs(rv, index, data)
+        self._draw_backgrounds()
+        return res
+
+    def on_bg_data(self, instance, value):
+        self._draw_backgrounds()
+
+    def _draw_backgrounds(self, *args):
+        if not self.canvas:
+            return
+
+        self.canvas.before.clear()
+        if not self.bg_data:
+            return
+
+        with self.canvas.before:
+            i = 0
+            n = len(self.bg_data)
+            while i < n:
+                color_hex = self.bg_data[i]
+                # Default background is handled by the app's theme or transparency
+                # We only draw if it's not 'default' and not black (common terminal bg)
+                if color_hex == 'default' or color_hex == '#000000':
+                    i += 1
+                    continue
+
+                # Group adjacent same colors for better performance
+                start_i = i
+                while i < n and self.bg_data[i] == color_hex:
+                    i += 1
+
+                count = i - start_i
+
+                try:
+                    r = int(color_hex[1:3], 16) / 255.0
+                    g = int(color_hex[3:5], 16) / 255.0
+                    b = int(color_hex[5:7], 16) / 255.0
+                    Color(r, g, b, 1)
+                    Rectangle(
+                        pos=(self.x + self.left_padding + start_i * self.char_width, self.y),
+                        size=(count * self.char_width, self.height)
+                    )
+                except Exception:
+                    pass
 
 class KivyScreen(pyte.Screen):
     """
@@ -154,9 +212,10 @@ class TerminalScreen(Screen):
 
                 # create_session without a command requests a shell automatically.
                 # It returns (channel, session).
+                # Using xterm-256color for better ncurses support.
                 self.chan, self.session = await self.connection.create_session(
                     lambda: SSHClientSession(self),
-                    term_type='xterm-color',
+                    term_type='xterm-256color',
                     term_size=(self.columns, self.rows)
                 )
 
@@ -237,31 +296,64 @@ class TerminalScreen(Screen):
             except Exception as e:
                 logger.error(f"Error feeding data: {e}")
 
+    def _get_color_hex(self, color, is_bg=False):
+        """Resolves a pyte color to a hex string."""
+        if color == 'default':
+            return '#000000' if is_bg else '#e5e5e5'
+
+        if color in COLOR_MAP:
+            return COLOR_MAP[color]
+
+        # Check for 256-color hex from pyte
+        if isinstance(color, str) and len(color) == 6 and all(c in '0123456789abcdefABCDEF' for c in color):
+            return '#' + color
+
+        return '#000000' if is_bg else '#e5e5e5'
+
+    def _get_char_colors(self, char):
+        """Returns (fg_hex, bg_hex) for a character, correctly handling reverse video."""
+        fg_hex = self._get_color_hex(char.fg, is_bg=False)
+        bg_hex = self._get_color_hex(char.bg, is_bg=True)
+
+        if char.reverse:
+            # When reversed, we swap the resolved hex colors.
+            # This ensures that reversed 'default' correctly becomes black-on-white.
+            return bg_hex, fg_hex
+        return fg_hex, bg_hex
+
     def get_line_markup(self, y):
         line_str = ""
-        current_fg = None
+        current_fg_hex = None
         current_bold = False
+        current_underscore = False
 
         row = self.pyte_screen.buffer[y]
 
         for x in range(self.pyte_screen.columns):
             char = row[x]
+            fg_hex, _ = self._get_char_colors(char)
+            bold = char.bold
+            underscore = char.underscore
 
-            style_changed = (char.fg != current_fg or char.bold != current_bold)
+            style_changed = (fg_hex != current_fg_hex or bold != current_bold or
+                             underscore != current_underscore)
 
             if style_changed:
-                # Close previous tags
+                # Close previous tags in reverse order of opening
+                if current_underscore: line_str += "[/u]"
                 if current_bold: line_str += "[/b]"
-                if current_fg and current_fg in COLOR_MAP: line_str += "[/color]"
+                if current_fg_hex is not None: line_str += "[/color]"
 
                 # Open new tags
-                current_fg = char.fg
-                current_bold = char.bold
+                current_fg_hex = fg_hex
+                current_bold = bold
+                current_underscore = underscore
 
-                if current_fg and current_fg in COLOR_MAP:
-                    line_str += f"[color={COLOR_MAP[current_fg]}]"
+                line_str += f"[color={current_fg_hex}]"
                 if current_bold:
                     line_str += "[b]"
+                if current_underscore:
+                    line_str += "[u]"
 
             # Escape markup characters
             c = char.data
@@ -270,25 +362,31 @@ class TerminalScreen(Screen):
             line_str += c
 
         # Close tags at end of line
+        if current_underscore: line_str += "[/u]"
         if current_bold: line_str += "[/b]"
-        if current_fg and current_fg in COLOR_MAP: line_str += "[/color]"
+        if current_fg_hex is not None: line_str += "[/color]"
 
         return line_str
 
     def update_ui(self, dt):
-        if not self.pyte_screen.any_changes:
+        if not self.pyte_screen.dirty and not self.pyte_screen.any_changes:
             return
 
         self.pyte_screen.any_changes = False
+        self.pyte_screen.dirty.clear()
+
         new_data = []
         cursor_x = self.pyte_screen.cursor.x
         cursor_y = self.pyte_screen.cursor.y
 
         for y in range(self.pyte_screen.lines):
             row_cursor_x = cursor_x if y == cursor_y else -1
+            row = self.pyte_screen.buffer[y]
+            bg_data = [self._get_char_colors(row[x])[1] for x in range(self.columns)]
             new_data.append({
                 'text': self.get_line_markup(y),
-                'cursor_x': row_cursor_x
+                'cursor_x': row_cursor_x,
+                'bg_data': bg_data
             })
 
         self.output_data = new_data
@@ -320,16 +418,39 @@ class TerminalScreen(Screen):
         if not self.is_connected:
             return
 
+        # DECCKM (Cursor Keys Mode) is private mode 1.
+        # In pyte, private modes are stored shifted by 5: 1 << 5 = 32.
+        application_mode = 32 in self.pyte_screen.mode
+
         # Mapping for some keys
+        # Format: key_code: normal_sequence or (normal_sequence, app_mode_sequence)
         key_map = {
-            273: '\x1b[A', # Up
-            274: '\x1b[B', # Down
-            275: '\x1b[C', # Right
-            276: '\x1b[D', # Left
+            273: ('\x1b[A', '\x1bOA'), # Up
+            274: ('\x1b[B', '\x1bOB'), # Down
+            275: ('\x1b[C', '\x1bOC'), # Right
+            276: ('\x1b[D', '\x1bOD'), # Left
             13: '\r',      # Enter
             8: '\x7f',     # Backspace
-            9: '\t',      # Tab
+            9: '\t',       # Tab
             27: '\x1b',    # Escape
+            280: '\x1b[5~', # PageUp
+            281: '\x1b[6~', # PageDown
+            278: '\x1b[H',  # Home
+            279: '\x1b[F',  # End
+            277: '\x1b[2~', # Insert
+            127: '\x1b[3~', # Delete
+            282: '\x1bOP',  # F1
+            283: '\x1bOQ',  # F2
+            284: '\x1bOR',  # F3
+            285: '\x1bOS',  # F4
+            286: '\x1b[15~', # F5
+            287: '\x1b[17~', # F6
+            288: '\x1b[18~', # F7
+            289: '\x1b[19~', # F8
+            290: '\x1b[20~', # F9
+            291: '\x1b[21~', # F10
+            292: '\x1b[23~', # F11
+            293: '\x1b[24~', # F12
         }
 
         if 'ctrl' in modifier:
@@ -339,9 +460,15 @@ class TerminalScreen(Screen):
                 if 1 <= val <= 26:
                     self._send_to_connection(chr(val))
                     return True
+            # Note: Removed explicit key == 99 (Ctrl+C) as it's covered by codepoint logic
+            # on most platforms.
 
         if key in key_map:
-            self._send_to_connection(key_map[key])
+            seq = key_map[key]
+            if isinstance(seq, tuple):
+                self._send_to_connection(seq[1] if application_mode else seq[0])
+            else:
+                self._send_to_connection(seq)
             return True
 
         return False
