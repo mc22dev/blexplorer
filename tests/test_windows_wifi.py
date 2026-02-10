@@ -31,14 +31,36 @@ async def test_windows_wifi_scan_parsing():
         "         Channel            : 36 \n"
     )
 
-    with patch('platform.system', return_value="Windows"):
-        # subprocess.check_output is called inside run_in_executor
-        # For simplicity, we can mock the executor or just subprocess.check_output if we use a synchronous mock executor
+    mock_iface_output = (
+        "There is 1 interface on the system: \n"
+        "    Name                   : Wi-Fi\n"
+        "    Description            : Intel(R) Wi-Fi 6 AX201 160MHz\n"
+        "    State                  : connected\n"
+        "    BSSID                  : 00:11:22:33:44:55\n"
+        "    Receive rate (Mbps)    : 866.7\n"
+    )
 
+    with patch('platform.system', return_value="Windows"):
         loop = asyncio.get_running_loop()
-        mock_future = asyncio.Future()
-        mock_future.set_result(mock_output)
-        with patch.object(loop, 'run_in_executor', return_value=mock_future):
+
+        # We need to return different values for different calls to run_in_executor
+        def mock_run_in_executor(executor, func, *args):
+            # The func is a lambda that calls subprocess.check_output
+            # We can't easily check the cmd inside func without more complex mocks
+            # But we know the order: show interfaces then show networks
+            fut = asyncio.Future()
+            if not hasattr(mock_run_in_executor, 'call_count'):
+                mock_run_in_executor.call_count = 0
+
+            if mock_run_in_executor.call_count == 0:
+                fut.set_result(mock_iface_output)
+            else:
+                fut.set_result(mock_output)
+
+            mock_run_in_executor.call_count += 1
+            return fut
+
+        with patch.object(loop, 'run_in_executor', side_effect=mock_run_in_executor):
             aps = await utils.scan_wifi()
 
             assert len(aps) == 2
@@ -48,9 +70,12 @@ async def test_windows_wifi_scan_parsing():
             assert aps[0].rssi == -60 # (80/2) - 100
             assert aps[0].channel == 6
             assert aps[0].frequency == 2437
+            assert aps[0].is_connected == True
+            assert aps[0].rate == "866.7 Mbps"
 
             assert aps[1].ssid == "Guest"
             assert aps[1].bssid == "aa:bb:cc:dd:ee:ff"
             assert aps[1].rssi == -80 # (40/2) - 100
             assert aps[1].channel == 36
             assert aps[1].frequency == 5180
+            assert aps[1].is_connected == False

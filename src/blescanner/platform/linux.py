@@ -81,9 +81,10 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
             # Try multiple command variants for compatibility
             # Newer versions: device wifi list
             # Older versions or shorthands: dev wifi
+            fields = "IN-USE,SSID,BSSID,SIGNAL,CHAN,FREQ,RATE,MODE,SECURITY"
             commands = [
-                ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "device", "wifi", "list"],
-                ["nmcli", "-t", "-f", "SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY", "dev", "wifi"]
+                ["nmcli", "-t", "-f", fields, "device", "wifi", "list"],
+                ["nmcli", "-t", "-f", fields, "dev", "wifi"]
             ]
 
             output = ""
@@ -122,29 +123,33 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
                         i += 1
                 parts.append(current_part)
 
-                if len(parts) >= 6:
-                    ssid = parts[0]
-                    bssid = parts[1]
+                # fields: IN-USE,SSID,BSSID,SIGNAL,CHAN,FREQ,RATE,MODE,SECURITY
+                if len(parts) >= 9:
+                    is_connected = parts[0].strip() == "*"
+                    ssid = parts[1]
+                    bssid = parts[2]
                     try:
-                        signal = int(parts[2])
+                        signal = int(parts[3])
                         # Convert signal percentage to dBm roughly
                         rssi = (signal / 2) - 100
                     except ValueError:
                         rssi = -100
 
                     try:
-                        channel = int(parts[3])
+                        channel = int(parts[4])
                     except ValueError:
                         channel = 0
 
                     try:
                         # Frequency might be like "2437 MHz"
-                        freq_str = parts[4].split()[0]
+                        freq_str = parts[5].split()[0]
                         frequency = int(freq_str)
                     except (ValueError, IndexError):
                         frequency = 0
 
-                    security = parts[5]
+                    rate = parts[6]
+                    mode = parts[7]
+                    security = parts[8]
 
                     aps.append(WifiAccessPoint(
                         ssid=ssid,
@@ -152,7 +157,10 @@ class LinuxPlatformUtils(DefaultPlatformUtils):
                         rssi=int(rssi),
                         channel=channel,
                         frequency=frequency,
-                        security=security
+                        security=security,
+                        mode=mode,
+                        rate=rate,
+                        is_connected=is_connected
                     ))
         except FileNotFoundError:
             logger.debug("nmcli not found.")

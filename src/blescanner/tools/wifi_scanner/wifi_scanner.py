@@ -196,14 +196,19 @@ class WifiScannerScreen(Screen):
             self.is_scanning = False
 
     def _update_ap_data(self):
+        # Sort by is_connected (desc) then by rssi (desc)
+        sorted_aps = sorted(self.aps, key=lambda x: (x.is_connected, x.rssi), reverse=True)
+
         self.ap_data = [
             {
-                'text': f"[b]{ap.ssid or 'Hidden'}[/b] ({ap.bssid})\nCh: {ap.channel} | {ap.frequency} MHz | [color=#ff5555]{ap.rssi} dBm[/color]",
-                'markup': True,
-                'halign': 'left',
-                'valign': 'middle'
+                'text': (
+                    f"{'[b][color=#55ff55]CONNECTED: [/color][/b]' if ap.is_connected else ''}"
+                    f"[b]{ap.ssid or 'Hidden'}[/b] ({ap.bssid})\n"
+                    f"Ch: {ap.channel} | {ap.frequency} MHz | [color=#ff5555]{ap.rssi} dBm[/color]\n"
+                    f"Security: {ap.security} | Mode: {ap.mode} | Rate: {ap.rate}"
+                )
             }
-            for ap in self.aps
+            for ap in sorted_aps
         ]
 
     def on_band(self, instance, value):

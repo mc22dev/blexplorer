@@ -117,24 +117,28 @@ class DefaultPlatformUtils(PlatformUtilsBase):
         aps = []
         if platform.system() == "Windows":
             try:
+                loop = asyncio.get_running_loop()
+
+                # 1. Get current connection info
+                connected_bssid = ""
+                connected_rate = ""
+                try:
+                    cmd_iface = ["netsh", "wlan", "show", "interfaces"]
+                    iface_output = await loop.run_in_executor(None, lambda: subprocess.check_output(cmd_iface).decode("ascii", errors="ignore"))
+                    for line in iface_output.splitlines():
+                        if "BSSID" in line and ":" in line:
+                            connected_bssid = line.split(":", 1)[1].strip().lower()
+                        if "Receive rate" in line and ":" in line:
+                            connected_rate = line.split(":", 1)[1].strip() + " Mbps"
+                except:
+                    pass
+
+                # 2. Get scan results
                 cmd = ["netsh", "wlan", "show", "networks", "mode=bssid"]
                 # We use run_in_executor because netsh is blocking and doesn't have an easy async way here
-                loop = asyncio.get_running_loop()
                 output = await loop.run_in_executor(None, lambda: subprocess.check_output(cmd).decode("ascii", errors="ignore"))
 
-                current_ssid = ""
-                current_security = ""
-
                 # Parse netsh output
-                # SSID 1 : MyWiFi
-                #     Network type            : Infrastructure
-                #     Authentication          : WPA2-Personal
-                #     Encryption              : CCMP
-                #     BSSID 1                 : 00:11:22:33:44:55
-                #          Signal             : 80%
-                #          Radio type         : 802.11n
-                #          Channel            : 6
-
                 # Split by "SSID " at the beginning of a line to avoid matching "BSSID"
                 sections = re.split(r"^\s*SSID\s+\d+\s*:\s*", output, flags=re.MULTILINE)
                 # The first section is the header before the first SSID
@@ -144,10 +148,12 @@ class DefaultPlatformUtils(PlatformUtilsBase):
 
                     ssid = lines[0].strip()
                     security = ""
+                    mode = ""
                     for line in lines:
                         if "Authentication" in line:
                             security = line.split(":", 1)[1].strip()
-                            break
+                        if "Network type" in line:
+                            mode = line.split(":", 1)[1].strip()
 
                     # Find BSSIDs in this SSID section
                     bssids_data = re.split(r"^\s*BSSID\s+\d+\s*:\s*", section, flags=re.MULTILINE)
@@ -157,10 +163,12 @@ class DefaultPlatformUtils(PlatformUtilsBase):
 
                         bssid_match = re.search(r"([0-9a-fA-F:]{17})", b_lines[0])
                         if not bssid_match: continue
-                        bssid = bssid_match.group(1)
+                        bssid = bssid_match.group(1).lower()
 
                         rssi = -100
                         channel = 0
+                        radio_type = ""
+                        max_rate = 0
                         for bl in b_lines:
                             if "Signal" in bl:
                                 try:
@@ -173,6 +181,14 @@ class DefaultPlatformUtils(PlatformUtilsBase):
                                     channel = int(bl.split(":", 1)[1].strip())
                                 except:
                                     pass
+                            if "Radio type" in bl:
+                                radio_type = bl.split(":", 1)[1].strip()
+                            if "rates (Mbps)" in bl:
+                                try:
+                                    rates = bl.split(":", 1)[1].strip().split()
+                                    max_rate = max(max_rate, max(float(r) for r in rates))
+                                except:
+                                    pass
 
                         # Derive frequency from channel
                         frequency = 0
@@ -182,13 +198,19 @@ class DefaultPlatformUtils(PlatformUtilsBase):
                         elif channel >= 36:
                             frequency = 5000 + (channel * 5)
 
+                        is_connected = (bssid == connected_bssid)
+                        rate_str = connected_rate if is_connected and connected_rate else (f"{max_rate} Mbps" if max_rate > 0 else radio_type)
+
                         aps.append(WifiAccessPoint(
                             ssid=ssid,
-                            bssid=bssid.lower(),
+                            bssid=bssid,
                             rssi=int(rssi),
                             channel=channel,
                             frequency=frequency,
-                            security=security
+                            security=security,
+                            mode=mode,
+                            rate=rate_str,
+                            is_connected=is_connected
                         ))
             except Exception as e:
                 import logging

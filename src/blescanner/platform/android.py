@@ -196,6 +196,12 @@ class AndroidPlatformUtils(PlatformUtilsBase):
             activity = PythonActivity.mActivity
             wifi_manager = activity.getSystemService(Context.WIFI_SERVICE)
 
+            # Get connection info
+            connection_info = wifi_manager.getConnectionInfo()
+            connected_bssid = ""
+            if connection_info:
+                connected_bssid = str(connection_info.getBSSID()).lower()
+
             # Trigger a scan (might be throttled)
             try:
                 wifi_manager.startScan()
@@ -215,13 +221,23 @@ class AndroidPlatformUtils(PlatformUtilsBase):
                 elif 5170 <= freq <= 5825:
                     channel = (freq - 5000) // 5
 
+                bssid = str(res.BSSID).lower()
+                is_connected = (bssid == connected_bssid)
+
+                rate_str = ""
+                if is_connected and connection_info:
+                    rate_str = f"{connection_info.getLinkSpeed()} {connection_info.LINK_SPEED_UNITS}"
+
                 aps.append(WifiAccessPoint(
                     ssid=str(res.SSID).strip('"'),
-                    bssid=str(res.BSSID).lower(),
+                    bssid=bssid,
                     rssi=int(res.level),
                     channel=channel,
                     frequency=freq,
-                    security=str(res.capabilities)
+                    security=str(res.capabilities),
+                    mode="Infrastructure", # Android usually returns infrastructure
+                    rate=rate_str,
+                    is_connected=is_connected
                 ))
         except Exception as e:
             logger.error(f"Error scanning Wi-Fi on Android: {e}")

@@ -29,6 +29,9 @@ class WifiAccessPoint:
     channel: int
     frequency: int  # MHz
     security: str
+    mode: str = ""
+    rate: str = ""
+    is_connected: bool = False
 
 
 class PlatformUtilsBase(ABC):

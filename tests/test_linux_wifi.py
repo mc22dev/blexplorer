@@ -8,11 +8,11 @@ from blescanner.platform.base import WifiAccessPoint
 async def test_linux_wifi_scan_parsing():
     utils = LinuxPlatformUtils()
 
-    # Mock output from nmcli -t -f SSID,BSSID,SIGNAL,CHAN,FREQ,SECURITY device wifi list
+    # Mock output from nmcli -t -f IN-USE,SSID,BSSID,SIGNAL,CHAN,FREQ,RATE,MODE,SECURITY device wifi list
     # nmcli -t escapes ':' with '\'
     mock_output = (
-        "MySSID:00\\:11\\:22\\:33\\:44\\:55:80:6:2437 MHz:WPA2\n"
-        "Other SSID:AA\\:BB\\:CC\\:DD\\:EE\\:FF:50:36:5180 MHz:WPA1 WPA2\n"
+        "*:MySSID:00\\:11\\:22\\:33\\:44\\:55:80:6:2437 MHz:54 Mbit/s:Infrastructure:WPA2\n"
+        " :Other SSID:AA\\:BB\\:CC\\:DD\\:EE\\:FF:50:36:5180 MHz:44 Mbit/s:Infrastructure:WPA1 WPA2\n"
     ).encode('utf-8')
 
     mock_process = MagicMock()
@@ -31,12 +31,14 @@ async def test_linux_wifi_scan_parsing():
         assert aps[0].channel == 6
         assert aps[0].frequency == 2437
         assert "WPA2" in aps[0].security
+        assert aps[0].is_connected == True
+        assert aps[0].rate == "54 Mbit/s"
+        assert aps[0].mode == "Infrastructure"
 
         assert aps[1].ssid == "Other SSID"
-        assert aps[1].bssid == "aa:bb:cc:dd:ee:ff" # we lower() it in base or during parsing?
-        # Actually my code doesn't lower() it explicitly for WiFi yet, let's check.
-        # Wait, I didn't lower it in linux.py. Let's see.
-        assert aps[1].bssid.upper() == "AA:BB:CC:DD:EE:FF"
+        assert aps[1].bssid == "aa:bb:cc:dd:ee:ff"
         assert aps[1].rssi == -75 # (50/2) - 100
         assert aps[1].channel == 36
         assert aps[1].frequency == 5180
+        assert aps[1].is_connected == False
+        assert aps[1].rate == "44 Mbit/s"
