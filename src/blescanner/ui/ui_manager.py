@@ -106,6 +106,12 @@ class UIManager:
         content = FileChooserDialog(title=title, callback=callback, dismiss_callback=self.dismiss_popup, mode='save')
         self._open_dialog(title, content)
 
+    def show_load_dialog(self, title, callback):
+        """Shows a load file dialog."""
+        self.log_callback(f"Showing {title} dialog...", LogLevel.INFO)
+        content = FileChooserDialog(title=title, callback=callback, dismiss_callback=self.dismiss_popup, mode='open')
+        self._open_dialog(title, content)
+
     def _open_dialog(self, title, content):
         """Helper to create and open a dialog popup."""
         self.dialog = Popup(title=title, content=content, size_hint=(0.9, 0.9))

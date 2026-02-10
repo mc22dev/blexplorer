@@ -53,6 +53,7 @@ from blescanner.ui.file_chooser_dialog import FileChooserDialog
 from blescanner.tools.serial_monitor.serial_monitor import SerialMonitorScreen
 from blescanner.tools.sys_info.sys_info import SysInfoScreen
 from blescanner.tools.calculator.calculator import CalculatorScreen
+from blescanner.tools.hex_editor.hex_editor import HexEditorScreen
 from blescanner.ui.settings_popup import SettingsPopup
 from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
 
@@ -135,6 +136,7 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
         Builder.load_file(resource_path('tools/sys_info/sys_info.kv'))
         Builder.load_file(resource_path('tools/calculator/calculator.kv'))
+        Builder.load_file(resource_path('tools/hex_editor/hex_editor.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(
@@ -203,6 +205,9 @@ class BLEScannerApp(App):
         calculator_screen = CalculatorScreen(name='calculator')
         self.root.ids.screen_manager.add_widget(calculator_screen)
 
+        hex_editor_screen = HexEditorScreen(name='hex_editor')
+        self.root.ids.screen_manager.add_widget(hex_editor_screen)
+
         self.device_manager.ui_container = ble_scanner_screen.ids.scanner_screen.ids.device_list
         self.ui_manager.root = self.root
 
@@ -215,6 +220,12 @@ class BLEScannerApp(App):
 
         self.populate_tool_list()
 
+        last_tool_id = self.config_manager.get_setting('general', 'last_tool_id', default='ble_scanner')
+        last_tool_name = self.config_manager.get_setting('general', 'last_tool_name', default='BLE Scanner')
+        if last_tool_id != 'ble_scanner':
+            # Use a small delay to ensure the UI is fully initialized
+            Clock.schedule_once(lambda dt: self.switch_tool(last_tool_id, last_tool_name), 0.1)
+
     def populate_tool_list(self):
         tool_list = self.root.ids.tool_list
         tools = {
@@ -222,6 +233,7 @@ class BLEScannerApp(App):
             "serial_monitor": "Serial Monitor",
             "sys_info": "System Information",
             "calculator": "Calculator",
+            "hex_editor": "Hex Editor",
             "network_scanner": "Network Scanner",
             "serial_terminal": "Serial Terminal",
             "signal_generator": "Signal Generator",
@@ -233,10 +245,20 @@ class BLEScannerApp(App):
             tool_list.add_widget(btn)
 
     def switch_tool(self, tool_id, tool_name):
+        current_screen = self.root.ids.screen_manager.current_screen
+        if hasattr(current_screen, 'on_pre_leave_check'):
+            if current_screen.on_pre_leave_check(lambda: self._do_switch_tool(tool_id, tool_name)):
+                return
+
+        self._do_switch_tool(tool_id, tool_name)
+
+    def _do_switch_tool(self, tool_id, tool_name):
         self.root.ids.screen_manager.current = tool_id
         self.root.ids.tool_title.text = tool_name
         if self.root.nav_drawer_open:
             self.root.toggle_nav_drawer()
+        self.config_manager.set_setting('general', 'last_tool_id', tool_id)
+        self.config_manager.set_setting('general', 'last_tool_name', tool_name)
 
     def on_stop(self):
         """Called when the application is stopping."""
