@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import pyte
 from kivy.app import App
 from kivy.uix.screenmanager import Screen
@@ -177,11 +178,18 @@ class TerminalScreen(Screen):
             elif protocol == 'Serial':
                 serial_port = self.ids.port_spinner.text
                 baudrate = int(self.ids.bitrate_spinner.text)
+                bytesize = int(self.ids.databits_spinner.text)
+                parity = self.ids.parity_spinner.text
+                stopbits = float(self.ids.stopbits_spinner.text)
+
                 self.transport, self.protocol = await self.app.platform_utils.create_serial_connection(
                     asyncio.get_event_loop(),
                     lambda: SerialProtocol(self),
                     serial_port,
-                    baudrate=baudrate
+                    baudrate=baudrate,
+                    bytesize=bytesize,
+                    parity=parity,
+                    stopbits=stopbits
                 )
                 self.is_connected = True
                 self.ids.hidden_input.focus = True
@@ -353,6 +361,35 @@ class TerminalScreen(Screen):
     def clear_terminal(self):
         self.pyte_screen.reset()
         self.pyte_screen.any_changes = True
+
+    def save_session(self):
+        """
+        Opens a save dialog to save the current terminal screen content to a file.
+        """
+        self.app.ui_manager.show_save_dialog(
+            title="Save Terminal Session",
+            callback=self._on_save_session
+        )
+
+    def _on_save_session(self, path, selection):
+        """
+        Callback from the save dialog to write the terminal content to the chosen file.
+        """
+        if not selection:
+            self.app.ui_manager.dismiss_popup()
+            return
+
+        filepath = os.path.join(path, selection[0])
+        try:
+            # Get the current display content from pyte screen
+            # Strip trailing spaces from each line for a cleaner file
+            content = "\n".join(line.rstrip() for line in self.pyte_screen.display)
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            self.log(f"Session saved to {filepath}")
+        except Exception as e:
+            self.log(f"Failed to save session: {e}", LogLevel.ERROR)
+        self.app.ui_manager.dismiss_popup()
 
     def log(self, message, level=LogLevel.INFO):
         self.app.log_with_timestamp(f"[Terminal] {message}", level)
