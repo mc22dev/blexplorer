@@ -1,0 +1,147 @@
+<TerminalRow>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: '20dp'
+    canvas.after:
+        Color:
+            rgba: (1, 1, 0, 0.5) if root.cursor_x >= 0 else (0, 0, 0, 0)
+        Rectangle:
+            pos: self.x + root.left_padding + root.cursor_x * root.char_width, self.y
+            size: root.char_width, self.height
+    Label:
+        id: label
+        text: root.text
+        markup: True
+        font_name: 'UbuntuMono'
+        font_size: '14sp'
+        text_size: self.size
+        halign: 'left'
+        valign: 'middle'
+        padding: [root.left_padding, 0]
+        on_texture_size:
+            # Based on 80 columns fixed grid
+            root.char_width = self.texture_size[0] / 80 if self.texture_size[0] > 0 else 10
+
+<TerminalScreen>:
+    TerminalInput:
+        id: hidden_input
+        size_hint: None, None
+        size: '1dp', '1dp'
+        pos: -100, -100
+        opacity: 0
+    BoxLayout:
+        orientation: 'vertical'
+        padding: '5dp'
+        spacing: '5dp'
+
+        BoxLayout:
+            size_hint_y: None
+            height: '40dp'
+            spacing: '5dp'
+
+            Spinner:
+                id: protocol_spinner
+                text: 'SSH'
+                values: ['SSH', 'Telnet', 'Serial']
+                size_hint_x: None
+                width: '100dp'
+                on_text: root.on_protocol_change(self.text)
+
+            # Network settings
+            BoxLayout:
+                spacing: '5dp'
+                size_hint_y: None
+                height: '40dp' if protocol_spinner.text != 'Serial' else 0
+                opacity: 1 if protocol_spinner.text != 'Serial' else 0
+                disabled: protocol_spinner.text == 'Serial'
+
+                TextInput:
+                    id: host_input
+                    text: '127.0.0.1'
+                    hint_text: 'Host'
+                    multiline: False
+                    size_hint_x: 0.4
+                    write_tab: False
+
+                TextInput:
+                    id: port_input
+                    text: '22'
+                    hint_text: 'Port'
+                    multiline: False
+                    size_hint_x: None
+                    width: '60dp'
+                    write_tab: False
+
+                TextInput:
+                    id: user_input
+                    text: 'root'
+                    hint_text: 'User'
+                    multiline: False
+                    size_hint_x: 0.3
+                    write_tab: False
+
+                TextInput:
+                    id: password_input
+                    text: ''
+                    hint_text: 'Password'
+                    password: True
+                    multiline: False
+                    size_hint_x: 0.3
+                    write_tab: False
+                    on_text_validate: root.toggle_connection()
+
+            Button:
+                text: 'Connect' if not root.is_connected else 'Disconnect'
+                size_hint_x: None
+                width: '100dp'
+                on_release: root.toggle_connection()
+
+        # Serial settings (only shown when Serial is selected)
+        BoxLayout:
+            size_hint_y: None
+            height: '40dp' if protocol_spinner.text == 'Serial' else 0
+            opacity: 1 if protocol_spinner.text == 'Serial' else 0
+            disabled: protocol_spinner.text != 'Serial'
+            spacing: '5dp'
+
+            Spinner:
+                id: port_spinner
+                text: 'Select Port'
+                values: root.serial_ports
+                on_press: root.refresh_serial_ports()
+
+            Spinner:
+                id: bitrate_spinner
+                text: '115200'
+                values: ['9600', '19200', '38400', '57600', '115200']
+                size_hint_x: None
+                width: '100dp'
+
+        RecycleView:
+            id: rv
+            data: root.output_data
+            viewclass: 'TerminalRow'
+            scroll_y: 0
+            effect_cls: 'ScrollEffect'
+            bar_width: '10dp'
+            scroll_type: ['bars', 'content']
+            RecycleBoxLayout:
+                default_size: None, dp(20)
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_height
+                orientation: 'vertical'
+                spacing: 0
+
+        BoxLayout:
+            size_hint_y: None
+            height: '40dp'
+            spacing: '5dp'
+
+            Widget: # Spacer
+
+            Button:
+                text: 'Clear'
+                size_hint_x: None
+                width: '80dp'
+                on_release: root.clear_terminal()
