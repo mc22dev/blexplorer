@@ -53,7 +53,7 @@
                         height: "30dp"
                         halign: 'left'
                         text_size: self.size
-                        color: app.theme.accent if app else (1, 1, 1, 1)
+                        color: app.theme.primary if app else (1, 1, 1, 1)
                     Label:
                         text: root.os_info
                         size_hint_y: None
@@ -73,7 +73,7 @@
                         height: "30dp"
                         halign: 'left'
                         text_size: self.size
-                        color: app.theme.accent if app else (1, 1, 1, 1)
+                        color: app.theme.primary if app else (1, 1, 1, 1)
                     Label:
                         text: root.cpu_info
                         size_hint_y: None
@@ -93,7 +93,7 @@
                         height: "30dp"
                         halign: 'left'
                         text_size: self.size
-                        color: app.theme.accent if app else (1, 1, 1, 1)
+                        color: app.theme.primary if app else (1, 1, 1, 1)
                     Label:
                         text: root.memory_info
                         size_hint_y: None
@@ -113,7 +113,7 @@
                         height: "30dp"
                         halign: 'left'
                         text_size: self.size
-                        color: app.theme.accent if app else (1, 1, 1, 1)
+                        color: app.theme.primary if app else (1, 1, 1, 1)
 
                     RecycleView:
                         id: disk_rv
