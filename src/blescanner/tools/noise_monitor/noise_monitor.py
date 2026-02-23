@@ -14,6 +14,76 @@ try:
 except ImportError:
     HAS_PYAUDIO = False
 
+from kivy.utils import platform
+
+if platform == 'android':
+    from jnius import autoclass, cast, jarray
+    AudioRecord = autoclass('android.media.AudioRecord')
+    AudioSource = autoclass('android.media.MediaRecorder$AudioSource')
+    AudioFormat = autoclass('android.media.AudioFormat')
+    HAS_PYAUDIO = True # We have alternative for Android
+
+class AndroidAudioRecorder:
+    def __init__(self, rate=44100, frames_per_buffer=1024, callback=None):
+        self.rate = rate
+        self.frames_per_buffer = frames_per_buffer
+        self.callback = callback
+        self.is_running = False
+        self._thread = None
+
+        # Configure AudioRecord using PCM_16BIT for maximum compatibility
+        self.channels = AudioFormat.CHANNEL_IN_MONO
+        self.format = AudioFormat.ENCODING_PCM_16BIT
+        self.buffer_size = AudioRecord.getMinBufferSize(rate, self.channels, self.format)
+
+        self.recorder = AudioRecord(
+            AudioSource.MIC,
+            self.rate,
+            self.channels,
+            self.format,
+            max(self.buffer_size, self.frames_per_buffer * 2)
+        )
+
+    def start(self):
+        if self.recorder.getState() != AudioRecord.STATE_INITIALIZED:
+            raise Exception("AudioRecord failed to initialize")
+        self.recorder.startRecording()
+        self.is_running = True
+        self._thread = threading.Thread(target=self._read_loop)
+        self._thread.daemon = True
+        self._thread.start()
+
+    def stop(self):
+        self.is_running = False
+        if self.recorder:
+            try:
+                self.recorder.stop()
+                self.recorder.release()
+            except:
+                pass
+
+    def _read_loop(self):
+        # We need a java array to read into
+        j_buffer = jarray('s')(self.frames_per_buffer) # 's' is for short
+
+        while self.is_running:
+            # read(short[] audioData, int offsetInShorts, int sizeInShorts)
+            result = self.recorder.read(j_buffer, 0, self.frames_per_buffer)
+            if result > 0:
+                # Convert to numpy and then to float32
+                # We can use np.frombuffer but we need the bytes first
+                # Actually, jarray objects can be slow to iterate.
+                # But they can be converted to bytes or use np.frombuffer if they implement buffer protocol
+
+                # In Pyjnius, jarray supports the buffer protocol in recent versions.
+                # Let's try to convert to numpy array efficiently.
+                data_bytes = bytes(j_buffer) # This copies the data to bytes
+                short_data = np.frombuffer(data_bytes, dtype=np.int16)
+                float_data = short_data[:result].astype(np.float32) / 32768.0
+
+                if self.callback:
+                    self.callback(float_data.tobytes(), result, None, None)
+
 class NoiseBarGraph(Widget):
     """
     A bar graph widget that displays 9 blocks.
@@ -66,6 +136,7 @@ class NoiseMonitorScreen(Screen):
         super().__init__(**kwargs)
         self.audio = None
         self.stream = None
+        self.android_recorder = None
         self._lock = threading.Lock()
         self._new_data = False
         self._buffer = np.zeros(1024)
@@ -98,16 +169,33 @@ class NoiseMonitorScreen(Screen):
     def start_audio(self):
         if self.is_running or not HAS_PYAUDIO:
             return
+
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            def callback(permissions, grants):
+                if all(grants):
+                    self._do_start_audio()
+                else:
+                    self.status_text = "Permission denied"
+            request_permissions([Permission.RECORD_AUDIO], callback)
+        else:
+            self._do_start_audio()
+
+    def _do_start_audio(self):
         try:
-            self.audio = pyaudio.PyAudio()
-            self.stream = self.audio.open(
-                format=pyaudio.paFloat32,
-                channels=1,
-                rate=44100,
-                input=True,
-                frames_per_buffer=1024,
-                stream_callback=self._audio_callback
-            )
+            if platform == 'android':
+                self.android_recorder = AndroidAudioRecorder(callback=self._audio_callback)
+                self.android_recorder.start()
+            else:
+                self.audio = pyaudio.PyAudio()
+                self.stream = self.audio.open(
+                    format=pyaudio.paFloat32,
+                    channels=1,
+                    rate=44100,
+                    input=True,
+                    frames_per_buffer=1024,
+                    stream_callback=self._audio_callback
+                )
             self.is_running = True
             self.status_text = "Monitoring noise..."
             Clock.schedule_interval(self.update_noise_level, 1.0 / 20.0)
@@ -121,26 +209,32 @@ class NoiseMonitorScreen(Screen):
         self.is_running = False
         self.status_text = "Stopped"
         Clock.unschedule(self.update_noise_level)
-        if self.stream:
-            try:
-                self.stream.stop_stream()
-                self.stream.close()
-            except:
-                pass
-            self.stream = None
-        if self.audio:
-            try:
-                self.audio.terminate()
-            except:
-                pass
-            self.audio = None
+        if platform == 'android':
+            if self.android_recorder:
+                self.android_recorder.stop()
+                self.android_recorder = None
+        else:
+            if self.stream:
+                try:
+                    self.stream.stop_stream()
+                    self.stream.close()
+                except:
+                    pass
+                self.stream = None
+            if self.audio:
+                try:
+                    self.audio.terminate()
+                except:
+                    pass
+                self.audio = None
 
     def _audio_callback(self, in_data, frame_count, time_info, status):
         data = np.frombuffer(in_data, dtype=np.float32)
         with self._lock:
             self._buffer = data
             self._new_data = True
-        return (None, pyaudio.paContinue)
+        # Return 0 (equivalent to pyaudio.paContinue)
+        return (None, 0)
 
     def update_noise_level(self, dt):
         if not self._new_data:
