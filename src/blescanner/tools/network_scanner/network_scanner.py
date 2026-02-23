@@ -3,7 +3,10 @@ import socket
 import ipaddress
 import math
 import logging
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 from kivy.uix.screenmanager import Screen
 from kivy.properties import ListProperty, StringProperty, NumericProperty, BooleanProperty, ObjectProperty
@@ -135,21 +138,22 @@ class NetworkScannerScreen(Screen):
                  logger.warning("Large network detected. Scanning might be slow.")
 
             local_mac = "N/A"
-            for interface, addrs in psutil.net_if_addrs().items():
-                found_ip = False
-                for addr in addrs:
-                    if addr.address == ip:
-                        found_ip = True
-                        break
-                if found_ip:
+            if psutil:
+                for interface, addrs in psutil.net_if_addrs().items():
+                    found_ip = False
                     for addr in addrs:
-                        if hasattr(socket, 'AF_PACKET') and addr.family == socket.AF_PACKET:
-                            local_mac = addr.address
+                        if addr.address == ip:
+                            found_ip = True
                             break
-                        elif hasattr(psutil, 'AF_LINK') and addr.family == psutil.AF_LINK:
-                            local_mac = addr.address
-                            break
-                    break
+                    if found_ip:
+                        for addr in addrs:
+                            if hasattr(socket, 'AF_PACKET') and addr.family == socket.AF_PACKET:
+                                local_mac = addr.address
+                                break
+                            elif hasattr(psutil, 'AF_LINK') and addr.family == psutil.AF_LINK:
+                                local_mac = addr.address
+                                break
+                        break
 
             self.discovered_devices = [{'ip': ip, 'mac': local_mac, 'manuf': 'This Device', 'is_local': True}]
 

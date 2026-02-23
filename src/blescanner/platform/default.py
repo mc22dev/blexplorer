@@ -68,13 +68,25 @@ class DefaultPlatformUtils(PlatformUtilsBase):
         """
         Retrieves the local IP address and netmask using psutil.
         """
-        import psutil
         import socket
-        for interface, addrs in psutil.net_if_addrs().items():
-            for addr in addrs:
-                if addr.family == socket.AF_INET and not addr.address.startswith("127."):
-                    return addr.address, addr.netmask
-        return None, None
+        try:
+            import psutil
+            for interface, addrs in psutil.net_if_addrs().items():
+                for addr in addrs:
+                    if addr.family == socket.AF_INET and not addr.address.startswith("127."):
+                        return addr.address, addr.netmask
+        except ImportError:
+            pass
+
+        # Fallback using socket
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip, "255.255.255.0"
+        except Exception:
+            return None, None
 
     def get_arp_table(self) -> dict:
         """
