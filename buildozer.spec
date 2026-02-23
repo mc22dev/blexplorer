@@ -201,7 +201,7 @@ android.extra_manifest_xml = manifest/extra_manifest.xml
 #android.add_resources =
 
 # (list) Gradle dependencies to add
-android.gradle_dependencies = "com.github.mik3y:usb-serial-for-android:3.9.0"
+android.gradle_dependencies = com.github.mik3y:usb-serial-for-android:3.9.0
 
 # (bool) Enable AndroidX support. Enable when 'android.gradle_dependencies'
 # contains an 'androidx' package, or any package from Kotlin source.
@@ -216,7 +216,7 @@ android.enable_androidx = True
 # (list) Gradle repositories to add {can be necessary for some android.gradle_dependencies}
 # please enclose in double quotes
 # e.g. android.gradle_repositories = "maven { url 'https://kotlin.bintray.com/ktor' }"
-android.add_gradle_repositories = "maven { url \"https://jitpack.io\" }"
+android.add_gradle_repositories = maven { url 'https://jitpack.io' }
 
 # (list) packaging options to add
 # see https://google.github.io/android-gradle-dsl/current/com.android.build.gradle.internal.dsl.PackagingOptions.html
