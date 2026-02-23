@@ -37,7 +37,7 @@ version.filename = %(source.dir)s/blescanner/_version.py
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy,psutil,pyte,asyncssh,telnetlib3
-requirements = python3,kivy,bleak,setuptools,cython,pyjnius,typing-extensions,beacontools,construct,ahocorapy,able_recipe,pyserial,pyserial-asyncio,simpleeval,scapy,pyte,asyncssh,telnetlib3,numpy
+requirements = python3,kivy,bleak,setuptools,cython,pyjnius,typing-extensions,beacontools,construct,ahocorapy,able_recipe,pyserial,pyserial-asyncio,simpleeval,scapy,pyte,asyncssh,telnetlib3,numpy,wcwidth,cryptography,dbus-fast
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
