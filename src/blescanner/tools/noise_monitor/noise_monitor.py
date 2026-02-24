@@ -7,7 +7,9 @@ from kivy.properties import BooleanProperty, StringProperty, NumericProperty
 from kivy.graphics import Color, Rectangle
 from kivy.clock import Clock
 from kivy.core.audio import SoundLoader
+from kivy.factory import Factory
 import os
+import sys
 
 try:
     import pyaudio
@@ -162,17 +164,16 @@ class NoiseMonitorScreen(Screen):
     def on_enter(self):
         if not self.alert_sound:
             try:
-                # Use App's resource_path if available
-                from kivy.app import App
-                app = App.get_running_app()
-                if hasattr(app, 'user_data_dir'): # Check if it's the real app
-                     # We can't easily import resource_path from __main__ here due to circular imports
-                     # But we know where it is relative to this file
-                     current_dir = os.path.dirname(__file__)
-                     # src/blescanner/tools/noise_monitor -> src/blescanner/assets/sounds/alert.wav
-                     sound_path = os.path.join(current_dir, "..", "..", "assets", "sounds", "alert.wav")
-                     sound_path = os.path.abspath(sound_path)
-                     self.alert_sound = SoundLoader.load(sound_path)
+                # Robust asset path logic that works on Desktop and Android
+                if hasattr(sys, '_MEIPASS'):
+                    base_path = os.path.join(sys._MEIPASS, 'blescanner')
+                else:
+                    # For development, base_path is src/blescanner/
+                    # noise_monitor.py is in src/blescanner/tools/noise_monitor/
+                    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+                sound_path = os.path.join(base_path, "assets", "sounds", "alert.wav")
+                self.alert_sound = SoundLoader.load(sound_path)
             except Exception as e:
                 print(f"Error loading sound: {e}")
 
@@ -285,3 +286,6 @@ class NoiseMonitorScreen(Screen):
 
     def on_leave(self, *args):
         self.stop_audio()
+
+# Register for use in .kv files
+Factory.register('NoiseBarGraph', cls=NoiseBarGraph)

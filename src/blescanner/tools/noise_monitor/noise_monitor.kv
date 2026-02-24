@@ -29,58 +29,40 @@
                 value: root.sensitivity
                 on_value: root.sensitivity = self.value
 
-        # Large Bar Graph (Half width)
-        AnchorLayout:
-            anchor_x: 'center'
+        FloatLayout:
+            # Large Bar Graph (Uses all available space)
             NoiseBarGraph:
                 id: bar_graph
-                size_hint: (None, 0.8)
-                width: self.parent.width / 2
+                size_hint: (1, 1)
+                pos_hint: {'x': 0, 'y': 0}
                 level: root.noise_level
 
-        # Legend/Labels
-        BoxLayout:
-            size_hint_y: None
-            height: "48dp"
-            Label:
-                text: "Quiet"
-                color: (0, 1, 0, 1)
-                bold: True
-            Label:
-                text: "Moderate"
-                color: (1, 0.5, 0, 1)
-                bold: True
-            Label:
-                text: "Noisy"
-                color: (1, 0, 0, 1)
-                bold: True
+            # Missing Dependency Overlay (similar to audio_analyzer)
+            BoxLayout:
+                orientation: 'vertical'
+                padding: "20dp"
+                spacing: "10dp"
+                pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+                size_hint: (0.8, 0.6)
+                opacity: 1 if not root.has_pyaudio else 0
+                disabled: root.has_pyaudio
+                canvas.before:
+                    Color:
+                        rgba: (0, 0, 0, 0.8)
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
 
-        # Missing Dependency Overlay (similar to audio_analyzer)
-        BoxLayout:
-            orientation: 'vertical'
-            padding: "20dp"
-            spacing: "10dp"
-            pos_hint: {'center_x': 0.5, 'center_y': 0.5}
-            size_hint: (0.8, 0.6)
-            opacity: 1 if not root.has_pyaudio else 0
-            disabled: root.has_pyaudio
-            canvas.before:
-                Color:
-                    rgba: (0, 0, 0, 0.8)
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
-
-            Label:
-                text: "PyAudio dependency missing"
-                bold: True
-                font_size: '18sp'
-            Label:
-                text: "To use the Noise Monitor, you must install PyAudio and its system dependencies."
-                text_size: self.width, None
-                halign: 'center'
-            Label:
-                text: "On Ubuntu/Debian:\nsudo apt-get install libportaudio2 portaudio19-dev\npip install pyaudio"
-                text_size: self.width, None
-                halign: 'center'
-                color: (0.7, 0.7, 1, 1)
+                Label:
+                    text: "PyAudio dependency missing"
+                    bold: True
+                    font_size: '18sp'
+                Label:
+                    text: "To use the Noise Monitor, you must install PyAudio and its system dependencies."
+                    text_size: self.width, None
+                    halign: 'center'
+                Label:
+                    text: "On Ubuntu/Debian:\nsudo apt-get install libportaudio2 portaudio19-dev\npip install pyaudio"
+                    text_size: self.width, None
+                    halign: 'center'
+                    color: (0.7, 0.7, 1, 1)
