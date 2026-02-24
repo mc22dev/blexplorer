@@ -59,4 +59,25 @@
             size_hint_x: None
             width: "50dp"
 
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Average Time (ms):"
+            size_hint_x: None
+            width: "150dp"
+        Slider:
+            id: average_time_slider
+            min: 100
+            max: 5000
+            step: 50
+            value: root.average_time
+            size_hint_x: None
+            width: "200dp"
+        Label:
+            text: str(int(average_time_slider.value))
+            size_hint_x: None
+            width: "50dp"
+
     Widget: # Spacer

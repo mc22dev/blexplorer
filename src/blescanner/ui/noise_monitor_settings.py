@@ -7,6 +7,7 @@ class NoiseMonitorSettings(BoxLayout):
     alarm_sound = StringProperty('alert.wav')
     sensitivity = NumericProperty(1.0)
     num_bars = NumericProperty(9)
+    average_time = NumericProperty(500)
     available_sounds = ListProperty([])
     app = ObjectProperty(None)
 
@@ -35,19 +36,24 @@ class NoiseMonitorSettings(BoxLayout):
         self.alarm_sound = self.app.config_manager.get_setting('noise_monitor', 'alarm_sound')
         self.sensitivity = float(self.app.config_manager.get_setting('noise_monitor', 'sensitivity'))
         self.num_bars = int(self.app.config_manager.get_setting('noise_monitor', 'num_bars', default='9'))
+        self.average_time = int(self.app.config_manager.get_setting('noise_monitor', 'average_time', default='500'))
         self.ids.sound_spinner.text = self.alarm_sound
         self.ids.sensitivity_slider.value = self.sensitivity
         self.ids.num_bars_slider.value = self.num_bars
+        self.ids.average_time_slider.value = self.average_time
 
     def save_settings(self):
         self.alarm_sound = self.ids.sound_spinner.text
         self.sensitivity = self.ids.sensitivity_slider.value
         self.num_bars = int(self.ids.num_bars_slider.value)
+        self.average_time = int(self.ids.average_time_slider.value)
         self.app.config_manager.set_setting('noise_monitor', 'alarm_sound', self.alarm_sound)
         self.app.config_manager.set_setting('noise_monitor', 'sensitivity', str(self.sensitivity))
         self.app.config_manager.set_setting('noise_monitor', 'num_bars', str(self.num_bars))
+        self.app.config_manager.set_setting('noise_monitor', 'average_time', str(self.average_time))
         # Apply the setting to the noise monitor screen
         noise_monitor_screen = self.app.root.ids.screen_manager.get_screen('noise_monitor')
         noise_monitor_screen.load_alarm_sound()
         noise_monitor_screen.sensitivity = self.sensitivity
         noise_monitor_screen.num_bars = self.num_bars
+        noise_monitor_screen.average_time = self.average_time

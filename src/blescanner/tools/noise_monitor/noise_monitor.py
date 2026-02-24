@@ -1,6 +1,7 @@
 import numpy as np
 import threading
 import time
+from collections import deque
 from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 from kivy.properties import BooleanProperty, StringProperty, NumericProperty
@@ -154,6 +155,7 @@ class NoiseMonitorScreen(Screen):
     has_pyaudio = BooleanProperty(HAS_PYAUDIO)
     sensitivity = NumericProperty(1.0)
     num_bars = NumericProperty(9)
+    average_time = NumericProperty(500) # ms
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -165,6 +167,7 @@ class NoiseMonitorScreen(Screen):
         self._buffer = np.zeros(1024)
         self.alert_sound = None
         self._last_alert_time = 0
+        self._rms_buffer = deque()
 
     def on_enter(self):
         self.load_settings()
@@ -175,6 +178,7 @@ class NoiseMonitorScreen(Screen):
             app = App.get_running_app()
             self.sensitivity = float(app.config_manager.get_setting('noise_monitor', 'sensitivity', default='1.0'))
             self.num_bars = int(app.config_manager.get_setting('noise_monitor', 'num_bars', default='9'))
+            self.average_time = int(app.config_manager.get_setting('noise_monitor', 'average_time', default='500'))
         except:
             pass
         self.load_alarm_sound()
@@ -301,14 +305,24 @@ class NoiseMonitorScreen(Screen):
         if len(data) == 0:
             return
 
-        # Calculate RMS
+        # Calculate current RMS
         rms = np.sqrt(np.mean(data**2))
 
-        # Map RMS to 0-N scale.
-        # Sensitivity 1.0 means RMS of 0.1 is max level.
-        target_level = float(rms * (self.num_bars * 10) * self.sensitivity)
+        # Maintain sliding window buffer
+        # update_noise_level is called 20 times per second (dt=0.05)
+        max_samples = max(1, int(self.average_time / 50))
+        self._rms_buffer.append(rms)
+        while len(self._rms_buffer) > max_samples:
+            self._rms_buffer.popleft()
 
-        # Simple smoothing (EMA)
+        # Calculate average RMS over the window
+        avg_rms = sum(self._rms_buffer) / len(self._rms_buffer)
+
+        # Map average RMS to 0-N scale.
+        # Sensitivity 1.0 means average RMS of 0.1 is max level.
+        target_level = float(avg_rms * (self.num_bars * 10) * self.sensitivity)
+
+        # Simple smoothing (EMA) for visual stability on top of averaging
         self.noise_level = float(self.noise_level * 0.5 + min(float(self.num_bars), target_level) * 0.5)
 
         if self.noise_level >= self.num_bars - 0.5: # Last red bar
