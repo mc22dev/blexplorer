@@ -17,10 +17,11 @@ except ImportError:
 from kivy.utils import platform
 
 if platform == 'android':
-    from jnius import autoclass, cast, jarray
+    from jnius import autoclass, cast
     AudioRecord = autoclass('android.media.AudioRecord')
     AudioSource = autoclass('android.media.MediaRecorder$AudioSource')
     AudioFormat = autoclass('android.media.AudioFormat')
+    ByteBuffer = autoclass('java.nio.ByteBuffer')
     HAS_PYAUDIO = True # We have alternative for Android
 
 class AndroidAudioRecorder:
@@ -63,26 +64,22 @@ class AndroidAudioRecorder:
                 pass
 
     def _read_loop(self):
-        # We need a java array to read into
-        j_buffer = jarray('s')(self.frames_per_buffer) # 's' is for short
+        # We use a bytearray and wrap it in a ByteBuffer to get a Java-accessible array
+        # without using the potentially missing 'jarray' from 'jnius'.
+        read_buffer = bytearray(self.frames_per_buffer * 2)
+        j_buffer = ByteBuffer.wrap(read_buffer)
+        j_array = j_buffer.array()
 
         while self.is_running:
-            # read(short[] audioData, int offsetInShorts, int sizeInShorts)
-            result = self.recorder.read(j_buffer, 0, self.frames_per_buffer)
-            if result > 0:
-                # Convert to numpy and then to float32
-                # We can use np.frombuffer but we need the bytes first
-                # Actually, jarray objects can be slow to iterate.
-                # But they can be converted to bytes or use np.frombuffer if they implement buffer protocol
-
-                # In Pyjnius, jarray supports the buffer protocol in recent versions.
-                # Let's try to convert to numpy array efficiently.
-                data_bytes = bytes(j_buffer) # This copies the data to bytes
-                short_data = np.frombuffer(data_bytes, dtype=np.int16)
-                float_data = short_data[:result].astype(np.float32) / 32768.0
+            # read(byte[] audioData, int offsetInBytes, int sizeInBytes)
+            result_bytes = self.recorder.read(j_array, 0, self.frames_per_buffer * 2)
+            if result_bytes > 0:
+                # Convert the bytearray back to numpy int16 then float32
+                short_data = np.frombuffer(read_buffer, dtype=np.int16, count=result_bytes // 2)
+                float_data = short_data.astype(np.float32) / 32768.0
 
                 if self.callback:
-                    self.callback(float_data.tobytes(), result, None, None)
+                    self.callback(float_data.tobytes(), result_bytes // 2, None, None)
 
 class NoiseBarGraph(Widget):
     """
