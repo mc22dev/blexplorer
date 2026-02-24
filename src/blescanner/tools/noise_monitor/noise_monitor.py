@@ -331,8 +331,16 @@ class NoiseMonitorScreen(Screen):
     def trigger_alert(self):
         now = Clock.get_time()
         if now - self._last_alert_time > 2.0: # 2 seconds cooldown
+            try:
+                from kivy.app import App
+                app = App.get_running_app()
+                app.log_with_timestamp("Noise alert triggered!", LogLevel.WARNING)
+            except:
+                pass
             if self.alert_sound:
-                self.alert_sound.play()
+                # Play sound in a separate thread to ensure it doesn't block the UI thread.
+                # Some Kivy audio providers might block the main loop while starting/playing.
+                threading.Thread(target=self.alert_sound.play, daemon=True).start()
             self._last_alert_time = now
 
     def on_leave(self, *args):
