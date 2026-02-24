@@ -59,7 +59,8 @@ class ConfigManager:
                 'char_delay': '0'
             },
             'noise_monitor': {
-                'alarm_sound': 'alert.wav'
+                'alarm_sound': 'alert.wav',
+                'sensitivity': '1.0'
             },
             'device_names': {}
         }

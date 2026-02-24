@@ -1,10 +1,11 @@
 from kivy.uix.boxlayout import BoxLayout
-from kivy.properties import StringProperty, ObjectProperty, ListProperty
+from kivy.properties import StringProperty, ObjectProperty, ListProperty, NumericProperty
 from kivy.app import App
 import os
 
 class NoiseMonitorSettings(BoxLayout):
     alarm_sound = StringProperty('alert.wav')
+    sensitivity = NumericProperty(1.0)
     available_sounds = ListProperty([])
     app = ObjectProperty(None)
 
@@ -31,11 +32,16 @@ class NoiseMonitorSettings(BoxLayout):
 
     def load_settings(self):
         self.alarm_sound = self.app.config_manager.get_setting('noise_monitor', 'alarm_sound')
+        self.sensitivity = float(self.app.config_manager.get_setting('noise_monitor', 'sensitivity'))
         self.ids.sound_spinner.text = self.alarm_sound
+        self.ids.sensitivity_slider.value = self.sensitivity
 
     def save_settings(self):
         self.alarm_sound = self.ids.sound_spinner.text
+        self.sensitivity = self.ids.sensitivity_slider.value
         self.app.config_manager.set_setting('noise_monitor', 'alarm_sound', self.alarm_sound)
+        self.app.config_manager.set_setting('noise_monitor', 'sensitivity', str(self.sensitivity))
         # Apply the setting to the noise monitor screen
         noise_monitor_screen = self.app.root.ids.screen_manager.get_screen('noise_monitor')
         noise_monitor_screen.load_alarm_sound()
+        noise_monitor_screen.sensitivity = self.sensitivity

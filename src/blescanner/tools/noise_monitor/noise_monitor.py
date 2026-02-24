@@ -163,6 +163,15 @@ class NoiseMonitorScreen(Screen):
         self._last_alert_time = 0
 
     def on_enter(self):
+        self.load_settings()
+
+    def load_settings(self):
+        try:
+            from kivy.app import App
+            app = App.get_running_app()
+            self.sensitivity = float(app.config_manager.get_setting('noise_monitor', 'sensitivity', default='1.0'))
+        except:
+            pass
         self.load_alarm_sound()
 
     def load_alarm_sound(self):

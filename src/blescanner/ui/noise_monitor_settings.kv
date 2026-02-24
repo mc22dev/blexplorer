@@ -18,4 +18,24 @@
             size_hint_x: None
             width: "200dp"
 
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Sensitivity:"
+            size_hint_x: None
+            width: "150dp"
+        Slider:
+            id: sensitivity_slider
+            min: 0.1
+            max: 5.0
+            value: root.sensitivity
+            size_hint_x: None
+            width: "200dp"
+        Label:
+            text: f"{sensitivity_slider.value:.1f}"
+            size_hint_x: None
+            width: "50dp"
+
     Widget: # Spacer
