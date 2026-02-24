@@ -1,5 +1,6 @@
 import numpy as np
 import threading
+import time
 from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 from kivy.properties import BooleanProperty, StringProperty, NumericProperty
@@ -64,22 +65,40 @@ class AndroidAudioRecorder:
                 pass
 
     def _read_loop(self):
-        # We use a bytearray and wrap it in a ByteBuffer to get a Java-accessible array
-        # without using the potentially missing 'jarray' from 'jnius'.
-        read_buffer = bytearray(self.frames_per_buffer * 2)
-        j_buffer = ByteBuffer.wrap(read_buffer)
-        j_array = j_buffer.array()
+        try:
+            # We use a direct ByteBuffer to ensure we can read from the AudioRecord
+            # efficiently even if jarray is missing.
+            j_buffer = ByteBuffer.allocateDirect(self.frames_per_buffer * 2)
+            j_buffer.order(autoclass('java.nio.ByteOrder').nativeOrder())
 
-        while self.is_running:
-            # read(byte[] audioData, int offsetInBytes, int sizeInBytes)
-            result_bytes = self.recorder.read(j_array, 0, self.frames_per_buffer * 2)
-            if result_bytes > 0:
-                # Convert the bytearray back to numpy int16 then float32
-                short_data = np.frombuffer(read_buffer, dtype=np.int16, count=result_bytes // 2)
-                float_data = short_data.astype(np.float32) / 32768.0
+            while self.is_running:
+                j_buffer.clear()
+                # read(ByteBuffer audioBuffer, int sizeInBytes) - Added in API 3
+                result_bytes = self.recorder.read(j_buffer, self.frames_per_buffer * 2)
 
-                if self.callback:
-                    self.callback(float_data.tobytes(), result_bytes // 2, None, None)
+                if result_bytes > 0:
+                    # Move to start of buffer to read data out
+                    j_buffer.position(0)
+
+                    # Read shorts from the ByteBuffer into a numpy array
+                    # This is a bit slower than a direct copy but robust without jarray.
+                    shorts_to_read = result_bytes // 2
+                    short_data = np.zeros(shorts_to_read, dtype=np.int16)
+                    for i in range(shorts_to_read):
+                        short_data[i] = j_buffer.getShort()
+
+                    float_data = short_data.astype(np.float32) / 32768.0
+
+                    if self.callback:
+                        self.callback(float_data.tobytes(), shorts_to_read, None, None)
+                elif result_bytes < 0:
+                    # Error code returned by AudioRecord
+                    time.sleep(0.1)
+                else:
+                    # No data available, wait a bit
+                    time.sleep(0.01)
+        except Exception as e:
+            print(f"NoiseMonitor: Error in Android read loop: {e}")
 
 class NoiseBarGraph(Widget):
     """
