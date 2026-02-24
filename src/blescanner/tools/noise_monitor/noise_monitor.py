@@ -10,6 +10,7 @@ from kivy.core.audio import SoundLoader
 from kivy.factory import Factory
 import os
 import sys
+from blescanner.models import LogLevel
 
 try:
     import pyaudio
@@ -181,9 +182,21 @@ class NoiseMonitorScreen(Screen):
             sound_path = os.path.join(base_path, "assets", "sounds", sound_name)
 
             if self.alert_sound:
-                self.alert_sound.unload()
+                try:
+                    self.alert_sound.unload()
+                except:
+                    pass
+
+            if not os.path.exists(sound_path):
+                app.log_with_timestamp(f"Sound file not found: {sound_path}", LogLevel.ERROR)
+                return
 
             self.alert_sound = SoundLoader.load(sound_path)
+            if self.alert_sound:
+                self.alert_sound.volume = 1.0
+                app.log_with_timestamp(f"Loaded alarm sound: {sound_name}", LogLevel.INFO)
+            else:
+                app.log_with_timestamp(f"Failed to load alarm sound: {sound_name}", LogLevel.ERROR)
         except Exception as e:
             print(f"Error loading sound: {e}")
 
