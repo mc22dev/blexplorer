@@ -105,14 +105,15 @@ class AndroidAudioRecorder:
 
 class NoiseBarGraph(Widget):
     """
-    A bar graph widget that displays 9 blocks.
-    3 Green, 3 Orange, 3 Red.
+    A bar graph widget that displays a configurable number of blocks.
+    Split into Green, Orange, and Red zones.
     """
-    level = NumericProperty(0) # 0 to 9
+    level = NumericProperty(0)
+    num_bars = NumericProperty(9)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.bind(pos=self.update_graph, size=self.update_graph, level=self.update_graph)
+        self.bind(pos=self.update_graph, size=self.update_graph, level=self.update_graph, num_bars=self.update_graph)
 
     def update_graph(self, *args):
         self.canvas.clear()
@@ -123,14 +124,16 @@ class NoiseBarGraph(Widget):
             y0 = self.y
 
             block_spacing = 5
-            total_blocks = 9
+            total_blocks = int(self.num_bars)
+            if total_blocks < 1: total_blocks = 1
             block_height = (h - (total_blocks - 1) * block_spacing) / total_blocks
 
             for i in range(total_blocks):
                 # Blocks are drawn from bottom to top
-                if i < 3:
+                # Dynamic color zones
+                if i < total_blocks / 3.0:
                     color = (0, 1, 0, 1) # Green
-                elif i < 6:
+                elif i < 2.0 * total_blocks / 3.0:
                     color = (1, 0.5, 0, 1) # Orange
                 else:
                     color = (1, 0, 0, 1) # Red
@@ -150,6 +153,7 @@ class NoiseMonitorScreen(Screen):
     status_text = StringProperty("Stopped")
     has_pyaudio = BooleanProperty(HAS_PYAUDIO)
     sensitivity = NumericProperty(1.0)
+    num_bars = NumericProperty(9)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -170,6 +174,7 @@ class NoiseMonitorScreen(Screen):
             from kivy.app import App
             app = App.get_running_app()
             self.sensitivity = float(app.config_manager.get_setting('noise_monitor', 'sensitivity', default='1.0'))
+            self.num_bars = int(app.config_manager.get_setting('noise_monitor', 'num_bars', default='9'))
         except:
             pass
         self.load_alarm_sound()
@@ -299,14 +304,14 @@ class NoiseMonitorScreen(Screen):
         # Calculate RMS
         rms = np.sqrt(np.mean(data**2))
 
-        # Map RMS to 0-9 scale.
-        # Sensitivity 1.0 means RMS of 0.1 is level 9.
-        target_level = float(rms * 90 * self.sensitivity)
+        # Map RMS to 0-N scale.
+        # Sensitivity 1.0 means RMS of 0.1 is max level.
+        target_level = float(rms * (self.num_bars * 10) * self.sensitivity)
 
         # Simple smoothing (EMA)
-        self.noise_level = float(self.noise_level * 0.5 + min(9.0, target_level) * 0.5)
+        self.noise_level = float(self.noise_level * 0.5 + min(float(self.num_bars), target_level) * 0.5)
 
-        if self.noise_level >= 8.5: # Last red bar (9)
+        if self.noise_level >= self.num_bars - 0.5: # Last red bar
             self.trigger_alert()
 
     def trigger_alert(self):

@@ -60,7 +60,8 @@ class ConfigManager:
             },
             'noise_monitor': {
                 'alarm_sound': 'alert.wav',
-                'sensitivity': '1.0'
+                'sensitivity': '1.0',
+                'num_bars': '9'
             },
             'device_names': {}
         }

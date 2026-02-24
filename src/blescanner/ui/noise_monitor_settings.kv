@@ -38,4 +38,25 @@
             size_hint_x: None
             width: "50dp"
 
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Number of Bars:"
+            size_hint_x: None
+            width: "150dp"
+        Slider:
+            id: num_bars_slider
+            min: 3
+            max: 20
+            step: 1
+            value: root.num_bars
+            size_hint_x: None
+            width: "200dp"
+        Label:
+            text: str(int(num_bars_slider.value))
+            size_hint_x: None
+            width: "50dp"
+
     Widget: # Spacer
