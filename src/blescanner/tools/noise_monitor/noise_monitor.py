@@ -162,20 +162,30 @@ class NoiseMonitorScreen(Screen):
         self._last_alert_time = 0
 
     def on_enter(self):
-        if not self.alert_sound:
-            try:
-                # Robust asset path logic that works on Desktop and Android
-                if hasattr(sys, '_MEIPASS'):
-                    base_path = os.path.join(sys._MEIPASS, 'blescanner')
-                else:
-                    # For development, base_path is src/blescanner/
-                    # noise_monitor.py is in src/blescanner/tools/noise_monitor/
-                    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        self.load_alarm_sound()
 
-                sound_path = os.path.join(base_path, "assets", "sounds", "alert.wav")
-                self.alert_sound = SoundLoader.load(sound_path)
-            except Exception as e:
-                print(f"Error loading sound: {e}")
+    def load_alarm_sound(self):
+        try:
+            from kivy.app import App
+            app = App.get_running_app()
+            sound_name = app.config_manager.get_setting('noise_monitor', 'alarm_sound')
+
+            # Robust asset path logic that works on Desktop and Android
+            if hasattr(sys, '_MEIPASS'):
+                base_path = os.path.join(sys._MEIPASS, 'blescanner')
+            else:
+                # For development, base_path is src/blescanner/
+                # noise_monitor.py is in src/blescanner/tools/noise_monitor/
+                base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+            sound_path = os.path.join(base_path, "assets", "sounds", sound_name)
+
+            if self.alert_sound:
+                self.alert_sound.unload()
+
+            self.alert_sound = SoundLoader.load(sound_path)
+        except Exception as e:
+            print(f"Error loading sound: {e}")
 
     def toggle_running(self):
         if self.is_running:
@@ -274,7 +284,7 @@ class NoiseMonitorScreen(Screen):
         # Simple smoothing (EMA)
         self.noise_level = float(self.noise_level * 0.5 + min(9.0, target_level) * 0.5)
 
-        if self.noise_level >= 7: # Red zone (7, 8, 9)
+        if self.noise_level >= 8.5: # Last red bar (9)
             self.trigger_alert()
 
     def trigger_alert(self):

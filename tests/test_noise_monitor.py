@@ -26,6 +26,28 @@ def test_noise_calculation():
     screen.update_noise_level(0)
     assert screen.noise_level == pytest.approx(2.25)
 
+def test_noise_alert_threshold():
+    screen = NoiseMonitorScreen()
+    screen.alert_sound = MagicMock()
+
+    # level 7 should not trigger anymore (requested last red bar which is 9)
+    # 0.08 * 90 = 7.2. EMA: 0*0.5 + 7.2*0.5 = 3.6
+    # Let's just set the level directly for the test
+    screen.noise_level = 7.0
+    data = np.full(1024, 0.08, dtype=np.float32)
+    screen._buffer = data
+    screen._new_data = True
+    screen.update_noise_level(0)
+    assert not screen.alert_sound.play.called
+
+    # level 9 should trigger
+    screen.noise_level = 9.0
+    data = np.full(1024, 0.11, dtype=np.float32) # 0.11 * 90 = 9.9
+    screen._buffer = data
+    screen._new_data = True
+    screen.update_noise_level(0)
+    assert screen.alert_sound.play.called
+
 def test_alert_trigger():
     screen = NoiseMonitorScreen()
     screen.alert_sound = MagicMock()

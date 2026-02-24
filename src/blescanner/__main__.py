@@ -61,6 +61,7 @@ from blescanner.tools.noise_monitor.noise_monitor import NoiseMonitorScreen
 from blescanner.tools.wifi_scanner.wifi_scanner import WifiScannerScreen
 from blescanner.ui.settings_popup import SettingsPopup
 from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
+from blescanner.ui.noise_monitor_settings import NoiseMonitorSettings
 
 
 def resource_path(relative_path):
@@ -137,6 +138,7 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path('ui/main.kv'))
         Builder.load_file(resource_path('ui/settings_popup.kv'))
         Builder.load_file(resource_path('ui/serial_monitor_settings.kv'))
+        Builder.load_file(resource_path('ui/noise_monitor_settings.kv'))
         Builder.load_file(resource_path('tools/ble_scanner/ble_scanner.kv'))
         Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
         Builder.load_file(resource_path('tools/sys_info/sys_info.kv'))
@@ -315,12 +317,14 @@ class BLEScannerApp(App):
 
         # Add tool-specific settings tabs
         serial_monitor_settings = SerialMonitorSettings()
-
-        # Create a TabbedPanelItem for the serial monitor settings
         serial_tab = TabbedPanelItem(text='Serial Monitor')
         serial_tab.content = serial_monitor_settings
-
         self.settings_popup.add_tool_settings(serial_tab)
+
+        noise_monitor_settings = NoiseMonitorSettings()
+        noise_tab = TabbedPanelItem(text='Noise Monitor')
+        noise_tab.content = noise_monitor_settings
+        self.settings_popup.add_tool_settings(noise_tab)
 
         self.settings_popup.open()
 

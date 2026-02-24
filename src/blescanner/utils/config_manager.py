@@ -58,6 +58,9 @@ class ConfigManager:
                 'eol': 'None',
                 'char_delay': '0'
             },
+            'noise_monitor': {
+                'alarm_sound': 'alert.wav'
+            },
             'device_names': {}
         }
         self._load_or_create_config()

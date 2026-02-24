@@ -1,0 +1,21 @@
+<NoiseMonitorSettings>:
+    orientation: 'vertical'
+    padding: "10dp"
+    spacing: "10dp"
+
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Alarm Sound:"
+            size_hint_x: None
+            width: "150dp"
+        Spinner:
+            id: sound_spinner
+            text: root.alarm_sound
+            values: root.available_sounds
+            size_hint_x: None
+            width: "200dp"
+
+    Widget: # Spacer
