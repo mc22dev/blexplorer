@@ -315,6 +315,13 @@ class BLEScannerApp(App):
         """Opens the settings window."""
         self.settings_popup = SettingsPopup(app=self)
 
+        # Map tool IDs to their settings tab names
+        tool_to_tab = {
+            'serial_monitor': 'Serial Monitor',
+            'noise_monitor': 'Noise Monitor'
+        }
+        current_tool_id = self.root.ids.screen_manager.current
+
         # Add tool-specific settings tabs
         serial_monitor_settings = SerialMonitorSettings()
         serial_tab = TabbedPanelItem(text='Serial Monitor')
@@ -327,6 +334,10 @@ class BLEScannerApp(App):
         self.settings_popup.add_tool_settings(noise_tab)
 
         self.settings_popup.open()
+
+        # Switch to the current tool's tab if it exists
+        if current_tool_id in tool_to_tab:
+            self.settings_popup.select_tab_by_name(tool_to_tab[current_tool_id])
 
     def open_parameter_window(self):
         """Opens the parameter window."""
