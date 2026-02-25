@@ -80,4 +80,25 @@
             size_hint_x: None
             width: "50dp"
 
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Alarm Cooldown (s):"
+            size_hint_x: None
+            width: "150dp"
+        Slider:
+            id: alarm_cooldown_slider
+            min: 1
+            max: 60
+            step: 1
+            value: root.alarm_cooldown
+            size_hint_x: None
+            width: "200dp"
+        Label:
+            text: str(int(alarm_cooldown_slider.value))
+            size_hint_x: None
+            width: "50dp"
+
     Widget: # Spacer

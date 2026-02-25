@@ -99,6 +99,7 @@ def test_alert_cooldown():
     from kivy.clock import Clock
     screen = NoiseMonitorScreen()
     screen.alert_sound = MagicMock()
+    screen.alarm_cooldown = 10
 
     # First alert
     screen.trigger_alert()
@@ -106,4 +107,4 @@ def test_alert_cooldown():
 
     # Second alert immediately after
     screen.trigger_alert()
-    assert screen.alert_sound.play.call_count == 1 # Still 1 due to cooldown
+    assert screen.alert_sound.play.call_count == 1 # Still 1 due to cooldown (10s)

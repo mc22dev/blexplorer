@@ -156,6 +156,7 @@ class NoiseMonitorScreen(Screen):
     sensitivity = NumericProperty(1.0)
     num_bars = NumericProperty(9)
     average_time = NumericProperty(500) # ms
+    alarm_cooldown = NumericProperty(2) # seconds
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -179,6 +180,7 @@ class NoiseMonitorScreen(Screen):
             self.sensitivity = float(app.config_manager.get_setting('noise_monitor', 'sensitivity', default='1.0'))
             self.num_bars = int(app.config_manager.get_setting('noise_monitor', 'num_bars', default='9'))
             self.average_time = int(app.config_manager.get_setting('noise_monitor', 'average_time', default='500'))
+            self.alarm_cooldown = int(app.config_manager.get_setting('noise_monitor', 'alarm_cooldown', default='2'))
         except:
             pass
         self.load_alarm_sound()
@@ -330,7 +332,7 @@ class NoiseMonitorScreen(Screen):
 
     def trigger_alert(self):
         now = Clock.get_time()
-        if now - self._last_alert_time > 2.0: # 2 seconds cooldown
+        if now - self._last_alert_time > self.alarm_cooldown:
             try:
                 from kivy.app import App
                 app = App.get_running_app()
