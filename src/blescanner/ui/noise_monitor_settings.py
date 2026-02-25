@@ -29,12 +29,27 @@ class NoiseMonitorSettings(BoxLayout):
 
         sounds_dir = os.path.join(base_path, "assets", "sounds")
         if os.path.exists(sounds_dir):
-            self.available_sounds = [f for f in os.listdir(sounds_dir) if f.endswith('.wav')]
+            self.available_sounds = [f for f in os.listdir(sounds_dir) if f.endswith('.wav') or f.endswith('.mp3')]
         else:
             self.available_sounds = ['alert.wav', 'alarm.wav']
 
+    def show_sound_file_chooser(self):
+        self.app.ui_manager.show_load_dialog("Select Sound File", self.on_sound_file_selected)
+
+    def on_sound_file_selected(self, path, selection):
+        if selection:
+            full_path = os.path.join(path, selection[0])
+            if full_path not in self.available_sounds:
+                # Add to spinner if not already there
+                self.available_sounds.append(full_path)
+            self.ids.sound_spinner.text = full_path
+
     def load_settings(self):
         self.alarm_sound = self.app.config_manager.get_setting('noise_monitor', 'alarm_sound')
+
+        if self.alarm_sound not in self.available_sounds and os.path.isabs(self.alarm_sound):
+            self.available_sounds.append(self.alarm_sound)
+
         self.sensitivity = float(self.app.config_manager.get_setting('noise_monitor', 'sensitivity'))
         self.num_bars = int(self.app.config_manager.get_setting('noise_monitor', 'num_bars', default='9'))
         self.average_time = int(self.app.config_manager.get_setting('noise_monitor', 'average_time', default='500'))

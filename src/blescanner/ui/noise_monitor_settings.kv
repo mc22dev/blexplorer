@@ -15,8 +15,12 @@
             id: sound_spinner
             text: root.alarm_sound
             values: root.available_sounds
+            size_hint_x: 1
+        Button:
+            text: "Browse..."
             size_hint_x: None
-            width: "200dp"
+            width: "100dp"
+            on_release: root.show_sound_file_chooser()
 
     BoxLayout:
         size_hint_y: None

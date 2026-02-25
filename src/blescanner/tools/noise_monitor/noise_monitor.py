@@ -22,7 +22,7 @@ except ImportError:
 from kivy.utils import platform
 
 if platform == 'android':
-    from jnius import autoclass, cast
+    from jnius import autoclass
     AudioRecord = autoclass('android.media.AudioRecord')
     AudioSource = autoclass('android.media.MediaRecorder$AudioSource')
     AudioFormat = autoclass('android.media.AudioFormat')
@@ -191,15 +191,18 @@ class NoiseMonitorScreen(Screen):
             app = App.get_running_app()
             sound_name = app.config_manager.get_setting('noise_monitor', 'alarm_sound')
 
-            # Robust asset path logic that works on Desktop and Android
-            if hasattr(sys, '_MEIPASS'):
-                base_path = os.path.join(sys._MEIPASS, 'blescanner')
+            if os.path.isabs(sound_name):
+                sound_path = sound_name
             else:
-                # For development, base_path is src/blescanner/
-                # noise_monitor.py is in src/blescanner/tools/noise_monitor/
-                base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+                # Robust asset path logic that works on Desktop and Android
+                if hasattr(sys, '_MEIPASS'):
+                    base_path = os.path.join(sys._MEIPASS, 'blescanner')
+                else:
+                    # For development, base_path is src/blescanner/
+                    # noise_monitor.py is in src/blescanner/tools/noise_monitor/
+                    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-            sound_path = os.path.join(base_path, "assets", "sounds", sound_name)
+                sound_path = os.path.join(base_path, "assets", "sounds", sound_name)
 
             if self.alert_sound:
                 try:
