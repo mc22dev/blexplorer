@@ -114,3 +114,10 @@ class PlatformUtilsBase(ABC):
         Scans for available Wi-Fi access points.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def keep_screen_on(self, on: bool = True):
+        """
+        Keeps the screen on.
+        """
+        raise NotImplementedError

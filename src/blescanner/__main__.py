@@ -205,6 +205,10 @@ class BLEScannerApp(App):
         Clock.schedule_once(log_startup)
         Window.bind(on_keyboard=self._on_keyboard)
 
+        # Keep screen on for Android
+        if kivy_platform == 'android':
+            self.platform_utils.keep_screen_on(True)
+
         ble_scanner_screen = BLEScannerScreen(name='ble_scanner')
         self.root.ids.screen_manager.add_widget(ble_scanner_screen)
 

@@ -194,7 +194,8 @@ class NoiseMonitorScreen(Screen):
 
     def on_enter(self):
         self.load_settings()
-        self.start_audio()
+        if self.has_pyaudio:
+            self.start_audio()
 
     def load_settings(self):
         try:
