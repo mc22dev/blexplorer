@@ -504,14 +504,14 @@ class BLEScannerApp(App):
     def discover_adapters(self):
         """Discovers available Bluetooth adapters and populates the dropdown."""
         adapters = ["Default"]
-        if platform.system() == "Linux":
+        if kivy_platform == 'linux':
             try:
                 result = subprocess.run(['hciconfig'], capture_output=True, text=True, check=True)
                 adapters.extend(re.findall(r'^(hci\d+)', result.stdout, re.MULTILINE))
-            except (FileNotFoundError, subprocess.CalledProcessError):
-                self.log_with_timestamp("hciconfig not found. Could not list Bluetooth adapters.", LogLevel.WARNING)
+            except (FileNotFoundError, subprocess.CalledProcessError, PermissionError):
+                self.log_with_timestamp("hciconfig not found or permission denied. Could not list Bluetooth adapters.", LogLevel.WARNING)
         else:
-            self.log_with_timestamp("Adapter discovery is currently only supported on Linux.", LogLevel.INFO)
+            self.log_with_timestamp("Adapter discovery is currently only supported on desktop Linux.", LogLevel.INFO)
         self.adapters = adapters
 
     def scan_for_devices(self, *args):
