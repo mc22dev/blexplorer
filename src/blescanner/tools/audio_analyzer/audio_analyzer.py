@@ -167,32 +167,63 @@ class AudioAnalyzerScreen(Screen):
             self.start_audio()
 
     def start_audio(self):
-        if self.is_running:
+        if self.is_running or not HAS_PYAUDIO:
             return
 
-        if not HAS_PYAUDIO:
-            return
+        self.is_running = True
+        self.status_text = "Initializing audio..."
+        threading.Thread(target=self._bg_start_audio, daemon=True).start()
 
+    def _bg_start_audio(self):
+        new_audio = None
+        new_stream = None
         try:
-            self.audio = pyaudio.PyAudio()
-            self.stream = self.audio.open(
+            new_audio = pyaudio.PyAudio()
+            fft_size = int(self.fft_size)
+            new_stream = new_audio.open(
                 format=pyaudio.paFloat32,
                 channels=1,
                 rate=self.RATE,
                 input=True,
-                frames_per_buffer=int(self.fft_size),
+                frames_per_buffer=fft_size,
                 stream_callback=self._audio_callback
             )
-            with self._lock:
-                self._buffer = np.zeros(int(self.fft_size))
-            self.is_running = True
-            self.status_text = "Capturing audio..."
-            Clock.schedule_interval(self.update_ui, 1.0 / 30.0)
+
+            def _finish_init(dt):
+                if not self.is_running:
+                    # stop_audio was called during initialization
+                    if new_stream:
+                        try:
+                            new_stream.stop_stream()
+                            new_stream.close()
+                        except: pass
+                    if new_audio:
+                        try:
+                            threading.Thread(target=new_audio.terminate, daemon=True).start()
+                        except: pass
+                    return
+
+                self.audio = new_audio
+                self.stream = new_stream
+                with self._lock:
+                    self._buffer = np.zeros(fft_size)
+
+                self.status_text = "Capturing audio..."
+                Clock.schedule_interval(self.update_ui, 1.0 / 30.0)
+
+            Clock.schedule_once(_finish_init)
         except Exception as e:
-            self.status_text = f"Error: {e}"
-            if self.audio:
-                self.audio.terminate()
-            self.audio = None
+            if new_stream:
+                try: new_stream.close()
+                except: pass
+            if new_audio:
+                try: new_audio.terminate()
+                except: pass
+
+            def _handle_error(dt):
+                self.status_text = f"Error: {e}"
+                self.is_running = False
+            Clock.schedule_once(_handle_error)
 
     def stop_audio(self):
         self.is_running = False
@@ -207,7 +238,8 @@ class AudioAnalyzerScreen(Screen):
             self.stream = None
         if self.audio:
             try:
-                self.audio.terminate()
+                # Terminate in background thread
+                threading.Thread(target=self.audio.terminate, daemon=True).start()
             except:
                 pass
             self.audio = None

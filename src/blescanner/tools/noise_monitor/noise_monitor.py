@@ -269,13 +269,21 @@ class NoiseMonitorScreen(Screen):
             self._do_start_audio()
 
     def _do_start_audio(self):
+        self.is_running = True
+        self.status_text = "Initializing audio..."
+        threading.Thread(target=self._bg_start_audio, daemon=True).start()
+
+    def _bg_start_audio(self):
+        new_audio = None
+        new_stream = None
+        recorder = None
         try:
             if platform == 'android':
-                self.android_recorder = AndroidAudioRecorder(callback=self._audio_callback)
-                self.android_recorder.start()
+                recorder = AndroidAudioRecorder(callback=self._audio_callback)
+                recorder.start()
             else:
-                self.audio = pyaudio.PyAudio()
-                self.stream = self.audio.open(
+                new_audio = pyaudio.PyAudio()
+                new_stream = new_audio.open(
                     format=pyaudio.paFloat32,
                     channels=1,
                     rate=44100,
@@ -283,14 +291,48 @@ class NoiseMonitorScreen(Screen):
                     frames_per_buffer=1024,
                     stream_callback=self._audio_callback
                 )
-            self.is_running = True
-            self.status_text = "Monitoring noise..."
-            Clock.schedule_interval(self.update_noise_level, 1.0 / 20.0)
+
+            def _finish_init(dt):
+                if not self.is_running:
+                    # stop_audio was called during initialization
+                    if new_stream:
+                        try:
+                            new_stream.stop_stream()
+                            new_stream.close()
+                        except: pass
+                    if new_audio:
+                        try:
+                            threading.Thread(target=new_audio.terminate, daemon=True).start()
+                        except: pass
+                    if recorder:
+                        recorder.stop()
+                    return
+
+                if platform == 'android':
+                    self.android_recorder = recorder
+                else:
+                    self.audio = new_audio
+                    self.stream = new_stream
+
+                self.status_text = "Monitoring noise..."
+                Clock.schedule_interval(self.update_noise_level, 1.0 / 20.0)
+
+            Clock.schedule_once(_finish_init)
         except Exception as e:
-            self.status_text = f"Error: {e}"
-            if self.audio:
-                self.audio.terminate()
-            self.audio = None
+            if new_stream:
+                try: new_stream.close()
+                except: pass
+            if new_audio:
+                try: new_audio.terminate()
+                except: pass
+            if recorder:
+                try: recorder.stop()
+                except: pass
+
+            def _handle_error(dt):
+                self.status_text = f"Error: {e}"
+                self.is_running = False
+            Clock.schedule_once(_handle_error)
 
     def stop_audio(self):
         self.is_running = False
@@ -310,7 +352,8 @@ class NoiseMonitorScreen(Screen):
                 self.stream = None
             if self.audio:
                 try:
-                    self.audio.terminate()
+                    # Terminate in background thread as it can also block
+                    threading.Thread(target=self.audio.terminate, daemon=True).start()
                 except:
                     pass
                 self.audio = None
@@ -320,7 +363,8 @@ class NoiseMonitorScreen(Screen):
         with self._lock:
             self._buffer = data
             self._new_data = True
-        # Return 0 (equivalent to pyaudio.paContinue)
+
+        # Use paContinue (0)
         return (None, 0)
 
     def update_noise_level(self, dt):
