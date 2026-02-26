@@ -14,6 +14,8 @@
                 pos_hint: {'x': 0, 'y': 0}
                 level: root.noise_level
                 num_bars: root.num_bars
+                paused: root.is_paused
+                on_paused: root.is_paused = self.paused
 
             # Missing Dependency Overlay (similar to audio_analyzer)
             BoxLayout:

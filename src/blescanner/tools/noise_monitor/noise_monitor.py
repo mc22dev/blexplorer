@@ -111,10 +111,17 @@ class NoiseBarGraph(Widget):
     """
     level = NumericProperty(0)
     num_bars = NumericProperty(9)
+    paused = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.bind(pos=self.update_graph, size=self.update_graph, level=self.update_graph, num_bars=self.update_graph)
+        self.bind(pos=self.update_graph, size=self.update_graph, level=self.update_graph, num_bars=self.update_graph, paused=self.update_graph)
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            self.paused = not self.paused
+            return True
+        return super().on_touch_down(touch)
 
     def update_graph(self, *args):
         self.canvas.clear()
@@ -148,9 +155,24 @@ class NoiseBarGraph(Widget):
                 Rectangle(pos=(x0, y0 + i * (block_height + block_spacing)),
                           size=(w, block_height))
 
+            if self.paused:
+                Color(1, 1, 1, 0.8)
+                # Draw two vertical bars in the center for the pause icon
+                icon_w = w * 0.1
+                icon_h = h * 0.3
+                cx = self.center_x
+                cy = self.center_y
+                # Left bar
+                Rectangle(pos=(cx - icon_w * 1.2, cy - icon_h / 2),
+                          size=(icon_w, icon_h))
+                # Right bar
+                Rectangle(pos=(cx + icon_w * 0.2, cy - icon_h / 2),
+                          size=(icon_w, icon_h))
+
 class NoiseMonitorScreen(Screen):
     noise_level = NumericProperty(0)
     is_running = BooleanProperty(False)
+    is_paused = BooleanProperty(False)
     status_text = StringProperty("Stopped")
     has_pyaudio = BooleanProperty(HAS_PYAUDIO)
     sensitivity = NumericProperty(1.0)
@@ -301,7 +323,7 @@ class NoiseMonitorScreen(Screen):
         return (None, 0)
 
     def update_noise_level(self, dt):
-        if not self._new_data:
+        if self.is_paused or not self._new_data:
             return
 
         with self._lock:
