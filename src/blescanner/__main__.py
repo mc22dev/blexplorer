@@ -57,9 +57,11 @@ from blescanner.tools.hex_editor.hex_editor import HexEditorScreen
 from blescanner.tools.network_scanner.network_scanner import NetworkScannerScreen
 from blescanner.tools.terminal.terminal import TerminalScreen
 from blescanner.tools.audio_analyzer.audio_analyzer import AudioAnalyzerScreen
+from blescanner.tools.noise_monitor.noise_monitor import NoiseMonitorScreen
 from blescanner.tools.wifi_scanner.wifi_scanner import WifiScannerScreen
 from blescanner.ui.settings_popup import SettingsPopup
 from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
+from blescanner.ui.noise_monitor_settings import NoiseMonitorSettings
 
 
 def resource_path(relative_path):
@@ -136,6 +138,7 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path('ui/main.kv'))
         Builder.load_file(resource_path('ui/settings_popup.kv'))
         Builder.load_file(resource_path('ui/serial_monitor_settings.kv'))
+        Builder.load_file(resource_path('ui/noise_monitor_settings.kv'))
         Builder.load_file(resource_path('tools/ble_scanner/ble_scanner.kv'))
         Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
         Builder.load_file(resource_path('tools/sys_info/sys_info.kv'))
@@ -144,6 +147,7 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path('tools/network_scanner/network_scanner.kv'))
         Builder.load_file(resource_path('tools/terminal/terminal.kv'))
         Builder.load_file(resource_path('tools/audio_analyzer/audio_analyzer.kv'))
+        Builder.load_file(resource_path('tools/noise_monitor/noise_monitor.kv'))
         Builder.load_file(resource_path('tools/wifi_scanner/wifi_scanner.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
@@ -225,6 +229,9 @@ class BLEScannerApp(App):
         audio_analyzer_screen = AudioAnalyzerScreen(name='audio_analyzer')
         self.root.ids.screen_manager.add_widget(audio_analyzer_screen)
 
+        noise_monitor_screen = NoiseMonitorScreen(name='noise_monitor')
+        self.root.ids.screen_manager.add_widget(noise_monitor_screen)
+
         wifi_scanner_screen = WifiScannerScreen(name='wifi_scanner')
         self.root.ids.screen_manager.add_widget(wifi_scanner_screen)
 
@@ -259,6 +266,7 @@ class BLEScannerApp(App):
             "serial_terminal": "Serial Terminal",
             "signal_generator": "Signal Generator",
             "audio_analyzer": "Audio Spectrum Analyzer",
+            "noise_monitor": "Noise Monitor",
             "wifi_scanner": "Wifi Scanner",
         }
         for tool_id, tool_name in tools.items():
@@ -307,16 +315,29 @@ class BLEScannerApp(App):
         """Opens the settings window."""
         self.settings_popup = SettingsPopup(app=self)
 
+        # Map tool IDs to their settings tab names
+        tool_to_tab = {
+            'serial_monitor': 'Serial Monitor',
+            'noise_monitor': 'Noise Monitor'
+        }
+        current_tool_id = self.root.ids.screen_manager.current
+
         # Add tool-specific settings tabs
         serial_monitor_settings = SerialMonitorSettings()
-
-        # Create a TabbedPanelItem for the serial monitor settings
         serial_tab = TabbedPanelItem(text='Serial Monitor')
         serial_tab.content = serial_monitor_settings
-
         self.settings_popup.add_tool_settings(serial_tab)
 
+        noise_monitor_settings = NoiseMonitorSettings()
+        noise_tab = TabbedPanelItem(text='Noise Monitor')
+        noise_tab.content = noise_monitor_settings
+        self.settings_popup.add_tool_settings(noise_tab)
+
         self.settings_popup.open()
+
+        # Switch to the current tool's tab if it exists
+        if current_tool_id in tool_to_tab:
+            self.settings_popup.select_tab_by_name(tool_to_tab[current_tool_id])
 
     def open_parameter_window(self):
         """Opens the parameter window."""

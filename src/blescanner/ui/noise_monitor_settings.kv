@@ -1,0 +1,108 @@
+<NoiseMonitorSettings>:
+    orientation: 'vertical'
+    padding: "10dp"
+    spacing: "10dp"
+
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Alarm Sound:"
+            size_hint_x: None
+            width: "150dp"
+        Spinner:
+            id: sound_spinner
+            text: root.alarm_sound
+            values: root.available_sounds
+            size_hint_x: 1
+        Button:
+            text: "Browse..."
+            size_hint_x: None
+            width: "100dp"
+            on_release: root.show_sound_file_chooser()
+
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Sensitivity:"
+            size_hint_x: None
+            width: "150dp"
+        Slider:
+            id: sensitivity_slider
+            min: 0.1
+            max: 5.0
+            value: root.sensitivity
+            size_hint_x: None
+            width: "200dp"
+        Label:
+            text: f"{sensitivity_slider.value:.1f}"
+            size_hint_x: None
+            width: "50dp"
+
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Number of Bars:"
+            size_hint_x: None
+            width: "150dp"
+        Slider:
+            id: num_bars_slider
+            min: 3
+            max: 20
+            step: 1
+            value: root.num_bars
+            size_hint_x: None
+            width: "200dp"
+        Label:
+            text: str(int(num_bars_slider.value))
+            size_hint_x: None
+            width: "50dp"
+
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Average Time (ms):"
+            size_hint_x: None
+            width: "150dp"
+        Slider:
+            id: average_time_slider
+            min: 100
+            max: 5000
+            step: 50
+            value: root.average_time
+            size_hint_x: None
+            width: "200dp"
+        Label:
+            text: str(int(average_time_slider.value))
+            size_hint_x: None
+            width: "50dp"
+
+    BoxLayout:
+        size_hint_y: None
+        height: "48dp"
+        spacing: "10dp"
+        Label:
+            text: "Alarm Cooldown (s):"
+            size_hint_x: None
+            width: "150dp"
+        Slider:
+            id: alarm_cooldown_slider
+            min: 1
+            max: 60
+            step: 1
+            value: root.alarm_cooldown
+            size_hint_x: None
+            width: "200dp"
+        Label:
+            text: str(int(alarm_cooldown_slider.value))
+            size_hint_x: None
+            width: "50dp"
+
+    Widget: # Spacer
