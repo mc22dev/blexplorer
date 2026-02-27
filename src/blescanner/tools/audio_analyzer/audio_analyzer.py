@@ -13,6 +13,12 @@ try:
 except ImportError:
     HAS_PYAUDIO = False
 
+from kivy.utils import platform
+
+if platform == 'android':
+    from blescanner.platform.android_audio import AndroidAudioRecorder
+    HAS_PYAUDIO = True
+
 class SpectrumGraph(Widget):
     magnitude_data = ListProperty([])
     frequencies = ListProperty([])
@@ -147,11 +153,12 @@ class AudioAnalyzerScreen(Screen):
         super().__init__(**kwargs)
         self.audio = None
         self.stream = None
+        self.android_recorder = None
         self._last_time = Clock.get_time()
         self._frame_count = 0
         self._lock = threading.Lock()
         self._new_data = False
-        self._buffer = np.zeros(int(self.fft_size))
+        self._buffer = np.zeros(1024)
         if not HAS_PYAUDIO:
             self.status_text = "PyAudio not found."
 
@@ -170,6 +177,18 @@ class AudioAnalyzerScreen(Screen):
         if self.is_running or not HAS_PYAUDIO:
             return
 
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            def callback(permissions, grants):
+                if all(grants):
+                    self._do_start_audio()
+                else:
+                    self.status_text = "Permission denied"
+            request_permissions([Permission.RECORD_AUDIO], callback)
+        else:
+            self._do_start_audio()
+
+    def _do_start_audio(self):
         self.is_running = True
         self.status_text = "Initializing audio..."
         threading.Thread(target=self._bg_start_audio, daemon=True).start()
@@ -177,17 +196,22 @@ class AudioAnalyzerScreen(Screen):
     def _bg_start_audio(self):
         new_audio = None
         new_stream = None
+        recorder = None
         try:
-            new_audio = pyaudio.PyAudio()
             fft_size = int(self.fft_size)
-            new_stream = new_audio.open(
-                format=pyaudio.paFloat32,
-                channels=1,
-                rate=self.RATE,
-                input=True,
-                frames_per_buffer=fft_size,
-                stream_callback=self._audio_callback
-            )
+            if platform == 'android':
+                recorder = AndroidAudioRecorder(rate=self.RATE, frames_per_buffer=fft_size, callback=self._audio_callback)
+                recorder.start()
+            else:
+                new_audio = pyaudio.PyAudio()
+                new_stream = new_audio.open(
+                    format=pyaudio.paFloat32,
+                    channels=1,
+                    rate=self.RATE,
+                    input=True,
+                    frames_per_buffer=fft_size,
+                    stream_callback=self._audio_callback
+                )
 
             def _finish_init(dt):
                 if not self.is_running:
@@ -201,10 +225,16 @@ class AudioAnalyzerScreen(Screen):
                         try:
                             threading.Thread(target=new_audio.terminate, daemon=True).start()
                         except: pass
+                    if recorder:
+                        recorder.stop()
                     return
 
-                self.audio = new_audio
-                self.stream = new_stream
+                if platform == 'android':
+                    self.android_recorder = recorder
+                else:
+                    self.audio = new_audio
+                    self.stream = new_stream
+
                 with self._lock:
                     self._buffer = np.zeros(fft_size)
 
@@ -219,6 +249,9 @@ class AudioAnalyzerScreen(Screen):
             if new_audio:
                 try: new_audio.terminate()
                 except: pass
+            if recorder:
+                try: recorder.stop()
+                except: pass
 
             def _handle_error(dt):
                 self.status_text = f"Error: {e}"
@@ -229,20 +262,25 @@ class AudioAnalyzerScreen(Screen):
         self.is_running = False
         self.status_text = "Stopped."
         Clock.unschedule(self.update_ui)
-        if self.stream:
-            try:
-                self.stream.stop_stream()
-                self.stream.close()
-            except:
-                pass
-            self.stream = None
-        if self.audio:
-            try:
-                # Terminate in background thread
-                threading.Thread(target=self.audio.terminate, daemon=True).start()
-            except:
-                pass
-            self.audio = None
+        if platform == 'android':
+            if self.android_recorder:
+                self.android_recorder.stop()
+                self.android_recorder = None
+        else:
+            if self.stream:
+                try:
+                    self.stream.stop_stream()
+                    self.stream.close()
+                except:
+                    pass
+                self.stream = None
+            if self.audio:
+                try:
+                    # Terminate in background thread
+                    threading.Thread(target=self.audio.terminate, daemon=True).start()
+                except:
+                    pass
+                self.audio = None
 
     def _audio_callback(self, in_data, frame_count, time_info, status):
         data = np.frombuffer(in_data, dtype=np.float32)
