@@ -118,7 +118,10 @@ class NoiseMonitorScreen(Screen):
 
     def on_enter(self):
         # Use schedule_once to avoid doing heavy work exactly during screen transition
-        Clock.schedule_once(lambda dt: self.load_settings())
+        def _deferred_enter(dt):
+            self.load_settings()
+            self.start_audio()
+        Clock.schedule_once(_deferred_enter)
 
     def load_settings(self):
         try:
@@ -170,26 +173,22 @@ class NoiseMonitorScreen(Screen):
                 self._loading_sound = False
                 return
 
-            def _bg_load():
+            def _do_load(dt):
                 try:
                     sound = SoundLoader.load(sound_path)
-                    def _finish_load(dt):
-                        self._loading_sound = False
-                        if sound:
-                            self.alert_sound = sound
-                            self.alert_sound.volume = 1.0
-                            self._current_sound_name = sound_name
-                            app.log_with_timestamp(f"Loaded alarm sound: {sound_name}", LogLevel.INFO)
-                        else:
-                            app.log_with_timestamp(f"Failed to load alarm sound: {sound_name}", LogLevel.ERROR)
-                    Clock.schedule_once(_finish_load)
+                    if sound:
+                        self.alert_sound = sound
+                        self.alert_sound.volume = 1.0
+                        self._current_sound_name = sound_name
+                        app.log_with_timestamp(f"Loaded alarm sound: {sound_name}", LogLevel.INFO)
+                    else:
+                        app.log_with_timestamp(f"Failed to load alarm sound: {sound_name}", LogLevel.ERROR)
                 except Exception as e:
-                    def _handle_load_error(dt):
-                        self._loading_sound = False
-                        print(f"Error loading sound in background: {e}")
-                    Clock.schedule_once(_handle_load_error)
+                    print(f"Error loading sound: {e}")
+                finally:
+                    self._loading_sound = False
 
-            threading.Thread(target=_bg_load, daemon=True).start()
+            Clock.schedule_once(_do_load)
         except Exception as e:
             self._loading_sound = False
             print(f"Error loading sound: {e}")
@@ -268,7 +267,7 @@ class NoiseMonitorScreen(Screen):
                 if platform == 'android':
                     self.android_recorder = recorder
                 else:
-                    self.audio = AudioManager.get_pyaudio()
+                    self.audio = audio_instance
                     self.stream = new_stream
 
                 self.status_text = "Monitoring noise..."

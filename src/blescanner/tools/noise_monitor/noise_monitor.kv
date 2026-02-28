@@ -6,22 +6,6 @@
         padding: "10dp"
         spacing: "10dp"
 
-        # Top Bar
-        BoxLayout:
-            size_hint_y: None
-            height: "48dp"
-            spacing: "10dp"
-            disabled: not root.has_pyaudio
-            Button:
-                id: start_stop_button
-                text: "Start" if not root.is_running else "Stop"
-                on_release: root.toggle_running()
-                size_hint_x: None
-                width: "80dp"
-            Label:
-                text: root.status_text
-                color: (1, 0.5, 0.5, 1) if "Error" in root.status_text or "not found" in root.status_text else (1, 1, 1, 1)
-
         FloatLayout:
             # Large Bar Graph (Uses all available space)
             NoiseBarGraph:
