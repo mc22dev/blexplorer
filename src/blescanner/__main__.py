@@ -59,6 +59,7 @@ from blescanner.tools.terminal.terminal import TerminalScreen
 from blescanner.tools.audio_analyzer.audio_analyzer import AudioAnalyzerScreen
 from blescanner.tools.noise_monitor.noise_monitor import NoiseMonitorScreen
 from blescanner.tools.wifi_scanner.wifi_scanner import WifiScannerScreen
+from blescanner.utils.audio_manager import AudioManager
 from blescanner.ui.settings_popup import SettingsPopup
 from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
 from blescanner.ui.noise_monitor_settings import NoiseMonitorSettings
@@ -199,6 +200,9 @@ class BLEScannerApp(App):
         Called when the application is starting.
         Requests permissions on Android.
         """
+        # Start PyAudio initialization in background early to avoid UI freezes later
+        AudioManager.start_initialization()
+
         def log_startup(dt):
             self.log_with_timestamp(f"BLEScanner v{self.VERSION} starting...", LogLevel.INFO)
 
@@ -305,6 +309,8 @@ class BLEScannerApp(App):
     async def async_shutdown(self):
         """Performs asynchronous cleanup."""
         self.is_shutting_down = True
+        # Terminate PyAudio if initialized
+        AudioManager.terminate()
         if self.is_scanning and self.scan_task and not self.scan_task.done():
             self.scan_task.cancel()
             try:
