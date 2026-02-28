@@ -12,6 +12,7 @@ from kivy.factory import Factory
 import os
 import sys
 from blescanner.models import LogLevel
+from blescanner.utils.audio_manager import AudioManager
 
 try:
     import pyaudio
@@ -110,13 +111,14 @@ class NoiseMonitorScreen(Screen):
         self._new_data = False
         self._buffer = np.zeros(1024)
         self.alert_sound = None
+        self._current_sound_name = ""
         self._last_alert_time = 0
         self._rms_buffer = deque()
+        self._loading_sound = False
 
     def on_enter(self):
-        self.load_settings()
-        if self.has_pyaudio:
-            self.start_audio()
+        # Use schedule_once to avoid doing heavy work exactly during screen transition
+        Clock.schedule_once(lambda dt: self.load_settings())
 
     def load_settings(self):
         try:
@@ -136,6 +138,11 @@ class NoiseMonitorScreen(Screen):
             app = App.get_running_app()
             sound_name = app.config_manager.get_setting('noise_monitor', 'alarm_sound')
 
+            if sound_name == self._current_sound_name or self._loading_sound:
+                return
+
+            self._loading_sound = True
+
             if os.path.isabs(sound_name):
                 sound_path = sound_name
             else:
@@ -150,22 +157,41 @@ class NoiseMonitorScreen(Screen):
                 sound_path = os.path.join(base_path, "assets", "sounds", sound_name)
 
             if self.alert_sound:
-                try:
-                    self.alert_sound.unload()
-                except:
-                    pass
+                old_sound = self.alert_sound
+                self.alert_sound = None
+                def _bg_unload():
+                    try:
+                        old_sound.unload()
+                    except: pass
+                threading.Thread(target=_bg_unload, daemon=True).start()
 
             if not os.path.exists(sound_path):
                 app.log_with_timestamp(f"Sound file not found: {sound_path}", LogLevel.ERROR)
+                self._loading_sound = False
                 return
 
-            self.alert_sound = SoundLoader.load(sound_path)
-            if self.alert_sound:
-                self.alert_sound.volume = 1.0
-                app.log_with_timestamp(f"Loaded alarm sound: {sound_name}", LogLevel.INFO)
-            else:
-                app.log_with_timestamp(f"Failed to load alarm sound: {sound_name}", LogLevel.ERROR)
+            def _bg_load():
+                try:
+                    sound = SoundLoader.load(sound_path)
+                    def _finish_load(dt):
+                        self._loading_sound = False
+                        if sound:
+                            self.alert_sound = sound
+                            self.alert_sound.volume = 1.0
+                            self._current_sound_name = sound_name
+                            app.log_with_timestamp(f"Loaded alarm sound: {sound_name}", LogLevel.INFO)
+                        else:
+                            app.log_with_timestamp(f"Failed to load alarm sound: {sound_name}", LogLevel.ERROR)
+                    Clock.schedule_once(_finish_load)
+                except Exception as e:
+                    def _handle_load_error(dt):
+                        self._loading_sound = False
+                        print(f"Error loading sound in background: {e}")
+                    Clock.schedule_once(_handle_load_error)
+
+            threading.Thread(target=_bg_load, daemon=True).start()
         except Exception as e:
+            self._loading_sound = False
             print(f"Error loading sound: {e}")
 
     def toggle_running(self):
@@ -192,10 +218,11 @@ class NoiseMonitorScreen(Screen):
     def _do_start_audio(self):
         self.is_running = True
         self.status_text = "Initializing audio..."
-        threading.Thread(target=self._bg_start_audio, daemon=True).start()
+        # Add a small delay to allow UI to update before background thread starts
+        # blocking PortAudio/ALSA during initialization
+        Clock.schedule_once(lambda dt: threading.Thread(target=self._bg_start_audio, daemon=True).start(), 0.1)
 
     def _bg_start_audio(self):
-        new_audio = None
         new_stream = None
         recorder = None
         try:
@@ -203,8 +230,21 @@ class NoiseMonitorScreen(Screen):
                 recorder = AndroidAudioRecorder(callback=self._audio_callback)
                 recorder.start()
             else:
-                new_audio = pyaudio.PyAudio()
-                new_stream = new_audio.open(
+                # Use non-blocking get_pyaudio if we are starting up
+                audio_instance = AudioManager.get_pyaudio(block=False)
+                if not audio_instance:
+                    # If not ready, wait a bit and try again, but don't block this thread forever
+                    # if it's currently being initialized by the main app startup.
+                    retries = 10
+                    while not audio_instance and retries > 0 and self.is_running:
+                        time.sleep(0.5)
+                        audio_instance = AudioManager.get_pyaudio(block=False)
+                        retries -= 1
+
+                if not audio_instance:
+                    raise Exception("Audio device initialization timed out or failed.")
+
+                new_stream = audio_instance.open(
                     format=pyaudio.paFloat32,
                     channels=1,
                     rate=44100,
@@ -221,10 +261,6 @@ class NoiseMonitorScreen(Screen):
                             new_stream.stop_stream()
                             new_stream.close()
                         except: pass
-                    if new_audio:
-                        try:
-                            threading.Thread(target=new_audio.terminate, daemon=True).start()
-                        except: pass
                     if recorder:
                         recorder.stop()
                     return
@@ -232,7 +268,7 @@ class NoiseMonitorScreen(Screen):
                 if platform == 'android':
                     self.android_recorder = recorder
                 else:
-                    self.audio = new_audio
+                    self.audio = AudioManager.get_pyaudio()
                     self.stream = new_stream
 
                 self.status_text = "Monitoring noise..."
@@ -242,9 +278,6 @@ class NoiseMonitorScreen(Screen):
         except Exception as e:
             if new_stream:
                 try: new_stream.close()
-                except: pass
-            if new_audio:
-                try: new_audio.terminate()
                 except: pass
             if recorder:
                 try: recorder.stop()
@@ -264,20 +297,20 @@ class NoiseMonitorScreen(Screen):
                 self.android_recorder.stop()
                 self.android_recorder = None
         else:
-            if self.stream:
-                try:
-                    self.stream.stop_stream()
-                    self.stream.close()
-                except:
-                    pass
-                self.stream = None
-            if self.audio:
-                try:
-                    # Terminate in background thread as it can also block
-                    threading.Thread(target=self.audio.terminate, daemon=True).start()
-                except:
-                    pass
-                self.audio = None
+            stream = self.stream
+            self.stream = None
+            self.audio = None
+
+            def _bg_stop():
+                if stream:
+                    try:
+                        if stream.is_active():
+                            stream.stop_stream()
+                        stream.close()
+                    except: pass
+
+            if stream:
+                threading.Thread(target=_bg_stop, daemon=True).start()
 
     def _audio_callback(self, in_data, frame_count, time_info, status):
         data = np.frombuffer(in_data, dtype=np.float32)
