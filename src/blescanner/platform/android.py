@@ -6,7 +6,7 @@ from typing import List, Callable, Tuple
 
 from jnius import autoclass, cast
 
-from .base import PlatformUtilsBase, BondedDevice, SerialPort
+from .base import PlatformUtilsBase, BondedDevice, SerialPort, WifiAccessPoint
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,64 @@ class AndroidPlatformUtils(PlatformUtilsBase):
         except Exception as e:
             logger.error(f"Error reading ARP table on Android: {e}")
         return arp_table
+
+    async def scan_wifi(self) -> List[WifiAccessPoint]:
+        """
+        Scans for available Wi-Fi access points on Android using WifiManager.
+        """
+        aps = []
+        try:
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            Context = autoclass('android.content.Context')
+            activity = PythonActivity.mActivity
+            wifi_manager = activity.getSystemService(Context.WIFI_SERVICE)
+
+            # Get connection info
+            connection_info = wifi_manager.getConnectionInfo()
+            connected_bssid = ""
+            if connection_info:
+                connected_bssid = str(connection_info.getBSSID()).lower()
+
+            # Trigger a scan (might be throttled)
+            try:
+                wifi_manager.startScan()
+            except Exception:
+                pass
+
+            # Wait a bit for scan to complete or just get current results
+            scan_results = wifi_manager.getScanResults()
+            for i in range(scan_results.size()):
+                res = scan_results.get(i)
+
+                # Derive channel from frequency
+                freq = res.frequency
+                channel = 0
+                if 2412 <= freq <= 2484:
+                    channel = (freq - 2407) // 5
+                elif 5170 <= freq <= 5825:
+                    channel = (freq - 5000) // 5
+
+                bssid = str(res.BSSID).lower()
+                is_connected = (bssid == connected_bssid)
+
+                rate_str = ""
+                if is_connected and connection_info:
+                    rate_str = f"{connection_info.getLinkSpeed()} {connection_info.LINK_SPEED_UNITS}"
+
+                aps.append(WifiAccessPoint(
+                    ssid=str(res.SSID).strip('"'),
+                    bssid=bssid,
+                    rssi=int(res.level),
+                    channel=channel,
+                    frequency=freq,
+                    security=str(res.capabilities),
+                    mode="Infrastructure", # Android usually returns infrastructure
+                    rate=rate_str,
+                    is_connected=is_connected
+                ))
+        except Exception as e:
+            logger.error(f"Error scanning Wi-Fi on Android: {e}")
+        return aps
 
     def list_serial_ports(self) -> List[SerialPort]:
         """

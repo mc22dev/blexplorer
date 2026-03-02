@@ -20,6 +20,20 @@ class SerialPort:
     description: str
 
 
+@dataclass
+class WifiAccessPoint:
+    """A class to represent a Wi-Fi access point."""
+    ssid: str
+    bssid: str
+    rssi: int
+    channel: int
+    frequency: int  # MHz
+    security: str
+    mode: str = ""
+    rate: str = ""
+    is_connected: bool = False
+
+
 class PlatformUtilsBase(ABC):
     """
     Abstract base class for platform-specific utility operations.
@@ -91,5 +105,12 @@ class PlatformUtilsBase(ABC):
     def get_arp_table(self) -> dict:
         """
         Retrieves the ARP table as a dictionary mapping IP addresses to MAC addresses.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def scan_wifi(self) -> List[WifiAccessPoint]:
+        """
+        Scans for available Wi-Fi access points.
         """
         raise NotImplementedError
