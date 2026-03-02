@@ -1,0 +1,129 @@
+<JoystickTesterScreen>:
+    on_joysticks: root.update_display()
+    on_selected_stick_id: root.update_display()
+    BoxLayout:
+        orientation: 'vertical'
+        padding: "10dp"
+        spacing: "10dp"
+        canvas.before:
+            Color:
+                rgba: app.theme.background
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Toolbar
+        BoxLayout:
+            size_hint_y: None
+            height: "48dp"
+            spacing: "10dp"
+            Label:
+                text: "Select Joystick:"
+                size_hint_x: None
+                width: self.texture_size[0]
+                color: app.theme.text
+            Spinner:
+                id: stick_spinner
+                text: "No Joysticks Detected" if root.selected_stick_id == -1 else f"Joystick {root.selected_stick_id}"
+                values: [f"Joystick {sid}" for sid in root.joysticks.keys()]
+                on_text: root.select_joystick(self.text)
+                size_hint_x: 0.5
+
+        # Content Area
+        ScrollView:
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                padding: "10dp"
+                spacing: "20dp"
+
+                # Axes Section
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    spacing: "10dp"
+                    Label:
+                        text: "Axes"
+                        size_hint_y: None
+                        height: "30dp"
+                        bold: True
+                        color: app.theme.primary
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        spacing: "5dp"
+                        id: axes_container
+
+                # Buttons Section
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    spacing: "10dp"
+                    Label:
+                        text: "Buttons"
+                        size_hint_y: None
+                        height: "30dp"
+                        bold: True
+                        color: app.theme.primary
+                    GridLayout:
+                        cols: 8
+                        size_hint_y: None
+                        height: self.minimum_height
+                        spacing: "5dp"
+                        id: buttons_container
+
+                # Hats Section
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    spacing: "10dp"
+                    Label:
+                        text: "Hats"
+                        size_hint_y: None
+                        height: "30dp"
+                        bold: True
+                        color: app.theme.primary
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        spacing: "5dp"
+                        id: hats_container
+
+<AxisIndicator@BoxLayout>:
+    axis_name: "Axis"
+    axis_value: 0.0
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: "30dp"
+    Label:
+        text: root.axis_name
+        size_hint_x: 0.2
+        color: app.theme.text
+    ProgressBar:
+        max: 2.0
+        value: root.axis_value + 1.0
+        size_hint_x: 0.6
+    Label:
+        text: f"{root.axis_value:.3f}"
+        size_hint_x: 0.2
+        color: app.theme.text
+
+<ButtonIndicator@Label>:
+    button_name: "0"
+    is_down: False
+    text: self.button_name
+    size_hint: (None, None)
+    size: ("40dp", "40dp")
+    canvas.before:
+        Color:
+            rgba: app.theme.primary if self.is_down else app.theme.secondary
+        Ellipse:
+            pos: self.pos
+            size: self.size
+    color: [1, 1, 1, 1] if self.is_down else app.theme.text
