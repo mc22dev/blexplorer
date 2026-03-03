@@ -87,12 +87,42 @@
                             spacing: "10dp"
                             id: buttons_container
 
-            # Right: Graphical Visualizer
+            # Right: Graphical Visualizer & Info
             BoxLayout:
                 orientation: 'vertical'
                 size_hint_x: 0.6
                 padding: "10dp"
                 spacing: "10dp"
+
+                # Device Info Section
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: "100dp"
+                    padding: "10dp"
+                    canvas.before:
+                        Color:
+                            rgba: app.theme.secondary
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [10,]
+                    Label:
+                        text: "Device Information"
+                        size_hint_y: None
+                        height: "24dp"
+                        bold: True
+                        color: app.theme.primary
+                        halign: 'left'
+                        text_size: self.size
+                    Label:
+                        text: root.device_info
+                        halign: 'left'
+                        valign: 'top'
+                        text_size: self.size
+                        color: app.theme.text
+                        font_size: "13sp"
+
                 Label:
                     text: "Visualizer"
                     size_hint_y: None
@@ -153,9 +183,6 @@
             pos: (self.x + self.width * 0.5 + root.hx * dp(25) - dp(10), self.y + self.height * 0.2 + root.hy * dp(25) - dp(10))
             size: (dp(20), dp(20))
 
-        # Labels
-        Color:
-            rgba: app.theme.text
     Label:
         text: "Left Stick"
         center_x: root.x + root.width * 0.25

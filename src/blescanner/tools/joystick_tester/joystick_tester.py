@@ -28,8 +28,9 @@ class JoystickVisualizer(Widget):
     hy = NumericProperty(0)
 
 class JoystickTesterScreen(Screen):
-    joysticks = DictProperty({})  # stick_id -> { 'axes': [], 'buttons': [], 'hats': [], 'name': str }
+    joysticks = DictProperty({})  # stick_id -> { 'axes': [], 'buttons': [], 'hats': [], 'name': str, 'guid': str, 'num_axes': int, ... }
     selected_stick_id = NumericProperty(-1)
+    device_info = StringProperty("No joystick selected")
 
     active_axes = ListProperty([])
     active_buttons = ListProperty([])
@@ -66,12 +67,34 @@ class JoystickTesterScreen(Screen):
             if sdl2:
                 sdl2.SDL_InitSubSystem(0x00000200) # SDL_INIT_JOYSTICK
                 num_joysticks = sdl2.SDL_NumJoysticks()
+
+                class SDL_GUID(ctypes.Structure):
+                    _fields_ = [("data", ctypes.c_ubyte * 16)]
+
+                sdl2.SDL_JoystickGetDeviceGUID.restype = SDL_GUID
+                sdl2.SDL_JoystickOpen.restype = ctypes.c_void_p
+
                 for i in range(num_joysticks):
                     self._ensure_joystick(i)
+
                     sdl2.SDL_JoystickNameForIndex.restype = ctypes.c_char_p
                     name = sdl2.SDL_JoystickNameForIndex(i)
                     if name:
                         self.joysticks[i]['name'] = name.decode('utf-8')
+
+                    guid = sdl2.SDL_JoystickGetDeviceGUID(i)
+                    self.joysticks[i]['guid'] = ''.join(f'{x:02x}' for x in guid.data)
+
+                    joy = sdl2.SDL_JoystickOpen(i)
+                    if joy:
+                        self.joysticks[i]['num_axes'] = sdl2.SDL_JoystickNumAxes(ctypes.c_void_p(joy))
+                        self.joysticks[i]['num_buttons'] = sdl2.SDL_JoystickNumButtons(ctypes.c_void_p(joy))
+                        self.joysticks[i]['num_hats'] = sdl2.SDL_JoystickNumHats(ctypes.c_void_p(joy))
+                        # We should close it, but Kivy might be using it.
+                        # Actually SDL_JoystickOpen increments refcount.
+                        # For a probe, closing is safer.
+                        sdl2.SDL_JoystickClose(ctypes.c_void_p(joy))
+
                 self.joysticks = dict(self.joysticks)
         except Exception as e:
             Logger.error(f"JoystickTester: Error probing joysticks: {e}")
@@ -82,7 +105,11 @@ class JoystickTesterScreen(Screen):
                 'axes': [0.0] * 6,
                 'buttons': [False] * 16,
                 'hats': [(0, 0)] * 1,
-                'name': f"Joystick {stick_id}"
+                'name': f"Joystick {stick_id}",
+                'guid': "N/A",
+                'num_axes': 0,
+                'num_buttons': 0,
+                'num_hats': 0
             }
             if self.selected_stick_id == -1:
                 self.selected_stick_id = stick_id
@@ -91,9 +118,16 @@ class JoystickTesterScreen(Screen):
 
     def on_selected_stick_id(self, instance, value):
         if value in self.joysticks:
-            self.active_axes = list(self.joysticks[value]['axes'])
-            self.active_buttons = list(self.joysticks[value]['buttons'])
-            self.active_hats = list(self.joysticks[value]['hats'])
+            j = self.joysticks[value]
+            self.active_axes = list(j['axes'])
+            self.active_buttons = list(j['buttons'])
+            self.active_hats = list(j['hats'])
+
+            self.device_info = (
+                f"Name: {j['name']}\n"
+                f"GUID: {j['guid']}\n"
+                f"Axes: {j['num_axes']} | Buttons: {j['num_buttons']} | Hats: {j['num_hats']}"
+            )
             self.update_display()
 
     def _on_joy_axis(self, window, stick_id, axis_id, value):
@@ -154,7 +188,6 @@ class JoystickTesterScreen(Screen):
     def refresh_ui(self, dt=None):
         if self.selected_stick_id == -1:
             return
-        # Update Visualizer
         v = self.ids.visualizer
         if len(self.active_axes) >= 2:
             v.lx = self.active_axes[0]
@@ -166,13 +199,11 @@ class JoystickTesterScreen(Screen):
             v.hx = self.active_hats[0][0]
             v.hy = self.active_hats[0][1]
 
-        # Update Axes
         axes_layout = self.ids.axes_container
         if len(axes_layout.children) == len(self.active_axes):
             for i, val in enumerate(self.active_axes):
                 axes_layout.children[len(self.active_axes)-1-i].axis_value = val
 
-        # Update Buttons
         buttons_layout = self.ids.buttons_container
         if len(buttons_layout.children) == len(self.active_buttons):
             for i, is_down in enumerate(self.active_buttons):
