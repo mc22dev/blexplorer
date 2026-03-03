@@ -1,6 +1,4 @@
 <JoystickTesterScreen>:
-    on_joysticks: root.update_display()
-    on_selected_stick_id: root.update_display()
     BoxLayout:
         orientation: 'vertical'
         padding: "10dp"
@@ -89,7 +87,7 @@
                         cols: 8
                         size_hint_y: None
                         height: self.minimum_height
-                        spacing: "5dp"
+                        spacing: "10dp"
                         id: buttons_container
 
                 # Hats Section
@@ -131,11 +129,17 @@
 <ButtonIndicator>:
     text: self.button_name
     size_hint: (None, None)
-    size: ("40dp", "40dp")
+    size: ("44dp", "44dp")
     canvas.before:
         Color:
-            rgba: app.theme.primary if self.is_down else app.theme.secondary
+            rgba: (app.theme.primary if self.is_down else app.theme.secondary)
         Ellipse:
             pos: self.pos
             size: self.size
+        Color:
+            rgba: [1, 1, 1, 1] if self.is_down else [0, 0, 0, 0]
+        Line:
+            circle: (self.center_x, self.center_y, self.width/2)
+            width: 1.5
     color: [1, 1, 1, 1] if self.is_down else app.theme.text
+    bold: True
