@@ -28,6 +28,23 @@
                 values: [f"Joystick {sid}" for sid in root.joysticks.keys()]
                 on_text: root.select_joystick(self.text)
                 size_hint_x: 0.5
+            Button:
+                text: "Refresh"
+                size_hint_x: None
+                width: "100dp"
+                on_release: root.probe_joysticks()
+                background_color: app.theme.primary
+                color: [1, 1, 1, 1]
+
+        # Instructions
+        Label:
+            text: "Instructions: If no joystick is detected, try moving its sticks, pressing buttons, or clicking Refresh."
+            size_hint_y: None
+            height: "20dp"
+            font_size: "12sp"
+            color: app.theme.disabled_fg
+            visible: True if not root.joysticks else False
+            opacity: 1 if not root.joysticks else 0
 
         # Content Area
         ScrollView:

@@ -3,6 +3,8 @@ from kivy.properties import DictProperty, NumericProperty
 from kivy.core.window import Window
 from kivy.uix.label import Label
 from kivy.factory import Factory
+from kivy.logger import Logger
+import ctypes
 
 class JoystickTesterScreen(Screen):
     joysticks = DictProperty({})  # stick_id -> { 'axes': [], 'buttons': [], 'hats': [], 'name': str }
@@ -14,6 +16,7 @@ class JoystickTesterScreen(Screen):
         Window.bind(on_joy_button_down=self._on_joy_button_down)
         Window.bind(on_joy_button_up=self._on_joy_button_up)
         Window.bind(on_joy_hat=self._on_joy_hat)
+        self.probe_joysticks()
         self.update_display()
 
     def on_leave(self, *args):
@@ -22,6 +25,46 @@ class JoystickTesterScreen(Screen):
         Window.unbind(on_joy_button_down=self._on_joy_button_down)
         Window.unbind(on_joy_button_up=self._on_joy_button_up)
         Window.unbind(on_joy_hat=self._on_joy_hat)
+
+    def probe_joysticks(self):
+        """
+        Attempts to discover connected joysticks by querying SDL2 directly via ctypes.
+        """
+        Logger.info("JoystickTester: Probing for joysticks...")
+        try:
+            # Try to load SDL2
+            import os
+            sdl2 = None
+            if os.name == 'nt':
+                sdl2 = ctypes.cdll.LoadLibrary('SDL2.dll')
+            elif os.name == 'posix':
+                try:
+                    sdl2 = ctypes.cdll.LoadLibrary('libSDL2-2.0.so.0')
+                except OSError:
+                    sdl2 = ctypes.cdll.LoadLibrary('libSDL2.so')
+
+            if sdl2:
+                # Initialize Joystick subsystem if not already
+                sdl2.SDL_InitSubSystem(0x00000200) # SDL_INIT_JOYSTICK
+
+                num_joysticks = sdl2.SDL_NumJoysticks()
+                Logger.info(f"JoystickTester: SDL2 reports {num_joysticks} joysticks.")
+
+                for i in range(num_joysticks):
+                    # We don't necessarily have the stick_id Kivy uses here,
+                    # but we can try to "nudge" them by opening them.
+                    # Kivy's SDL2 provider usually picks them up once they are initialized.
+                    self._ensure_joystick(i)
+
+                    # Get name
+                    sdl2.SDL_JoystickNameForIndex.restype = ctypes.c_char_p
+                    name = sdl2.SDL_JoystickNameForIndex(i)
+                    if name:
+                        self.joysticks[i]['name'] = name.decode('utf-8')
+
+                self.joysticks = dict(self.joysticks)
+        except Exception as e:
+            Logger.error(f"JoystickTester: Error probing joysticks: {e}")
 
     def _ensure_joystick(self, stick_id):
         if stick_id not in self.joysticks:
