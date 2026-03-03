@@ -11,6 +11,7 @@ def joystick_tester():
     screen.ids.axes_container = MagicMock()
     screen.ids.buttons_container = MagicMock()
     screen.ids.hats_container = MagicMock()
+    screen.ids.visualizer = MagicMock()
     return screen
 
 def test_joystick_tester_initial_state(joystick_tester):

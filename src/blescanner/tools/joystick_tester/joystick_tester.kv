@@ -34,80 +34,143 @@
                 background_color: app.theme.primary
                 color: [1, 1, 1, 1]
 
-        # Instructions
-        Label:
-            text: "Instructions: If no joystick is detected, try moving its sticks, pressing buttons, or clicking Refresh."
-            size_hint_y: None
-            height: "20dp"
-            font_size: "12sp"
-            color: app.theme.disabled_fg
-            opacity: 1 if not root.joysticks else 0
-
         # Content Area
-        ScrollView:
-            BoxLayout:
-                orientation: 'vertical'
-                size_hint_y: None
-                height: self.minimum_height
-                padding: "10dp"
-                spacing: "20dp"
+        BoxLayout:
+            orientation: 'horizontal'
+            spacing: "10dp"
 
-                # Axes Section
+            # Left: Lists
+            ScrollView:
+                size_hint_x: 0.4
                 BoxLayout:
                     orientation: 'vertical'
                     size_hint_y: None
                     height: self.minimum_height
-                    spacing: "10dp"
-                    Label:
-                        text: "Axes"
-                        size_hint_y: None
-                        height: "30dp"
-                        bold: True
-                        color: app.theme.primary
+                    padding: "10dp"
+                    spacing: "20dp"
+
+                    # Axes Section
                     BoxLayout:
                         orientation: 'vertical'
-                        size_hint_y: None
-                        height: self.minimum_height
-                        spacing: "5dp"
-                        id: axes_container
-
-                # Buttons Section
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_y: None
-                    height: self.minimum_height
-                    spacing: "10dp"
-                    Label:
-                        text: "Buttons"
-                        size_hint_y: None
-                        height: "30dp"
-                        bold: True
-                        color: app.theme.primary
-                    GridLayout:
-                        cols: 8
                         size_hint_y: None
                         height: self.minimum_height
                         spacing: "10dp"
-                        id: buttons_container
+                        Label:
+                            text: "Axes"
+                            size_hint_y: None
+                            height: "30dp"
+                            bold: True
+                            color: app.theme.primary
+                        BoxLayout:
+                            orientation: 'vertical'
+                            size_hint_y: None
+                            height: self.minimum_height
+                            spacing: "5dp"
+                            id: axes_container
 
-                # Hats Section
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_y: None
-                    height: self.minimum_height
-                    spacing: "10dp"
-                    Label:
-                        text: "Hats"
-                        size_hint_y: None
-                        height: "30dp"
-                        bold: True
-                        color: app.theme.primary
+                    # Buttons Section
                     BoxLayout:
                         orientation: 'vertical'
                         size_hint_y: None
                         height: self.minimum_height
-                        spacing: "5dp"
-                        id: hats_container
+                        spacing: "10dp"
+                        Label:
+                            text: "Buttons"
+                            size_hint_y: None
+                            height: "30dp"
+                            bold: True
+                            color: app.theme.primary
+                        GridLayout:
+                            cols: 4
+                            size_hint_y: None
+                            height: self.minimum_height
+                            spacing: "10dp"
+                            id: buttons_container
+
+            # Right: Graphical Visualizer
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: 0.6
+                padding: "10dp"
+                spacing: "10dp"
+                Label:
+                    text: "Visualizer"
+                    size_hint_y: None
+                    height: "30dp"
+                    bold: True
+                    color: app.theme.primary
+                JoystickVisualizer:
+                    id: visualizer
+
+<JoystickVisualizer>:
+    canvas:
+        # Background
+        Color:
+            rgba: app.theme.secondary
+        Line:
+            circle: (self.x + self.width * 0.25, self.y + self.height * 0.6, self.width * 0.15)
+            width: 2
+        Line:
+            circle: (self.x + self.width * 0.75, self.y + self.height * 0.6, self.width * 0.15)
+            width: 2
+        # Center Crosses for sticks
+        Color:
+            rgba: app.theme.disabled_fg
+        Line:
+            points: [self.x + self.width * 0.2, self.y + self.height * 0.6, self.x + self.width * 0.3, self.y + self.height * 0.6]
+        Line:
+            points: [self.x + self.width * 0.25, self.y + self.height * 0.55, self.x + self.width * 0.25, self.y + self.height * 0.65]
+        Line:
+            points: [self.x + self.width * 0.7, self.y + self.height * 0.6, self.x + self.width * 0.8, self.y + self.height * 0.6]
+        Line:
+            points: [self.x + self.width * 0.75, self.y + self.height * 0.55, self.x + self.width * 0.75, self.y + self.height * 0.65]
+
+        # Left Stick Nub
+        Color:
+            rgba: app.theme.primary
+        Ellipse:
+            pos: (self.x + self.width * 0.25 + root.lx * self.width * 0.12 - dp(10), self.y + self.height * 0.6 + root.ly * self.width * 0.12 - dp(10))
+            size: (dp(20), dp(20))
+
+        # Right Stick Nub
+        Color:
+            rgba: app.theme.primary
+        Ellipse:
+            pos: (self.x + self.width * 0.75 + root.rx * self.width * 0.12 - dp(10), self.y + self.height * 0.6 + root.ry * self.width * 0.12 - dp(10))
+            size: (dp(20), dp(20))
+
+        # D-Pad (Hat)
+        Color:
+            rgba: app.theme.secondary
+        Rectangle:
+            pos: (self.x + self.width * 0.5 - dp(40), self.y + self.height * 0.2 - dp(40))
+            size: (dp(80), dp(80))
+
+        # Hat indicator
+        Color:
+            rgba: app.theme.primary if root.hx != 0 or root.hy != 0 else app.theme.disabled_fg
+        Ellipse:
+            pos: (self.x + self.width * 0.5 + root.hx * dp(25) - dp(10), self.y + self.height * 0.2 + root.hy * dp(25) - dp(10))
+            size: (dp(20), dp(20))
+
+        # Labels
+        Color:
+            rgba: app.theme.text
+    Label:
+        text: "Left Stick"
+        center_x: root.x + root.width * 0.25
+        center_y: root.y + root.height * 0.4
+        color: app.theme.text
+    Label:
+        text: "Right Stick"
+        center_x: root.x + root.width * 0.75
+        center_y: root.y + root.height * 0.4
+        color: app.theme.text
+    Label:
+        text: "D-Pad / Hat"
+        center_x: root.x + root.width * 0.5
+        center_y: root.y + root.height * 0.05
+        color: app.theme.text
 
 <AxisIndicator>:
     orientation: 'horizontal'
@@ -115,21 +178,23 @@
     height: "30dp"
     Label:
         text: root.axis_name
-        size_hint_x: 0.2
+        size_hint_x: 0.3
         color: app.theme.text
+        font_size: "12sp"
     ProgressBar:
         max: 2.0
         value: root.axis_value + 1.0
-        size_hint_x: 0.6
+        size_hint_x: 0.5
     Label:
-        text: f"{root.axis_value:.3f}"
+        text: f"{root.axis_value:.2f}"
         size_hint_x: 0.2
         color: app.theme.text
+        font_size: "12sp"
 
 <ButtonIndicator>:
     text: self.button_name
     size_hint: (None, None)
-    size: ("44dp", "44dp")
+    size: ("36dp", "36dp")
     canvas.before:
         Color:
             rgba: (app.theme.primary if self.is_down else app.theme.secondary)
@@ -143,3 +208,4 @@
             width: 1.5
     color: [1, 1, 1, 1] if self.is_down else app.theme.text
     bold: True
+    font_size: "12sp"
