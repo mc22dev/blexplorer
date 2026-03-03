@@ -43,7 +43,6 @@
             height: "20dp"
             font_size: "12sp"
             color: app.theme.disabled_fg
-            visible: True if not root.joysticks else False
             opacity: 1 if not root.joysticks else 0
 
         # Content Area
@@ -112,9 +111,7 @@
                         spacing: "5dp"
                         id: hats_container
 
-<AxisIndicator@BoxLayout>:
-    axis_name: "Axis"
-    axis_value: 0.0
+<AxisIndicator>:
     orientation: 'horizontal'
     size_hint_y: None
     height: "30dp"
@@ -131,9 +128,7 @@
         size_hint_x: 0.2
         color: app.theme.text
 
-<ButtonIndicator@Label>:
-    button_name: "0"
-    is_down: False
+<ButtonIndicator>:
     text: self.button_name
     size_hint: (None, None)
     size: ("40dp", "40dp")

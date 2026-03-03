@@ -1,10 +1,19 @@
 from kivy.uix.screenmanager import Screen
-from kivy.properties import DictProperty, NumericProperty
+from kivy.properties import DictProperty, NumericProperty, StringProperty, BooleanProperty
 from kivy.core.window import Window
 from kivy.uix.label import Label
+from kivy.uix.boxlayout import BoxLayout
 from kivy.factory import Factory
 from kivy.logger import Logger
 import ctypes
+
+class AxisIndicator(BoxLayout):
+    axis_name = StringProperty("Axis")
+    axis_value = NumericProperty(0.0)
+
+class ButtonIndicator(Label):
+    button_name = StringProperty("0")
+    is_down = BooleanProperty(False)
 
 class JoystickTesterScreen(Screen):
     joysticks = DictProperty({})  # stick_id -> { 'axes': [], 'buttons': [], 'hats': [], 'name': str }
@@ -12,19 +21,20 @@ class JoystickTesterScreen(Screen):
 
     def on_enter(self, *args):
         # Bind joystick events when entering the screen
-        Window.bind(on_joy_axis=self._on_joy_axis)
-        Window.bind(on_joy_button_down=self._on_joy_button_down)
-        Window.bind(on_joy_button_up=self._on_joy_button_up)
-        Window.bind(on_joy_hat=self._on_joy_hat)
+        # Using fbind as seen in Kivy modules
+        Window.fbind('on_joy_axis', self._on_joy_axis)
+        Window.fbind('on_joy_button_down', self._on_joy_button_down)
+        Window.fbind('on_joy_button_up', self._on_joy_button_up)
+        Window.fbind('on_joy_hat', self._on_joy_hat)
         self.probe_joysticks()
         self.update_display()
 
     def on_leave(self, *args):
         # Unbind joystick events when leaving the screen
-        Window.unbind(on_joy_axis=self._on_joy_axis)
-        Window.unbind(on_joy_button_down=self._on_joy_button_down)
-        Window.unbind(on_joy_button_up=self._on_joy_button_up)
-        Window.unbind(on_joy_hat=self._on_joy_hat)
+        Window.funbind('on_joy_axis', self._on_joy_axis)
+        Window.funbind('on_joy_button_down', self._on_joy_button_down)
+        Window.funbind('on_joy_button_up', self._on_joy_button_up)
+        Window.funbind('on_joy_hat', self._on_joy_hat)
 
     def probe_joysticks(self):
         """
@@ -51,9 +61,6 @@ class JoystickTesterScreen(Screen):
                 Logger.info(f"JoystickTester: SDL2 reports {num_joysticks} joysticks.")
 
                 for i in range(num_joysticks):
-                    # We don't necessarily have the stick_id Kivy uses here,
-                    # but we can try to "nudge" them by opening them.
-                    # Kivy's SDL2 provider usually picks them up once they are initialized.
                     self._ensure_joystick(i)
 
                     # Get name
@@ -80,6 +87,7 @@ class JoystickTesterScreen(Screen):
         return False
 
     def _on_joy_axis(self, window, stick_id, axis_id, value):
+        # Logger.debug(f"JoystickTester: Axis event - stick: {stick_id}, axis: {axis_id}, value: {value}")
         self._ensure_joystick(stick_id)
         normalized_value = value / 32767.0
 
@@ -90,6 +98,7 @@ class JoystickTesterScreen(Screen):
         self.joysticks = dict(self.joysticks)
 
     def _on_joy_button_down(self, window, stick_id, button_id):
+        Logger.info(f"JoystickTester: Button DOWN - stick: {stick_id}, button: {button_id}")
         self._ensure_joystick(stick_id)
         if button_id >= len(self.joysticks[stick_id]['buttons']):
             self.joysticks[stick_id]['buttons'].extend([False] * (button_id - len(self.joysticks[stick_id]['buttons']) + 1))
@@ -97,6 +106,7 @@ class JoystickTesterScreen(Screen):
         self.joysticks = dict(self.joysticks)
 
     def _on_joy_button_up(self, window, stick_id, button_id):
+        Logger.info(f"JoystickTester: Button UP - stick: {stick_id}, button: {button_id}")
         self._ensure_joystick(stick_id)
         if button_id >= len(self.joysticks[stick_id]['buttons']):
             self.joysticks[stick_id]['buttons'].extend([False] * (button_id - len(self.joysticks[stick_id]['buttons']) + 1))
@@ -104,6 +114,7 @@ class JoystickTesterScreen(Screen):
         self.joysticks = dict(self.joysticks)
 
     def _on_joy_hat(self, window, stick_id, hat_id, value):
+        Logger.info(f"JoystickTester: Hat event - stick: {stick_id}, hat: {hat_id}, value: {value}")
         self._ensure_joystick(stick_id)
         if hat_id >= len(self.joysticks[stick_id]['hats']):
             self.joysticks[stick_id]['hats'].extend([(0, 0)] * (hat_id - len(self.joysticks[stick_id]['hats']) + 1))
@@ -129,11 +140,10 @@ class JoystickTesterScreen(Screen):
         if len(axes_layout.children) != len(data['axes']):
             axes_layout.clear_widgets()
             for i in range(len(data['axes'])):
-                indicator = Factory.AxisIndicator()
+                indicator = AxisIndicator()
                 indicator.axis_name = f"Axis {i}"
                 axes_layout.add_widget(indicator)
 
-        # children are in reverse order of addition
         for i, val in enumerate(data['axes']):
             axes_layout.children[len(data['axes']) - 1 - i].axis_value = val
 
@@ -142,7 +152,7 @@ class JoystickTesterScreen(Screen):
         if len(buttons_layout.children) != len(data['buttons']):
             buttons_layout.clear_widgets()
             for i in range(len(data['buttons'])):
-                indicator = Factory.ButtonIndicator()
+                indicator = ButtonIndicator()
                 indicator.button_name = f"{i}"
                 buttons_layout.add_widget(indicator)
 
@@ -164,3 +174,6 @@ class JoystickTesterScreen(Screen):
     def app(self):
         from kivy.app import App
         return App.get_running_app()
+
+Factory.register('AxisIndicator', cls=AxisIndicator)
+Factory.register('ButtonIndicator', cls=ButtonIndicator)
