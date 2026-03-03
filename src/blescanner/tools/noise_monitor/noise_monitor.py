@@ -14,17 +14,9 @@ import sys
 from blescanner.models import LogLevel
 from blescanner.utils.audio_manager import AudioManager
 
-try:
-    import pyaudio
-    HAS_PYAUDIO = True
-except ImportError:
-    HAS_PYAUDIO = False
-
 from kivy.utils import platform
 
-if platform == 'android':
-    from blescanner.platform.android_audio import AndroidAudioRecorder
-    HAS_PYAUDIO = True # We have alternative for Android
+HAS_AUDIO = AudioManager.has_audio()
 
 class NoiseBarGraph(Widget):
     """
@@ -96,7 +88,7 @@ class NoiseMonitorScreen(Screen):
     is_running = BooleanProperty(False)
     is_paused = BooleanProperty(False)
     status_text = StringProperty("Stopped")
-    has_pyaudio = BooleanProperty(HAS_PYAUDIO)
+    has_audio = BooleanProperty(HAS_AUDIO)
     sensitivity = NumericProperty(1.0)
     num_bars = NumericProperty(9)
     average_time = NumericProperty(500) # ms
@@ -104,9 +96,7 @@ class NoiseMonitorScreen(Screen):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.audio = None
-        self.stream = None
-        self.android_recorder = None
+        self.recorder = None
         self._lock = threading.Lock()
         self._new_data = False
         self._buffer = np.zeros(1024)
@@ -200,7 +190,7 @@ class NoiseMonitorScreen(Screen):
             self.start_audio()
 
     def start_audio(self):
-        if self.is_running or not HAS_PYAUDIO:
+        if self.is_running or not HAS_AUDIO:
             return
 
         if platform == 'android':
@@ -218,68 +208,37 @@ class NoiseMonitorScreen(Screen):
         self.is_running = True
         self.status_text = "Initializing audio..."
         # Add a small delay to allow UI to update before background thread starts
-        # blocking PortAudio/ALSA during initialization
         Clock.schedule_once(lambda dt: threading.Thread(target=self._bg_start_audio, daemon=True).start(), 0.1)
 
     def _bg_start_audio(self):
-        new_stream = None
-        recorder = None
+        new_recorder = None
         try:
-            if platform == 'android':
-                recorder = AndroidAudioRecorder(callback=self._audio_callback)
-                recorder.start()
-            else:
-                # Use non-blocking get_pyaudio if we are starting up
-                audio_instance = AudioManager.get_pyaudio(block=False)
-                if not audio_instance:
-                    # If not ready, wait a bit and try again, but don't block this thread forever
-                    # if it's currently being initialized by the main app startup.
-                    retries = 10
-                    while not audio_instance and retries > 0 and self.is_running:
-                        time.sleep(0.5)
-                        audio_instance = AudioManager.get_pyaudio(block=False)
-                        retries -= 1
+            new_recorder = AudioManager.get_recorder(
+                callback=self._audio_callback
+            )
 
-                if not audio_instance:
-                    raise Exception("Audio device initialization timed out or failed.")
+            if not new_recorder:
+                raise Exception("Audio device initialization failed.")
 
-                new_stream = audio_instance.open(
-                    format=pyaudio.paFloat32,
-                    channels=1,
-                    rate=44100,
-                    input=True,
-                    frames_per_buffer=1024,
-                    stream_callback=self._audio_callback
-                )
+            new_recorder.start()
 
             def _finish_init(dt):
                 if not self.is_running:
                     # stop_audio was called during initialization
-                    if new_stream:
+                    if new_recorder:
                         try:
-                            new_stream.stop_stream()
-                            new_stream.close()
+                            new_recorder.stop()
                         except: pass
-                    if recorder:
-                        recorder.stop()
                     return
 
-                if platform == 'android':
-                    self.android_recorder = recorder
-                else:
-                    self.audio = audio_instance
-                    self.stream = new_stream
-
+                self.recorder = new_recorder
                 self.status_text = "Monitoring noise..."
                 Clock.schedule_interval(self.update_noise_level, 1.0 / 20.0)
 
             Clock.schedule_once(_finish_init)
         except Exception as e:
-            if new_stream:
-                try: new_stream.close()
-                except: pass
-            if recorder:
-                try: recorder.stop()
+            if new_recorder:
+                try: new_recorder.stop()
                 except: pass
 
             def _handle_error(dt):
@@ -291,25 +250,18 @@ class NoiseMonitorScreen(Screen):
         self.is_running = False
         self.status_text = "Stopped"
         Clock.unschedule(self.update_noise_level)
-        if platform == 'android':
-            if self.android_recorder:
-                self.android_recorder.stop()
-                self.android_recorder = None
-        else:
-            stream = self.stream
-            self.stream = None
-            self.audio = None
 
-            def _bg_stop():
-                if stream:
-                    try:
-                        if stream.is_active():
-                            stream.stop_stream()
-                        stream.close()
-                    except: pass
+        recorder = self.recorder
+        self.recorder = None
 
-            if stream:
-                threading.Thread(target=_bg_stop, daemon=True).start()
+        def _bg_stop():
+            if recorder:
+                try:
+                    recorder.stop()
+                except: pass
+
+        if recorder:
+            threading.Thread(target=_bg_stop, daemon=True).start()
 
     def _audio_callback(self, in_data, frame_count, time_info, status):
         data = np.frombuffer(in_data, dtype=np.float32)
