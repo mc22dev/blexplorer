@@ -1,0 +1,238 @@
+<JoystickTesterScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: "10dp"
+        spacing: "10dp"
+        canvas.before:
+            Color:
+                rgba: app.theme.background
+            Rectangle:
+                pos: self.pos
+                size: self.size
+
+        # Toolbar
+        BoxLayout:
+            size_hint_y: None
+            height: "48dp"
+            spacing: "10dp"
+            Label:
+                text: "Select Joystick:"
+                size_hint_x: None
+                width: self.texture_size[0]
+                color: app.theme.text
+            Spinner:
+                id: stick_spinner
+                text: "No Joysticks Detected" if root.selected_stick_id == -1 else f"Joystick {root.selected_stick_id}"
+                values: [f"Joystick {sid}" for sid in root.joysticks.keys()]
+                on_text: root.select_joystick(self.text)
+                size_hint_x: 0.5
+            Button:
+                text: "Refresh"
+                size_hint_x: None
+                width: "100dp"
+                on_release: root.probe_joysticks()
+                background_color: app.theme.primary
+                color: [1, 1, 1, 1]
+
+        # Content Area
+        BoxLayout:
+            orientation: 'horizontal'
+            spacing: "10dp"
+
+            # Left: Lists
+            ScrollView:
+                size_hint_x: 0.4
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: self.minimum_height
+                    padding: "10dp"
+                    spacing: "20dp"
+
+                    # Axes Section
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        spacing: "10dp"
+                        Label:
+                            text: "Axes"
+                            size_hint_y: None
+                            height: "30dp"
+                            bold: True
+                            color: app.theme.primary
+                        BoxLayout:
+                            orientation: 'vertical'
+                            size_hint_y: None
+                            height: self.minimum_height
+                            spacing: "5dp"
+                            id: axes_container
+
+                    # Buttons Section
+                    BoxLayout:
+                        orientation: 'vertical'
+                        size_hint_y: None
+                        height: self.minimum_height
+                        spacing: "10dp"
+                        Label:
+                            text: "Buttons"
+                            size_hint_y: None
+                            height: "30dp"
+                            bold: True
+                            color: app.theme.primary
+                        GridLayout:
+                            cols: 4
+                            size_hint_y: None
+                            height: self.minimum_height
+                            spacing: "10dp"
+                            id: buttons_container
+
+            # Right: Graphical Visualizer & Info
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_x: 0.6
+                padding: "10dp"
+                spacing: "10dp"
+
+                # Device Info Section
+                BoxLayout:
+                    orientation: 'vertical'
+                    size_hint_y: None
+                    height: "100dp"
+                    padding: "10dp"
+                    canvas.before:
+                        Color:
+                            rgba: app.theme.secondary
+                        RoundedRectangle:
+                            pos: self.pos
+                            size: self.size
+                            radius: [10,]
+                    Label:
+                        text: "Device Information"
+                        size_hint_y: None
+                        height: "24dp"
+                        bold: True
+                        color: app.theme.primary
+                        halign: 'left'
+                        text_size: self.size
+                    Label:
+                        text: root.device_info
+                        halign: 'left'
+                        valign: 'top'
+                        text_size: self.size
+                        color: app.theme.text
+                        font_size: "13sp"
+
+                Label:
+                    text: "Visualizer"
+                    size_hint_y: None
+                    height: "30dp"
+                    bold: True
+                    color: app.theme.primary
+                JoystickVisualizer:
+                    id: visualizer
+
+<JoystickVisualizer>:
+    canvas:
+        # Background
+        Color:
+            rgba: app.theme.secondary
+        Line:
+            circle: (self.x + self.width * 0.25, self.y + self.height * 0.6, self.width * 0.15)
+            width: 2
+        Line:
+            circle: (self.x + self.width * 0.75, self.y + self.height * 0.6, self.width * 0.15)
+            width: 2
+        # Center Crosses for sticks
+        Color:
+            rgba: app.theme.disabled_fg
+        Line:
+            points: [self.x + self.width * 0.2, self.y + self.height * 0.6, self.x + self.width * 0.3, self.y + self.height * 0.6]
+        Line:
+            points: [self.x + self.width * 0.25, self.y + self.height * 0.55, self.x + self.width * 0.25, self.y + self.height * 0.65]
+        Line:
+            points: [self.x + self.width * 0.7, self.y + self.height * 0.6, self.x + self.width * 0.8, self.y + self.height * 0.6]
+        Line:
+            points: [self.x + self.width * 0.75, self.y + self.height * 0.55, self.x + self.width * 0.75, self.y + self.height * 0.65]
+
+        # Left Stick Nub
+        Color:
+            rgba: app.theme.primary
+        Ellipse:
+            pos: (self.x + self.width * 0.25 + root.lx * self.width * 0.12 - dp(10), self.y + self.height * 0.6 + root.ly * self.width * 0.12 - dp(10))
+            size: (dp(20), dp(20))
+
+        # Right Stick Nub
+        Color:
+            rgba: app.theme.primary
+        Ellipse:
+            pos: (self.x + self.width * 0.75 + root.rx * self.width * 0.12 - dp(10), self.y + self.height * 0.6 + root.ry * self.width * 0.12 - dp(10))
+            size: (dp(20), dp(20))
+
+        # D-Pad (Hat)
+        Color:
+            rgba: app.theme.secondary
+        Rectangle:
+            pos: (self.x + self.width * 0.5 - dp(40), self.y + self.height * 0.2 - dp(40))
+            size: (dp(80), dp(80))
+
+        # Hat indicator
+        Color:
+            rgba: app.theme.primary if root.hx != 0 or root.hy != 0 else app.theme.disabled_fg
+        Ellipse:
+            pos: (self.x + self.width * 0.5 + root.hx * dp(25) - dp(10), self.y + self.height * 0.2 + root.hy * dp(25) - dp(10))
+            size: (dp(20), dp(20))
+
+    Label:
+        text: "Left Stick"
+        center_x: root.x + root.width * 0.25
+        center_y: root.y + root.height * 0.4
+        color: app.theme.text
+    Label:
+        text: "Right Stick"
+        center_x: root.x + root.width * 0.75
+        center_y: root.y + root.height * 0.4
+        color: app.theme.text
+    Label:
+        text: "D-Pad / Hat"
+        center_x: root.x + root.width * 0.5
+        center_y: root.y + root.height * 0.05
+        color: app.theme.text
+
+<AxisIndicator>:
+    orientation: 'horizontal'
+    size_hint_y: None
+    height: "30dp"
+    Label:
+        text: root.axis_name
+        size_hint_x: 0.3
+        color: app.theme.text
+        font_size: "12sp"
+    ProgressBar:
+        max: 2.0
+        value: root.axis_value + 1.0
+        size_hint_x: 0.5
+    Label:
+        text: f"{root.axis_value:.2f}"
+        size_hint_x: 0.2
+        color: app.theme.text
+        font_size: "12sp"
+
+<ButtonIndicator>:
+    text: self.button_name
+    size_hint: (None, None)
+    size: ("36dp", "36dp")
+    canvas.before:
+        Color:
+            rgba: (app.theme.primary if self.is_down else app.theme.secondary)
+        Ellipse:
+            pos: self.pos
+            size: self.size
+        Color:
+            rgba: [1, 1, 1, 1] if self.is_down else [0, 0, 0, 0]
+        Line:
+            circle: (self.center_x, self.center_y, self.width/2)
+            width: 1.5
+    color: [1, 1, 1, 1] if self.is_down else app.theme.text
+    bold: True
+    font_size: "12sp"

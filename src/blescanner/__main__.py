@@ -59,6 +59,7 @@ from blescanner.tools.terminal.terminal import TerminalScreen
 from blescanner.tools.audio_analyzer.audio_analyzer import AudioAnalyzerScreen
 from blescanner.tools.noise_monitor.noise_monitor import NoiseMonitorScreen
 from blescanner.tools.wifi_scanner.wifi_scanner import WifiScannerScreen
+from blescanner.tools.joystick_tester.joystick_tester import JoystickTesterScreen
 from blescanner.utils.audio_manager import AudioManager
 from blescanner.ui.settings_popup import SettingsPopup
 from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
@@ -150,6 +151,7 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path('tools/audio_analyzer/audio_analyzer.kv'))
         Builder.load_file(resource_path('tools/noise_monitor/noise_monitor.kv'))
         Builder.load_file(resource_path('tools/wifi_scanner/wifi_scanner.kv'))
+        Builder.load_file(resource_path('tools/joystick_tester/joystick_tester.kv'))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(
@@ -243,6 +245,9 @@ class BLEScannerApp(App):
         wifi_scanner_screen = WifiScannerScreen(name='wifi_scanner')
         self.root.ids.screen_manager.add_widget(wifi_scanner_screen)
 
+        joystick_tester_screen = JoystickTesterScreen(name='joystick_tester')
+        self.root.ids.screen_manager.add_widget(joystick_tester_screen)
+
         self.device_manager.ui_container = ble_scanner_screen.ids.scanner_screen.ids.device_list
         self.ui_manager.root = self.root
 
@@ -276,6 +281,7 @@ class BLEScannerApp(App):
             "audio_analyzer": "Audio Spectrum Analyzer",
             "noise_monitor": "Noise Monitor",
             "wifi_scanner": "Wifi Scanner",
+            "joystick_tester": "Joystick Tester",
         }
         for tool_id, tool_name in tools.items():
             btn = Button(text=tool_name, size_hint_y=None, height="48dp")
