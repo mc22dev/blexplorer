@@ -7,6 +7,7 @@ class WiresharkLogEntry(BoxLayout):
     A widget representing a single log entry in the Wireshark view.
     """
     time = StringProperty('')
+    delay = StringProperty('')
     rssi = NumericProperty(0)
     address = StringProperty('')
     service_uuids = StringProperty('')

@@ -72,3 +72,13 @@ def test_wireshark_delay_reset_on_clear(app):
         app._on_device_discovered(device, adv)
 
     assert app.wireshark_data[0]['delay'] == ""
+
+def test_wireshark_log_entry_has_delay_property():
+    from blescanner.ui.wireshark_log_entry import WiresharkLogEntry
+    # Mocking app and theme to avoid BuilderException during widget init
+    mock_app = MagicMock()
+    mock_app.theme.secondary = [0, 0, 0, 1]
+    with patch('kivy.app.App.get_running_app', return_value=mock_app):
+        entry = WiresharkLogEntry()
+        assert hasattr(entry, 'delay')
+        assert entry.delay == ""

@@ -125,6 +125,7 @@ class BLEScannerApp(App):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.last_discovery_times = {}
+
     adapter = StringProperty("Default")
     VERSION = __version__
     is_scanning = BooleanProperty(False)
@@ -561,6 +562,7 @@ class BLEScannerApp(App):
             self.selected_device_frame = None
         await self.device_manager.clear()
         self.global_graph_data = {}
+        self.last_discovery_times.clear()
         self.log_with_timestamp("Scan started...", LogLevel.INFO)
         self.is_scanning = True
         adapter = self.adapter if self.adapter != "Default" else None
@@ -880,7 +882,7 @@ class BLEScannerApp(App):
         """Clears the Wireshark log."""
         self.log_with_timestamp("Clearing Wireshark log...", LogLevel.INFO)
         self.wireshark_data = []
-        self.last_discovery_times = {}
+        self.last_discovery_times.clear()
 
     def show_save_dialog(self, *args):
         """Shows the save file dialog for the main log."""
@@ -1008,6 +1010,7 @@ class BLEScannerApp(App):
         delay_str = ""
         if address in self.last_discovery_times:
             delay_ms = (discovery_time - self.last_discovery_times[address]) * 1000
+            # Clamp to 0 to prevent negative display due to clock synchronization jitter
             delay_str = f"{max(0.0, delay_ms):.1f}ms"
         self.last_discovery_times[address] = discovery_time
 
