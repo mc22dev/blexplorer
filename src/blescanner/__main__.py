@@ -1,4 +1,5 @@
 import asyncio
+import time
 import csv
 import platform
 import subprocess
@@ -611,6 +612,28 @@ class BLEScannerApp(App):
 
     def _on_device_discovered(self, device: BLEDevice, adv_data: AdvertisementData):
         """Callback for when a device is discovered."""
+        discovery_time = time.monotonic()
+
+        # Attempt to extract an accurate timestamp from the platform data on Linux
+        if kivy_platform == 'linux' and adv_data.platform_data:
+            try:
+                # platform_data on Linux is (path, props)
+                props = adv_data.platform_data[1]
+                # Look for a monotonic timestamp property (case-insensitive)
+                for key, value in props.items():
+                    if 'timestamp' in key.lower() or 'monotonic' in key.lower():
+                        raw_ts = value.value if hasattr(value, 'value') else value
+                        # BlueZ timestamps are typically in milliseconds
+                        accurate_ts = float(raw_ts) / 1000.0
+
+                        # Compare against local monotonic time for synchronization check.
+                        # We use discovery_time (captured via time.monotonic()) as a baseline.
+                        if abs(accurate_ts - discovery_time) < 60:
+                            discovery_time = accurate_ts
+                            break
+            except (IndexError, AttributeError, ValueError, TypeError):
+                pass
+
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         manufacturer_data_str = ', '.join(f'{k}:{v.hex()}' for k, v in adv_data.manufacturer_data.items())
         service_data_str = ', '.join(f'"{k}":{v.hex()}' for k, v in adv_data.service_data.items())
@@ -627,7 +650,7 @@ class BLEScannerApp(App):
         }
         self.log_to_wireshark(entry)
 
-        self.device_manager.add_discovered_device(device, adv_data)
+        self.device_manager.add_discovered_device(device, adv_data, discovery_time)
 
     async def _process_device_batch_periodically(self):
         """Periodically processes the batch of discovered devices."""

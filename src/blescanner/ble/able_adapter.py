@@ -48,13 +48,14 @@ if platform == 'android':
 
         def on_device(self, device, rssi, advertisement):
             class AdvertisementData:
-                def __init__(self, rssi, manufacturer_data, service_data, service_uuids):
+                def __init__(self, rssi, manufacturer_data, service_data, service_uuids, platform_data=None):
                     self.rssi = rssi
                     self.manufacturer_data = manufacturer_data
                     self.service_data = service_data
                     self.service_uuids = service_uuids
+                    self.platform_data = platform_data
 
-            adv_data = AdvertisementData(rssi, advertisement.manufacturer_data, advertisement.service_data, advertisement.service_uuids)
+            adv_data = AdvertisementData(rssi, advertisement.manufacturer_data, advertisement.service_data, advertisement.service_uuids, None)
             self.device_discovered_callback(BLEDevice(device), adv_data)
 
         def on_connection_state_change(self, status, state):

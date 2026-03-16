@@ -78,9 +78,9 @@ class DeviceManager:
         self.scan_stats[device.address] = stats
         self.ui_container.add_widget(frame)
 
-    def add_discovered_device(self, device: BLEDevice, adv_data: AdvertisementData):
+    def add_discovered_device(self, device: BLEDevice, adv_data: AdvertisementData, timestamp: float = None):
         """Adds a discovered device to the batch for processing."""
-        self.discovered_devices_batch.append((device, adv_data))
+        self.discovered_devices_batch.append((device, adv_data, timestamp))
 
     def process_device_batch(self):
         """Processes the batch of discovered devices and updates the UI."""
@@ -92,20 +92,21 @@ class DeviceManager:
         self.discovered_devices_batch = []
         self.log_callback(f"[DeviceManager] Processing batch of {len(batch_to_process)} devices.", LogLevel.DEBUG)
 
+        # Sort by RSSI; triplet is (device, adv_data, timestamp)
         sorted_batch = sorted(batch_to_process, key=lambda x: x[1].rssi, reverse=True)
-        for device, adv_data in sorted_batch:
-            self._update_device_ui(device, adv_data)
+        for device, adv_data, timestamp in sorted_batch:
+            self._update_device_ui(device, adv_data, timestamp)
 
         self.update_graph_data_callback()
 
-    def _update_device_ui(self, device: BLEDevice, adv_data: AdvertisementData):
+    def _update_device_ui(self, device: BLEDevice, adv_data: AdvertisementData, timestamp: float = None):
         """Updates or creates a UI frame for a discovered device."""
         if device.address not in self.scan_stats:
             self.scan_stats[device.address] = DeviceScanStats()
             self.graph_selection[device.address] = True  # Default to selected
 
         stats = self.scan_stats[device.address]
-        stats.update(adv_data)
+        stats.update(adv_data, timestamp)
 
         # Update the global graph data
         self.global_graph_data[device.address] = {
