@@ -13,21 +13,28 @@
 
     Label:
         text: root.time
-        size_hint_x: 0.15
+        size_hint_x: 0.12
         halign: 'left'
         valign: 'top'
         text_size: self.width, None
         height: self.texture_size[1]
     Label:
-        text: str(root.rssi)
+        text: root.delay
         size_hint_x: 0.08
         halign: 'left'
         valign: 'top'
         text_size: self.width, None
         height: self.texture_size[1]
     Label:
+        text: str(root.rssi)
+        size_hint_x: 0.07
+        halign: 'left'
+        valign: 'top'
+        text_size: self.width, None
+        height: self.texture_size[1]
+    Label:
         text: root.address
-        size_hint_x: 0.17
+        size_hint_x: 0.16
         halign: 'left'
         valign: 'top'
         text_size: self.width, None

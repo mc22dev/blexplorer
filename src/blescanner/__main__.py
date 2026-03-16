@@ -121,6 +121,10 @@ class BLEScannerApp(App):
     log_text = StringProperty("")
     wireshark_data = ListProperty([])
     scan_timeout = StringProperty("5.0")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.last_discovery_times = {}
     adapter = StringProperty("Default")
     VERSION = __version__
     is_scanning = BooleanProperty(False)
