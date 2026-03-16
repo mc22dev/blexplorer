@@ -614,23 +614,34 @@ class BLEScannerApp(App):
         """Callback for when a device is discovered."""
         discovery_time = time.monotonic()
 
-        # Attempt to extract an accurate timestamp from the platform data on Linux
+        # Attempt to extract an accurate timestamp from the platform data on Linux.
+        # This bypasses application-level batching delays for more accurate beacon periods.
         if kivy_platform == 'linux' and adv_data.platform_data:
             try:
                 # platform_data on Linux is (path, props)
                 props = adv_data.platform_data[1]
-                # Look for a monotonic timestamp property (case-insensitive)
-                for key, value in props.items():
-                    if 'timestamp' in key.lower() or 'monotonic' in key.lower():
-                        raw_ts = value.value if hasattr(value, 'value') else value
-                        # BlueZ timestamps are typically in milliseconds
-                        accurate_ts = float(raw_ts) / 1000.0
 
-                        # Compare against local monotonic time for synchronization check.
-                        # We use discovery_time (captured via time.monotonic()) as a baseline.
-                        if abs(accurate_ts - discovery_time) < 60:
-                            discovery_time = accurate_ts
-                            break
+                # Check for known BlueZ timestamp properties (including experimental ones)
+                # Potential keys: 'MonotonicTimestamp' (ms), 'Since' (ms)
+                target_keys = ['monotonictimestamp', 'since']
+                accurate_ts = None
+
+                for key, value in props.items():
+                    if key.lower() in target_keys or ('timestamp' in key.lower() and 'monotonic' in key.lower()):
+                        raw_ts = value.value if hasattr(value, 'value') else value
+                        # Convert ms to seconds
+                        accurate_ts = float(raw_ts) / 1000.0
+                        break
+
+                if accurate_ts is not None:
+                    # Synchronization check: Ensure the D-Bus timestamp is compatible with time.monotonic().
+                    # We accept a reasonably wide window (60s) to account for different monotonic clock offsets.
+                    if abs(accurate_ts - discovery_time) < 60:
+                        discovery_time = accurate_ts
+                    else:
+                        # If epochs are different, we could maintain a per-tool offset, but for now
+                        # we fallback to the local capture to ensure consistency.
+                        pass
             except (IndexError, AttributeError, ValueError, TypeError):
                 pass
 

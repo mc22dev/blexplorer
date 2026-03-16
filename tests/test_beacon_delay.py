@@ -63,3 +63,15 @@ def test_device_manager_timestamp_propagation():
     assert device.address in manager.scan_stats
     stats = manager.scan_stats[device.address]
     assert stats.timestamps == [2000.0]
+
+def test_device_scan_stats_prevents_negative_period():
+    stats = DeviceScanStats()
+    adv1 = create_adv_data(-50)
+    stats.update(adv1, timestamp=100.0)
+
+    # Simulate a slightly backward timestamp (e.g. due to D-Bus jitter or rounding)
+    adv2 = create_adv_data(-60)
+    stats.update(adv2, timestamp=99.9)
+
+    assert stats.last_period == 0.0
+    assert stats.timestamps == [100.0, 100.0]
