@@ -12,14 +12,14 @@
         height: self.minimum_height
         canvas.before:
             Color:
-                rgba: app.theme.secondary
+                rgba: app.theme.secondary if app else (0.3, 0.3, 0.3, 1)
             Rectangle:
                 pos: self.pos
                 size: self.size
 
         Button:
             on_release: root.toggle_collapse()
-            background_color: app.theme.header_bg
+            background_color: app.theme.header_bg if app else (0.1, 0.1, 0.1, 1)
             BoxLayout:
                 size: self.parent.size
                 pos: self.parent.pos

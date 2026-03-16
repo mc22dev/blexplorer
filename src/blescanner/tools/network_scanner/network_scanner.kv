@@ -45,7 +45,7 @@
         text: "Scan Ports"
         size_hint_y: 0.2
         font_size: '10sp'
-        on_release: app.root.ids.screen_manager.get_screen('network_scanner').show_port_scan(root.ip)
+        on_release: app.root.ids.screen_manager.get_screen('network_scanner').show_port_scan(root.ip) if app else None
 
 <NetworkScannerScreen>:
     BoxLayout:
