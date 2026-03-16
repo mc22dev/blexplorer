@@ -622,36 +622,55 @@ class BLEScannerApp(App):
                 props = adv_data.platform_data[1]
 
                 # Check for known BlueZ timestamp properties (including experimental ones)
-                # Potential keys: 'MonotonicTimestamp' (ms), 'Since' (ms)
-                target_keys = ['monotonictimestamp', 'since']
+                # Potential keys: 'MonotonicTimestamp' (us), 'Since' (ms)
                 accurate_ts = None
 
-                for key, value in props.items():
-                    if key.lower() in target_keys or ('timestamp' in key.lower() and 'monotonic' in key.lower()):
-                        raw_ts = value.value if hasattr(value, 'value') else value
-                        # Convert ms to seconds
-                        accurate_ts = float(raw_ts) / 1000.0
-                        break
+                if 'MonotonicTimestamp' in props:
+                    val = props['MonotonicTimestamp']
+                    raw_us = val.value if hasattr(val, 'value') else val
+                    accurate_ts = float(raw_us) / 1_000_000.0
+                elif 'Since' in props:
+                    # 'Since' is relative (ms since last seen), but we treat it as absolute if it looks large enough
+                    # OR we can just look for any key containing 'timestamp'
+                    pass
+
+                if accurate_ts is None:
+                    for key, value in props.items():
+                        if 'timestamp' in key.lower():
+                            raw_val = value.value if hasattr(value, 'value') else value
+                            # Try us first, then ms
+                            ts_us = float(raw_val) / 1_000_000.0
+                            if abs(ts_us - discovery_time) < 60:
+                                accurate_ts = ts_us
+                                break
+                            ts_ms = float(raw_val) / 1000.0
+                            if abs(ts_ms - discovery_time) < 60:
+                                accurate_ts = ts_ms
+                                break
 
                 if accurate_ts is not None:
                     # Synchronization check: Ensure the D-Bus timestamp is compatible with time.monotonic().
-                    # We accept a reasonably wide window (60s) to account for different monotonic clock offsets.
                     if abs(accurate_ts - discovery_time) < 60:
                         discovery_time = accurate_ts
-                    else:
-                        # If epochs are different, we could maintain a per-tool offset, but for now
-                        # we fallback to the local capture to ensure consistency.
-                        pass
             except (IndexError, AttributeError, ValueError, TypeError):
                 pass
 
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+
+        delay_str = ""
+        if device.address in self.last_discovery_times:
+            delay_ms = (discovery_time - self.last_discovery_times[device.address]) * 1000
+            # Clamp to 0 to prevent negative display due to clock synchronization jitter
+            delay_str = f"{max(0.0, delay_ms):.1f}ms"
+        self.last_discovery_times[device.address] = discovery_time
+
         manufacturer_data_str = ', '.join(f'{k}:{v.hex()}' for k, v in adv_data.manufacturer_data.items())
         service_data_str = ', '.join(f'"{k}":{v.hex()}' for k, v in adv_data.service_data.items())
         decoded_info = decode_advertisement(adv_data)
 
         entry = {
             'time': timestamp,
+            'delay': delay_str,
             'rssi': adv_data.rssi,
             'address': device.address,
             'service_uuids': ', '.join(adv_data.service_uuids),
@@ -857,6 +876,7 @@ class BLEScannerApp(App):
         """Clears the Wireshark log."""
         self.log_with_timestamp("Clearing Wireshark log...", LogLevel.INFO)
         self.wireshark_data = []
+        self.last_discovery_times = {}
 
     def show_save_dialog(self, *args):
         """Shows the save file dialog for the main log."""
@@ -978,10 +998,20 @@ class BLEScannerApp(App):
             self.log_with_timestamp(f"Notification from {characteristic.uuid} ({display_format}): {char_frame.char_value}", LogLevel.INFO)
 
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+
+        address = self.ble_manager.client.address if self.ble_manager.client else 'Unknown'
+        discovery_time = time.monotonic()
+        delay_str = ""
+        if address in self.last_discovery_times:
+            delay_ms = (discovery_time - self.last_discovery_times[address]) * 1000
+            delay_str = f"{max(0.0, delay_ms):.1f}ms"
+        self.last_discovery_times[address] = discovery_time
+
         entry = {
             'time': timestamp,
+            'delay': delay_str,
             'rssi': 'N/A',
-            'address': self.ble_manager.client.address if self.ble_manager.client else 'Unknown',
+            'address': address,
             'service_uuids': f"Notification: {characteristic.uuid}",
             'service_data': '',
             'manufacturer_data': data.hex(),
@@ -994,13 +1024,18 @@ class BLEScannerApp(App):
         def _log(dt):
             app = App.get_running_app()
             if not app:
-                return
-            ble_scanner_screen = app.root.ids.screen_manager.get_screen('ble_scanner')
+                app = self
+
             app.wireshark_data.append(entry)
-            if 'wireshark_screen' in ble_scanner_screen.ids and 'autoscroll_checkbox' in ble_scanner_screen.ids.wireshark_screen.ids:
-                if ble_scanner_screen.ids.wireshark_screen.ids.autoscroll_checkbox.active:
-                    if 'wireshark_log_view' in ble_scanner_screen.ids.wireshark_screen.ids:
-                        ble_scanner_screen.ids.wireshark_screen.ids.wireshark_log_view.scroll_y = 0
+
+            try:
+                ble_scanner_screen = app.root.ids.screen_manager.get_screen('ble_scanner')
+                if 'wireshark_screen' in ble_scanner_screen.ids and 'autoscroll_checkbox' in ble_scanner_screen.ids.wireshark_screen.ids:
+                    if ble_scanner_screen.ids.wireshark_screen.ids.autoscroll_checkbox.active:
+                        if 'wireshark_log_view' in ble_scanner_screen.ids.wireshark_screen.ids:
+                            ble_scanner_screen.ids.wireshark_screen.ids.wireshark_log_view.scroll_y = 0
+            except (AttributeError, KeyError):
+                pass
         Clock.schedule_once(_log)
 
     def log_with_timestamp(self, message: str, level: LogLevel = LogLevel.INFO):
