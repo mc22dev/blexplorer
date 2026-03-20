@@ -4,7 +4,7 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from kivy.uix.boxlayout import BoxLayout
 from functools import partial
-from blescanner.ui.device_frame_kivy import DeviceFrameKivy
+from .device_frame_kivy import DeviceFrameKivy
 from blescanner.models import DeviceScanStats, LogLevel
 from blescanner.platform import platform_utils, BondedDevice
 

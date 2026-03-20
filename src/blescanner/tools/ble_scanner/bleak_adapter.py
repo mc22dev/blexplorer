@@ -10,7 +10,7 @@ from bleak.exc import BleakError
 
 from blescanner.models import LogLevel
 from blescanner.utils.config_manager import ConfigManager
-from blescanner.ble.ble_adapter import BLEAdapter
+from .ble_adapter import BLEAdapter
 
 
 class BleakAdapter(BLEAdapter):

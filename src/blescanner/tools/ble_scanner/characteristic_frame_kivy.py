@@ -4,8 +4,8 @@ import struct
 import json
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
-from blescanner.ble.gatt import GATT_CHARACTERISTICS
-from .copy_popup import CopyPopup
+from .gatt import GATT_CHARACTERISTICS
+from blescanner.ui.copy_popup import CopyPopup
 
 
 class CharacteristicFrameKivy(BoxLayout):

@@ -1,10 +1,10 @@
 import pytest
 import struct
 from kivy.app import App
-from blescanner.ui.device_frame_kivy import DeviceFrameKivy
+from blescanner.tools.ble_scanner.device_frame_kivy import DeviceFrameKivy
 from blescanner.models import DeviceScanStats
-from blescanner.ui.characteristic_frame_kivy import CharacteristicFrameKivy
-from blescanner.ui.collapsible_frame_kivy import CollapsibleFrameKivy
+from blescanner.tools.ble_scanner.characteristic_frame_kivy import CharacteristicFrameKivy
+from blescanner.tools.ble_scanner.collapsible_frame_kivy import CollapsibleFrameKivy
 from blescanner.__main__ import BLEScannerApp
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData

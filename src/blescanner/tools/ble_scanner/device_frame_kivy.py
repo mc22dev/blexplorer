@@ -3,7 +3,7 @@ from kivy.uix.behaviors import ButtonBehavior
 from kivy.properties import ObjectProperty, StringProperty, BooleanProperty, ColorProperty
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
-from .copy_popup import CopyPopup
+from blescanner.ui.copy_popup import CopyPopup
 
 class DeviceFrameKivy(ButtonBehavior, BoxLayout):
     device = ObjectProperty(None)

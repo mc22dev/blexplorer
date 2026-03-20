@@ -1,5 +1,5 @@
 from typing import Optional, Callable, Any
-from blescanner.ble.ble_adapter import BLEAdapter
+from .ble_adapter import BLEAdapter
 from blescanner.models import LogLevel
 from kivy.utils import platform
 import asyncio

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, Mock, patch, AsyncMock
 from kivy.uix.boxlayout import BoxLayout
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
-from blescanner.core.device_manager import DeviceManager
+from blescanner.tools.ble_scanner.device_manager import DeviceManager
 from blescanner.models import DeviceScanStats
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def device_manager():
 
 @pytest.mark.asyncio
 async def test_clear(device_manager):
-    with patch('blescanner.core.device_manager.platform_utils.get_bonded_devices', new_callable=AsyncMock) as mock_get_bonded:
+    with patch('blescanner.tools.ble_scanner.device_manager.platform_utils.get_bonded_devices', new_callable=AsyncMock) as mock_get_bonded:
         mock_get_bonded.return_value = []
         await device_manager.clear()
         device_manager.ui_container.clear_widgets.assert_called_once()
