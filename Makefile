@@ -15,7 +15,11 @@ setup: $(VENV_DIR)
 
 # Windows-specific setup
 setup-windows: $(VENV_DIR)
-	call $(VENV_ACTIVATE_WIN) && pip install --upgrade pip && pip install -r requirements.txt
+	@if [ "$$(uname -s | cut -c1-5)" = "Linux" ]; then \
+		echo "Skipping Windows setup on Linux. Use 'make setup' instead."; \
+	else \
+		call $(VENV_ACTIVATE_WIN) && pip install --upgrade pip && pip install -r requirements.txt; \
+	fi
 
 $(VENV_DIR):
 	python3 -m venv $(VENV_DIR) || python -m venv $(VENV_DIR)
@@ -31,7 +35,12 @@ run: setup
 
 # Run the application locally on Windows
 run-windows: setup-windows
-	call $(VENV_ACTIVATE_WIN) && pytest && set PYTHONPATH=src && python -m blescanner
+	@if [ "$$(uname -s | cut -c1-5)" = "Linux" ]; then \
+		echo "Error: 'run-windows' must be run on a Windows machine."; \
+		exit 1; \
+	else \
+		call $(VENV_ACTIVATE_WIN) && pytest && set PYTHONPATH=src && python -m blescanner; \
+	fi
 
 # Create the packages directory if it doesn't exist
 packages:
@@ -49,7 +58,12 @@ android: setup
 
 # Build the Windows executable (must be run on a Windows machine)
 windows: setup-windows packages
-	call $(VENV_ACTIVATE_WIN) && pyinstaller blescanner.spec --distpath "tmp/dist" --workpath "tmp/build" --noconfirm
+	@if [ "$$(uname -s | cut -c1-5)" = "Linux" ]; then \
+		echo "Error: 'windows' build must be run on a Windows machine. Use 'make windows-on-linux' instead."; \
+		exit 1; \
+	else \
+		call $(VENV_ACTIVATE_WIN) && pyinstaller blescanner.spec --distpath "tmp/dist" --workpath "tmp/build" --noconfirm; \
+	fi
 	(cd tmp/dist/BLEScanner && zip -r ../../packages/$(PACKAGE_NAME)-$(VERSION)-windows.zip . -x "*_internal*")
 
 # Build the Windows executable on Linux using Wine and package it
