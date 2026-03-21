@@ -1,0 +1,83 @@
+#:kivy 2.0.0
+
+<FTPServerSettings>:
+    orientation: 'vertical'
+    padding: "10dp"
+    spacing: "10dp"
+
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_y: None
+        height: self.minimum_height
+        spacing: "5dp"
+
+        Label:
+            text: "Port"
+            size_hint_y: None
+            height: "30dp"
+            halign: 'left'
+            text_size: self.size
+        TextInput:
+            id: port_input
+            text: root.port
+            size_hint_y: None
+            height: "40dp"
+            multiline: False
+
+        Label:
+            text: "Username"
+            size_hint_y: None
+            height: "30dp"
+            halign: 'left'
+            text_size: self.size
+        TextInput:
+            id: user_input
+            text: root.user
+            size_hint_y: None
+            height: "40dp"
+            multiline: False
+
+        Label:
+            text: "Password"
+            size_hint_y: None
+            height: "30dp"
+            halign: 'left'
+            text_size: self.size
+        TextInput:
+            id: password_input
+            text: root.password
+            size_hint_y: None
+            height: "40dp"
+            multiline: False
+
+        Label:
+            text: "Root Directory"
+            size_hint_y: None
+            height: "30dp"
+            halign: 'left'
+            text_size: self.size
+        TextInput:
+            id: directory_input
+            text: root.directory
+            size_hint_y: None
+            height: "40dp"
+            multiline: False
+
+        BoxLayout:
+            size_hint_y: None
+            height: "40dp"
+            spacing: "10dp"
+            Label:
+                text: "Read-Only Mode"
+            CheckBox:
+                id: read_only_checkbox
+                active: root.read_only
+
+    Widget:
+        # Spacer
+
+    Button:
+        text: "Save Settings"
+        size_hint_y: None
+        height: "50dp"
+        on_release: root.save_settings()

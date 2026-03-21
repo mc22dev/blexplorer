@@ -65,6 +65,13 @@ class ConfigManager:
                 'average_time': '500',
                 'alarm_cooldown': '2'
             },
+            'ftp_server': {
+                'port': '2121',
+                'user': 'user',
+                'password': 'password',
+                'directory': '.',
+                'read_only': 'False'
+            },
             'device_names': {}
         }
         self._load_or_create_config()

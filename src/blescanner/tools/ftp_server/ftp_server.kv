@@ -1,0 +1,59 @@
+#:kivy 2.0.0
+
+<FTPServerScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: "10dp"
+        spacing: "10dp"
+
+        BoxLayout:
+            size_hint_y: None
+            height: "40dp"
+            spacing: "10dp"
+            Label:
+                text: "Status: " + root.server_status
+                bold: True
+                color: (0, 1, 0, 1) if root.is_running else (1, 0, 0, 1)
+            Button:
+                text: "Stop Server" if root.is_running else "Start Server"
+                on_release: root.toggle_server()
+                background_color: (1, 0, 0, 1) if root.is_running else (0, 1, 0, 1)
+
+        Label:
+            text: "Server Address: " + root.server_address
+            size_hint_y: None
+            height: "30dp"
+            halign: 'left'
+            text_size: self.size
+
+        BoxLayout:
+            orientation: 'vertical'
+            canvas.before:
+                Color:
+                    rgba: (0.2, 0.2, 0.2, 1)
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+
+            ScrollView:
+                id: log_scroll
+                Label:
+                    text: root.log_text
+                    size_hint_y: None
+                    height: self.texture_size[1]
+                    halign: 'left'
+                    valign: 'top'
+                    text_size: self.width, None
+                    padding: "10dp", "10dp"
+                    font_name: 'UbuntuMono'
+
+        BoxLayout:
+            size_hint_y: None
+            height: "40dp"
+            spacing: "10dp"
+            Button:
+                text: "Clear Log"
+                on_release: root.clear_log()
+            Button:
+                text: "Settings"
+                on_release: app.open_settings_window()
