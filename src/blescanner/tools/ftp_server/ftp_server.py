@@ -1,7 +1,6 @@
 import os
 import threading
 import logging
-import asyncio
 
 from kivy.uix.screenmanager import Screen
 from kivy.properties import StringProperty, BooleanProperty, ListProperty
@@ -13,7 +12,7 @@ from kivy.logger import Logger
 
 try:
     from pyftpdlib.authorizers import DummyAuthorizer
-    from pyftpdlib.handlers import FTPHandler
+    from pyftpdlib.handlers import FTPHandler, DTPHandler
     from pyftpdlib.servers import FTPServer
     HAS_PYFTPDLIB = True
 except ImportError:
@@ -38,9 +37,15 @@ class FTPServerScreen(Screen):
         self.server = None
         self.server_thread = None
         self.max_log_lines = 1000
+        self._log_queue = []
+        self._log_lock = threading.Lock()
 
     def on_enter(self, *args):
         self.update_server_info()
+        Clock.schedule_interval(self._flush_logs, 0.5)
+
+    def on_leave(self, *args):
+        Clock.unschedule(self._flush_logs)
 
     def update_server_info(self):
         ip, _ = platform_utils.get_local_ip_and_mask()
@@ -81,9 +86,15 @@ class FTPServerScreen(Screen):
             perm = "elradfmwMT" if not read_only else "elr"
             authorizer.add_user(user, password, directory, perm=perm)
 
+            # Performance tuning
+            DTPHandler.ac_in_buffer_size = 512 * 1024  # 512KB
+            DTPHandler.ac_out_buffer_size = 512 * 1024 # 512KB
+
             handler = FTPHandler
             handler.authorizer = authorizer
             handler.banner = "BLEScanner FTP Server ready."
+            handler.use_sendfile = True # Faster uploads on Linux
+            handler.tcp_no_delay = True
 
             # Redirect pyftpdlib logging to our log_message
             class KivyLoggerHandler(logging.Handler):
@@ -122,7 +133,8 @@ class FTPServerScreen(Screen):
 
     def _run_server(self):
         try:
-            self.server.serve_forever()
+            # timeout=0.1 to avoid high CPU usage in the loop when idle
+            self.server.serve_forever(timeout=0.1)
         except Exception as e:
             Clock.schedule_once(lambda dt: self.log_message(f"Server thread error: {e}"))
         finally:
@@ -143,9 +155,19 @@ class FTPServerScreen(Screen):
     def log_message(self, message):
         import datetime
         ts = datetime.datetime.now().strftime("%H:%M:%S")
-        self.log_data.append({'text': f"[{ts}] {message}"})
+        with self._log_lock:
+            self._log_queue.append({'text': f"[{ts}] {message}"})
+
+    def _flush_logs(self, dt):
+        with self._log_lock:
+            if not self._log_queue:
+                return
+            new_logs = self._log_queue[:]
+            self._log_queue = []
+
+        self.log_data.extend(new_logs)
         if len(self.log_data) > self.max_log_lines:
-            self.log_data.pop(0)
+            self.log_data = self.log_data[-self.max_log_lines:]
 
     def clear_log(self):
         self.log_data = []

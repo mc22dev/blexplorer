@@ -36,6 +36,8 @@ def test_ftp_server_log_message(app_mock, monkeypatch):
     monkeypatch.setattr("kivy.app.App.get_running_app", lambda: app_mock)
     screen = FTPServerScreen(name='ftp_server')
     screen.log_message("Test message")
+    # Logs are batched now, so we need to flush them
+    screen._flush_logs(0)
     assert any("Test message" in d['text'] for d in screen.log_data)
 
 def test_ftp_server_clear_log(app_mock, monkeypatch):
