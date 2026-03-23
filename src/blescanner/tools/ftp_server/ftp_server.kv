@@ -4,8 +4,10 @@
     size_hint_y: None
     height: "20dp"
     halign: 'left'
-    valign: 'top'
-    text_size: self.width, None
+    valign: 'middle'
+    text_size: self.size
+    shorten: True
+    shorten_from: 'right'
     font_name: 'UbuntuMono'
 
 <FTPServerScreen>:
@@ -47,7 +49,6 @@
                 id: log_rv
                 data: root.log_data
                 viewclass: 'LogLine'
-                scroll_y: 0
                 RecycleBoxLayout:
                     default_size: None, dp(20)
                     default_size_hint: 1, None
@@ -60,6 +61,19 @@
             size_hint_y: None
             height: "40dp"
             spacing: "10dp"
+            BoxLayout:
+                size_hint_x: None
+                width: "120dp"
+                spacing: "5dp"
+                CheckBox:
+                    id: autoscroll_checkbox
+                    active: True
+                    size_hint_x: None
+                    width: "30dp"
+                Label:
+                    text: "Autoscroll"
+                    halign: 'left'
+                    text_size: self.size
             Button:
                 text: "Clear Log"
                 on_release: root.clear_log()

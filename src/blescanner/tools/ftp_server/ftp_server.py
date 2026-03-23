@@ -169,5 +169,9 @@ class FTPServerScreen(Screen):
         if len(self.log_data) > self.max_log_lines:
             self.log_data = self.log_data[-self.max_log_lines:]
 
+        if 'autoscroll_checkbox' in self.ids and self.ids.autoscroll_checkbox.active:
+            if 'log_rv' in self.ids:
+                self.ids.log_rv.scroll_y = 0
+
     def clear_log(self):
         self.log_data = []
