@@ -359,7 +359,8 @@ class BLEScannerApp(App):
         tool_to_tab = {
             'serial_monitor': 'Serial Monitor',
             'noise_monitor': 'Noise Monitor',
-            'ftp_server': 'FTP Server'
+            'ftp_server': 'FTP Server',
+            'ble_scanner': 'General'
         }
         current_tool_id = self.root.ids.screen_manager.current
 
@@ -382,8 +383,8 @@ class BLEScannerApp(App):
         self.settings_popup.open()
 
         # Switch to the current tool's tab if it exists
-        if current_tool_id in tool_to_tab:
-            self.settings_popup.select_tab_by_name(tool_to_tab[current_tool_id])
+        tab_name = tool_to_tab.get(current_tool_id, 'General')
+        self.settings_popup.select_tab_by_name(tab_name)
 
     def open_parameter_window(self):
         """Opens the parameter window."""
