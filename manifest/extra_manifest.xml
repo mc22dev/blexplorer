@@ -1,1 +1,3 @@
 <uses-feature android:name="android.hardware.usb.host" />
+<application android:requestLegacyExternalStorage="true">
+</application>

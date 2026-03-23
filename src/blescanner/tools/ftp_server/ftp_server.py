@@ -1,6 +1,7 @@
 import os
 import threading
 import logging
+import datetime
 
 from kivy.uix.screenmanager import Screen
 from kivy.properties import StringProperty, BooleanProperty, ListProperty
@@ -69,6 +70,22 @@ class FTPServerScreen(Screen):
         if self.is_running:
             return
 
+        # Check for storage permissions on Android
+        if not self.app.platform_utils.check_storage_permissions():
+            self.log_message("Requesting storage permissions...")
+            self.app.platform_utils.request_storage_permissions(self._on_permissions_result)
+            return
+
+        self._do_start_server()
+
+    def _on_permissions_result(self, permissions, grants):
+        if all(grant == 0 for grant in grants):
+            self.log_message("Storage permissions granted.")
+            self._do_start_server()
+        else:
+            self.log_message("Error: Storage permissions denied.")
+
+    def _do_start_server(self):
         try:
             port = int(self.app.config_manager.get_setting('ftp_server', 'port'))
             user = self.app.config_manager.get_setting('ftp_server', 'user')
@@ -153,7 +170,6 @@ class FTPServerScreen(Screen):
         self.server_status = "Stopped"
 
     def log_message(self, message):
-        import datetime
         ts = datetime.datetime.now().strftime("%H:%M:%S")
         with self._log_lock:
             self._log_queue.append({'text': f"[{ts}] {message}"})

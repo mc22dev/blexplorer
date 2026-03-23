@@ -121,3 +121,22 @@ class PlatformUtilsBase(ABC):
         Keeps the screen on.
         """
         raise NotImplementedError
+
+    def get_external_storage_path(self) -> str:
+        """
+        Returns the path to the external storage (e.g., /storage/emulated/0).
+        """
+        return "."
+
+    def check_storage_permissions(self) -> bool:
+        """
+        Checks if storage permissions are granted.
+        """
+        return True
+
+    def request_storage_permissions(self, callback: Callable = None):
+        """
+        Requests storage permissions.
+        """
+        if callback:
+            callback([], [])

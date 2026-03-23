@@ -1,6 +1,7 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import StringProperty, ObjectProperty, NumericProperty, BooleanProperty
 from kivy.app import App
+from kivy.utils import platform
 import os
 
 class FTPServerSettings(BoxLayout):
@@ -28,6 +29,10 @@ class FTPServerSettings(BoxLayout):
         self.ids.password_input.text = self.password
         self.ids.directory_input.text = self.directory
         self.ids.read_only_checkbox.active = self.read_only
+
+    def set_external_storage(self):
+        path = self.app.platform_utils.get_external_storage_path()
+        self.ids.directory_input.text = path
 
     def save_settings(self):
         self.port = self.ids.port_input.text

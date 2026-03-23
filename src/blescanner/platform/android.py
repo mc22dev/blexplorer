@@ -15,6 +15,7 @@ from android.permissions import request_permissions as android_request_permissio
 from android.runnable import run_on_ui_thread
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
 Build = autoclass('android.os.Build$VERSION')
+Environment = autoclass('android.os.Environment')
 PackageManager = autoclass('android.content.pm.PackageManager')
 Context = autoclass('android.content.Context')
 BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
@@ -65,6 +66,78 @@ class AndroidPlatformUtils(PlatformUtilsBase):
         """
         permissions = self._get_android_permissions()
         logger.info(f"Requesting Android permissions: {permissions}")
+        android_request_permissions(permissions, callback)
+
+    def get_external_storage_path(self) -> str:
+        """
+        Returns the path to the external storage on Android.
+        """
+        try:
+            return Environment.getExternalStorageDirectory().getAbsolutePath()
+        except Exception as e:
+            logger.error(f"Error getting external storage path: {e}")
+            return "/storage/emulated/0"
+
+    def _get_storage_permissions(self) -> list[str]:
+        """
+        Returns the appropriate list of storage permissions based on the API level.
+        """
+        sdk_int = Build.SDK_INT
+        if sdk_int >= 33: # Android 13
+            return [
+                "android.permission.READ_MEDIA_IMAGES",
+                "android.permission.READ_MEDIA_VIDEO",
+                "android.permission.READ_MEDIA_AUDIO",
+            ]
+        elif sdk_int >= 30: # Android 11
+            return ["android.permission.READ_EXTERNAL_STORAGE"]
+        else:
+            return [
+                "android.permission.READ_EXTERNAL_STORAGE",
+                "android.permission.WRITE_EXTERNAL_STORAGE",
+            ]
+
+    def check_storage_permissions(self) -> bool:
+        """
+        Checks if storage permissions are granted on Android.
+        """
+        sdk_int = Build.SDK_INT
+        if sdk_int >= 30:
+            if Environment.isExternalStorageManager():
+                return True
+
+        context = PythonActivity.mActivity
+        permissions_to_check = self._get_storage_permissions()
+
+        return all(
+            context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED
+            for p in permissions_to_check
+        )
+
+    def request_storage_permissions(self, callback: Callable = None):
+        """
+        Requests storage permissions on Android.
+        """
+        sdk_int = Build.SDK_INT
+        if sdk_int >= 30: # Android 11+
+            try:
+                # For MANAGE_EXTERNAL_STORAGE, we need to send an intent
+                if not Environment.isExternalStorageManager():
+                    Intent = autoclass('android.content.Intent')
+                    Settings = autoclass('android.provider.Settings')
+                    Uri = autoclass('android.net.Uri')
+
+                    package_name = PythonActivity.mActivity.getPackageName()
+                    uri = Uri.fromParts("package", package_name, None)
+                    intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri)
+                    PythonActivity.mActivity.startActivity(intent)
+                    # We can't easily wait for this, so we return False or assume it's being handled.
+                    return
+            except Exception as e:
+                logger.error(f"Error requesting manage external storage: {e}")
+
+        permissions = self._get_storage_permissions()
+        logger.info(f"Requesting storage permissions: {permissions}")
         android_request_permissions(permissions, callback)
 
     def is_bluetooth_enabled(self) -> bool:
