@@ -1,5 +1,13 @@
 #:kivy 2.0.0
 
+<LogLine>:
+    size_hint_y: None
+    height: "20dp"
+    halign: 'left'
+    valign: 'top'
+    text_size: self.width, None
+    font_name: 'UbuntuMono'
+
 <FTPServerScreen>:
     BoxLayout:
         orientation: 'vertical'
@@ -35,17 +43,18 @@
                     size: self.size
                     pos: self.pos
 
-            ScrollView:
-                id: log_scroll
-                Label:
-                    text: root.log_text
+            RecycleView:
+                id: log_rv
+                data: root.log_data
+                viewclass: 'LogLine'
+                scroll_y: 0
+                RecycleBoxLayout:
+                    default_size: None, dp(20)
+                    default_size_hint: 1, None
                     size_hint_y: None
-                    height: self.texture_size[1]
-                    halign: 'left'
-                    valign: 'top'
-                    text_size: self.width, None
+                    height: self.minimum_height
+                    orientation: 'vertical'
                     padding: "10dp", "10dp"
-                    font_name: 'UbuntuMono'
 
         BoxLayout:
             size_hint_y: None

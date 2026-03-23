@@ -19,7 +19,7 @@ def test_ftp_server_screen_init(app_mock, monkeypatch):
     screen = FTPServerScreen(name='ftp_server')
     assert screen.server_status == "Stopped"
     assert not screen.is_running
-    assert screen.log_text == ""
+    assert screen.log_data == []
 
 def test_ftp_server_update_info(app_mock, monkeypatch):
     monkeypatch.setattr("kivy.app.App.get_running_app", lambda: app_mock)
@@ -36,11 +36,11 @@ def test_ftp_server_log_message(app_mock, monkeypatch):
     monkeypatch.setattr("kivy.app.App.get_running_app", lambda: app_mock)
     screen = FTPServerScreen(name='ftp_server')
     screen.log_message("Test message")
-    assert "Test message" in screen.log_text
+    assert any("Test message" in d['text'] for d in screen.log_data)
 
 def test_ftp_server_clear_log(app_mock, monkeypatch):
     monkeypatch.setattr("kivy.app.App.get_running_app", lambda: app_mock)
     screen = FTPServerScreen(name='ftp_server')
-    screen.log_text = "Some logs"
+    screen.log_data = [{'text': "Some logs"}]
     screen.clear_log()
-    assert screen.log_text == ""
+    assert screen.log_data == []

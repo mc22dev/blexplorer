@@ -6,6 +6,8 @@ import asyncio
 from kivy.uix.screenmanager import Screen
 from kivy.properties import StringProperty, BooleanProperty, ListProperty
 from kivy.clock import Clock
+from kivy.factory import Factory
+from kivy.uix.label import Label
 from kivy.app import App
 from kivy.logger import Logger
 
@@ -19,10 +21,15 @@ except ImportError:
 
 from blescanner.platform import platform_utils
 
+class LogLine(Label):
+    pass
+
+Factory.register('LogLine', cls=LogLine)
+
 class FTPServerScreen(Screen):
     server_status = StringProperty("Stopped")
     is_running = BooleanProperty(False)
-    log_text = StringProperty("")
+    log_data = ListProperty([])
     server_address = StringProperty("Unknown")
 
     def __init__(self, **kwargs):
@@ -30,6 +37,7 @@ class FTPServerScreen(Screen):
         self.app = App.get_running_app()
         self.server = None
         self.server_thread = None
+        self.max_log_lines = 1000
 
     def on_enter(self, *args):
         self.update_server_info()
@@ -133,10 +141,11 @@ class FTPServerScreen(Screen):
         self.server_status = "Stopped"
 
     def log_message(self, message):
-        timestamp = Clock.get_time() # or use datetime
         import datetime
         ts = datetime.datetime.now().strftime("%H:%M:%S")
-        self.log_text += f"[{ts}] {message}\n"
+        self.log_data.append({'text': f"[{ts}] {message}"})
+        if len(self.log_data) > self.max_log_lines:
+            self.log_data.pop(0)
 
     def clear_log(self):
-        self.log_text = ""
+        self.log_data = []
