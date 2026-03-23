@@ -3,6 +3,8 @@ from kivy.properties import StringProperty, ObjectProperty, NumericProperty, Boo
 from kivy.app import App
 from kivy.utils import platform
 import os
+import random
+import string
 
 class FTPServerSettings(BoxLayout):
     port = StringProperty('2121')
@@ -33,6 +35,11 @@ class FTPServerSettings(BoxLayout):
     def set_external_storage(self):
         path = self.app.platform_utils.get_external_storage_path()
         self.ids.directory_input.text = path
+
+    def generate_password(self):
+        chars = string.ascii_letters + string.digits
+        password = ''.join(random.choice(chars) for _ in range(8))
+        self.ids.password_input.text = password
 
     def save_settings(self):
         self.port = self.ids.port_input.text
