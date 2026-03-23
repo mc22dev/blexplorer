@@ -79,7 +79,7 @@ def resource_path(relative_path):
         # For development, the base path is the blescanner package directory
         base_path = os.path.abspath(os.path.dirname(__file__))
 
-    return os.path.join(base_path, relative_path)
+    return os.path.normpath(os.path.join(base_path, relative_path))
 
 # Load the kv files for the custom widgets
 assets_path = resource_path("assets")
@@ -160,18 +160,18 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'log_screen.kv')))
         Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'wireshark_screen.kv')))
 
-        Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
-        Builder.load_file(resource_path('tools/sys_info/sys_info.kv'))
-        Builder.load_file(resource_path('tools/calculator/calculator.kv'))
-        Builder.load_file(resource_path('tools/hex_editor/hex_editor.kv'))
-        Builder.load_file(resource_path('tools/network_scanner/network_scanner.kv'))
-        Builder.load_file(resource_path('tools/terminal/terminal.kv'))
-        Builder.load_file(resource_path('tools/audio_analyzer/audio_analyzer.kv'))
-        Builder.load_file(resource_path('tools/noise_monitor/noise_monitor.kv'))
-        Builder.load_file(resource_path('tools/wifi_scanner/wifi_scanner.kv'))
-        Builder.load_file(resource_path('tools/joystick_tester/joystick_tester.kv'))
-        Builder.load_file(resource_path('tools/ftp_server/ftp_server.kv'))
-        Builder.load_file(resource_path('tools/ftp_server/ftp_server_settings.kv'))
+        Builder.load_file(resource_path(os.path.join('tools', 'serial_monitor', 'serial_monitor.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'sys_info', 'sys_info.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'calculator', 'calculator.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'hex_editor', 'hex_editor.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'network_scanner', 'network_scanner.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'terminal', 'terminal.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'audio_analyzer', 'audio_analyzer.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'noise_monitor', 'noise_monitor.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'wifi_scanner', 'wifi_scanner.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'joystick_tester', 'joystick_tester.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'ftp_server', 'ftp_server.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'ftp_server', 'ftp_server_settings.kv')))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(
