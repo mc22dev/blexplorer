@@ -62,10 +62,12 @@ from blescanner.tools.audio_analyzer.audio_analyzer import AudioAnalyzerScreen
 from blescanner.tools.noise_monitor.noise_monitor import NoiseMonitorScreen
 from blescanner.tools.wifi_scanner.wifi_scanner import WifiScannerScreen
 from blescanner.tools.joystick_tester.joystick_tester import JoystickTesterScreen
+from blescanner.tools.ftp_server.ftp_server import FTPServerScreen
 from blescanner.utils.audio_manager import AudioManager
 from blescanner.ui.settings_popup import SettingsPopup
 from blescanner.tools.serial_monitor.serial_monitor_settings import SerialMonitorSettings
 from blescanner.tools.noise_monitor.noise_monitor_settings import NoiseMonitorSettings
+from blescanner.tools.ftp_server.ftp_server_settings import FTPServerSettings
 
 
 def resource_path(relative_path):
@@ -77,7 +79,7 @@ def resource_path(relative_path):
         # For development, the base path is the blescanner package directory
         base_path = os.path.abspath(os.path.dirname(__file__))
 
-    return os.path.join(base_path, relative_path)
+    return os.path.normpath(os.path.join(base_path, relative_path))
 
 # Load the kv files for the custom widgets
 assets_path = resource_path("assets")
@@ -158,16 +160,18 @@ class BLEScannerApp(App):
         Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'log_screen.kv')))
         Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'wireshark_screen.kv')))
 
-        Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
-        Builder.load_file(resource_path('tools/sys_info/sys_info.kv'))
-        Builder.load_file(resource_path('tools/calculator/calculator.kv'))
-        Builder.load_file(resource_path('tools/hex_editor/hex_editor.kv'))
-        Builder.load_file(resource_path('tools/network_scanner/network_scanner.kv'))
-        Builder.load_file(resource_path('tools/terminal/terminal.kv'))
-        Builder.load_file(resource_path('tools/audio_analyzer/audio_analyzer.kv'))
-        Builder.load_file(resource_path('tools/noise_monitor/noise_monitor.kv'))
-        Builder.load_file(resource_path('tools/wifi_scanner/wifi_scanner.kv'))
-        Builder.load_file(resource_path('tools/joystick_tester/joystick_tester.kv'))
+        Builder.load_file(resource_path(os.path.join('tools', 'serial_monitor', 'serial_monitor.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'sys_info', 'sys_info.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'calculator', 'calculator.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'hex_editor', 'hex_editor.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'network_scanner', 'network_scanner.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'terminal', 'terminal.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'audio_analyzer', 'audio_analyzer.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'noise_monitor', 'noise_monitor.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'wifi_scanner', 'wifi_scanner.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'joystick_tester', 'joystick_tester.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'ftp_server', 'ftp_server.kv')))
+        Builder.load_file(resource_path(os.path.join('tools', 'ftp_server', 'ftp_server_settings.kv')))
         config_path = os.path.join(self.user_data_dir, 'config.ini')
         self.config_manager = ConfigManager(config_path)
         self.ui_manager = UIManager(
@@ -264,6 +268,9 @@ class BLEScannerApp(App):
         joystick_tester_screen = JoystickTesterScreen(name='joystick_tester')
         self.root.ids.screen_manager.add_widget(joystick_tester_screen)
 
+        ftp_server_screen = FTPServerScreen(name='ftp_server')
+        self.root.ids.screen_manager.add_widget(ftp_server_screen)
+
         self.device_manager.ui_container = ble_scanner_screen.ids.scanner_screen.ids.device_list
         self.ui_manager.root = self.root
 
@@ -298,6 +305,7 @@ class BLEScannerApp(App):
             "noise_monitor": "Noise Monitor",
             "wifi_scanner": "Wifi Scanner",
             "joystick_tester": "Joystick Tester",
+            "ftp_server": "FTP Server",
         }
         for tool_id, tool_name in tools.items():
             btn = Button(text=tool_name, size_hint_y=None, height="48dp")
@@ -350,7 +358,9 @@ class BLEScannerApp(App):
         # Map tool IDs to their settings tab names
         tool_to_tab = {
             'serial_monitor': 'Serial Monitor',
-            'noise_monitor': 'Noise Monitor'
+            'noise_monitor': 'Noise Monitor',
+            'ftp_server': 'FTP Server',
+            'ble_scanner': 'General'
         }
         current_tool_id = self.root.ids.screen_manager.current
 
@@ -365,11 +375,16 @@ class BLEScannerApp(App):
         noise_tab.content = noise_monitor_settings
         self.settings_popup.add_tool_settings(noise_tab)
 
+        ftp_server_settings = FTPServerSettings()
+        ftp_tab = TabbedPanelItem(text='FTP Server')
+        ftp_tab.content = ftp_server_settings
+        self.settings_popup.add_tool_settings(ftp_tab)
+
         self.settings_popup.open()
 
         # Switch to the current tool's tab if it exists
-        if current_tool_id in tool_to_tab:
-            self.settings_popup.select_tab_by_name(tool_to_tab[current_tool_id])
+        tab_name = tool_to_tab.get(current_tool_id, 'General')
+        self.settings_popup.select_tab_by_name(tab_name)
 
     def open_parameter_window(self):
         """Opens the parameter window."""

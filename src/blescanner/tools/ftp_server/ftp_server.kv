@@ -1,0 +1,79 @@
+#:kivy 2.0.0
+
+<LogLine>:
+    size_hint_y: None
+    height: "20dp"
+    halign: 'left'
+    valign: 'middle'
+    text_size: self.size
+    shorten: True
+    shorten_from: 'right'
+    font_name: 'UbuntuMono'
+
+<FTPServerScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: "10dp"
+        spacing: "10dp"
+
+        BoxLayout:
+            size_hint_y: None
+            height: "40dp"
+            spacing: "10dp"
+            Label:
+                text: "Status: " + root.server_status
+                bold: True
+                color: (0, 1, 0, 1) if root.is_running else (1, 0, 0, 1)
+            Button:
+                text: "Stop Server" if root.is_running else "Start Server"
+                on_release: root.toggle_server()
+                background_color: (1, 0, 0, 1) if root.is_running else (0, 1, 0, 1)
+
+        Label:
+            text: "Server Address: " + root.server_address
+            size_hint_y: None
+            height: "30dp"
+            halign: 'left'
+            text_size: self.size
+
+        BoxLayout:
+            orientation: 'vertical'
+            canvas.before:
+                Color:
+                    rgba: (0.2, 0.2, 0.2, 1)
+                Rectangle:
+                    size: self.size
+                    pos: self.pos
+
+            RecycleView:
+                id: log_rv
+                data: root.log_data
+                viewclass: 'LogLine'
+                RecycleBoxLayout:
+                    default_size: None, dp(20)
+                    default_size_hint: 1, None
+                    size_hint_y: None
+                    height: self.minimum_height
+                    orientation: 'vertical'
+                    padding: "10dp", "10dp"
+
+        BoxLayout:
+            size_hint_y: None
+            height: "40dp"
+            spacing: "10dp"
+            BoxLayout:
+                size_hint_x: None
+                width: "120dp"
+                spacing: "5dp"
+                CheckBox:
+                    id: autoscroll_checkbox
+                    active: True
+                    size_hint_x: None
+                    width: "30dp"
+                Label:
+                    text: "Autoscroll"
+                    halign: 'left'
+                    text_size: self.size
+            Button:
+                text: "Clear Log"
+                on_release: root.clear_log()

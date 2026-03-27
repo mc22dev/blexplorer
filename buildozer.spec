@@ -36,8 +36,8 @@ version.regex = __version__ = ['"](.*)['"]
 version.filename = %(source.dir)s/blescanner/_version.py
 
 # (list) Application requirements
-# comma separated e.g. requirements = sqlite3,kivy,psutil,pyte,asyncssh,telnetlib3
-requirements = python3,kivy,bleak,setuptools,cython,pyjnius,typing-extensions,beacontools,construct,ahocorapy,able_recipe,pyserial,pyserial-asyncio,simpleeval,scapy,pyte,asyncssh,telnetlib3,numpy,wcwidth,cryptography,dbus-fast
+# comma separated e.g. requirements = sqlite3,kivy,psutil,pyte,asyncssh,telnetlib3,pyftpdlib
+requirements = python3,kivy,bleak,setuptools,cython,pyjnius,typing-extensions,beacontools,construct,ahocorapy,able_recipe,pyserial,pyserial-asyncio,simpleeval,scapy,pyte,asyncssh,telnetlib3,numpy,wcwidth,cryptography,dbus-fast,pyftpdlib
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -95,7 +95,7 @@ fullscreen = 1
 
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)
-android.permissions = android.permission.BLUETOOTH, android.permission.BLUETOOTH_ADMIN, android.permission.ACCESS_FINE_LOCATION, android.permission.BLUETOOTH_SCAN, android.permission.BLUETOOTH_CONNECT, android.permission.INTERNET, android.permission.ACCESS_WIFI_STATE, android.permission.ACCESS_NETWORK_STATE, android.permission.RECORD_AUDIO, android.permission.CHANGE_WIFI_STATE, android.permission.WAKE_LOCK
+android.permissions = android.permission.BLUETOOTH, android.permission.BLUETOOTH_ADMIN, android.permission.ACCESS_FINE_LOCATION, android.permission.BLUETOOTH_SCAN, android.permission.BLUETOOTH_CONNECT, android.permission.INTERNET, android.permission.ACCESS_WIFI_STATE, android.permission.ACCESS_NETWORK_STATE, android.permission.RECORD_AUDIO, android.permission.CHANGE_WIFI_STATE, android.permission.WAKE_LOCK, android.permission.READ_EXTERNAL_STORAGE, android.permission.WRITE_EXTERNAL_STORAGE, android.permission.MANAGE_EXTERNAL_STORAGE, android.permission.READ_MEDIA_IMAGES, android.permission.READ_MEDIA_VIDEO, android.permission.READ_MEDIA_AUDIO
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
