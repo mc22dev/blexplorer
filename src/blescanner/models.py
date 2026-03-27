@@ -60,13 +60,17 @@ class DeviceScanStats:
         self.max_period: float = 0.0
         self.avg_period: float = 0.0
 
-    def update(self, adv_data: AdvertisementData):
+    def update(self, adv_data: AdvertisementData, timestamp: float = None):
         """Updates the statistics with new advertisement data."""
         self.adv_data = adv_data
         self.rssi_values.append(adv_data.rssi)
 
-        current_time = time.monotonic()
+        current_time = timestamp if timestamp is not None else time.monotonic()
         if self.timestamps:
+            # Prevent negative periods due to clock synchronization jitter or different epochs
+            if current_time < self.timestamps[-1]:
+                current_time = self.timestamps[-1]
+
             self.last_period = (current_time - self.timestamps[-1]) * 1000  # in ms
             self.periods.append(self.last_period)
 

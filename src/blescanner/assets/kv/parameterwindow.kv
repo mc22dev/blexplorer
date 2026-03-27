@@ -135,10 +135,10 @@
 
             Button:
                 text: 'Restore Defaults'
-                on_release: app.restore_default_parameters(root)
+                on_release: app.restore_default_parameters(root) if app else None
             Button:
                 text: 'OK'
-                on_release: app.update_parameters(root)
+                on_release: app.update_parameters(root) if app else None
             Button:
                 text: 'Cancel'
                 on_release: root.dismiss()

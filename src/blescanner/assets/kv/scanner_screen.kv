@@ -8,13 +8,13 @@
         TextInput:
             id: search_input
             hint_text: 'Filter devices'
-            on_text: app.filter_devices(self.text)
+            on_text: app.filter_devices(self.text) if app else None
         Button:
             id: clear_filter_button
             text: 'Clear'
             size_hint_x: None
             width: '80dp'
-            on_release: app.clear_device_filter()
+            on_release: app.clear_device_filter() if app else None
     BoxLayout:
         orientation: 'vertical'
         size_hint_y: None
@@ -37,8 +37,8 @@
             size_hint_y: None
             height: '200dp'
             device_data: app.global_graph_data if app else {}
-            rssi_min: app.rssi_min
-            rssi_max: app.rssi_max
+            rssi_min: app.rssi_min if app else -110
+            rssi_max: app.rssi_max if app else -20
 
     ScrollView:
         id: device_scroll_view

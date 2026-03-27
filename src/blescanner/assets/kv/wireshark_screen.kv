@@ -8,7 +8,7 @@
         height: "48dp"
         canvas.before:
             Color:
-                rgba: app.theme.header_bg
+                rgba: app.theme.header_bg if app else (0,0,0,1)
             Rectangle:
                 pos: self.pos
                 size: self.size
@@ -17,12 +17,12 @@
         TooltipButton:
             font_name: "MaterialIcons"
             text: "\U000F01B4"
-            on_release: app.clear_wireshark_log()
+            on_release: app.clear_wireshark_log() if app else None
             tooltip_text: "Clear log"
         TooltipButton:
             font_name: "MaterialIcons"
             text: "\U000F0193"
-            on_release: app.show_save_wireshark_dialog()
+            on_release: app.show_save_wireshark_dialog() if app else None
             tooltip_text: "Save log"
         CheckBox:
             id: autoscroll_checkbox
@@ -44,15 +44,19 @@
                 size: self.size
         Label:
             text: "Time"
-            size_hint_x: 0.15
+            size_hint_x: 0.12
             bold: True
         Label:
-            text: "RSSI"
+            text: "Delay"
             size_hint_x: 0.08
             bold: True
         Label:
+            text: "RSSI"
+            size_hint_x: 0.07
+            bold: True
+        Label:
             text: "Address"
-            size_hint_x: 0.17
+            size_hint_x: 0.16
             bold: True
         Label:
             text: "Service UUIDs"

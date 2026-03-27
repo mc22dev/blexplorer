@@ -5,7 +5,7 @@
         spacing: "10dp"
         canvas.before:
             Color:
-                rgba: app.theme.background
+                rgba: app.theme.background if app else (0,0,0,1)
             Rectangle:
                 pos: self.pos
                 size: self.size
@@ -19,7 +19,7 @@
                 text: "Select Joystick:"
                 size_hint_x: None
                 width: self.texture_size[0]
-                color: app.theme.text
+                color: app.theme.text if app else (1,1,1,1)
             Spinner:
                 id: stick_spinner
                 text: "No Joysticks Detected" if root.selected_stick_id == -1 else f"Joystick {root.selected_stick_id}"
@@ -31,7 +31,7 @@
                 size_hint_x: None
                 width: "100dp"
                 on_release: root.probe_joysticks()
-                background_color: app.theme.primary
+                background_color: app.theme.primary if app else (0.2,0.2,0.2,1)
                 color: [1, 1, 1, 1]
 
         # Content Area
@@ -60,7 +60,7 @@
                             size_hint_y: None
                             height: "30dp"
                             bold: True
-                            color: app.theme.primary
+                            color: app.theme.primary if app else (0.2,0.6,1,1)
                         BoxLayout:
                             orientation: 'vertical'
                             size_hint_y: None
@@ -79,7 +79,7 @@
                             size_hint_y: None
                             height: "30dp"
                             bold: True
-                            color: app.theme.primary
+                            color: app.theme.primary if app else (0.2,0.6,1,1)
                         GridLayout:
                             cols: 4
                             size_hint_y: None
@@ -102,7 +102,7 @@
                     padding: "10dp"
                     canvas.before:
                         Color:
-                            rgba: app.theme.secondary
+                            rgba: app.theme.secondary if app else (0.3,0.3,0.3,1)
                         RoundedRectangle:
                             pos: self.pos
                             size: self.size
@@ -112,7 +112,7 @@
                         size_hint_y: None
                         height: "24dp"
                         bold: True
-                        color: app.theme.primary
+                        color: app.theme.primary if app else (0.2,0.6,1,1)
                         halign: 'left'
                         text_size: self.size
                     Label:
@@ -120,7 +120,7 @@
                         halign: 'left'
                         valign: 'top'
                         text_size: self.size
-                        color: app.theme.text
+                        color: app.theme.text if app else (1,1,1,1)
                         font_size: "13sp"
 
                 Label:
@@ -128,7 +128,7 @@
                     size_hint_y: None
                     height: "30dp"
                     bold: True
-                    color: app.theme.primary
+                    color: app.theme.primary if app else (0.2,0.6,1,1)
                 JoystickVisualizer:
                     id: visualizer
 
@@ -136,7 +136,7 @@
     canvas:
         # Background
         Color:
-            rgba: app.theme.secondary
+            rgba: app.theme.secondary if app else (0.3,0.3,0.3,1)
         Line:
             circle: (self.x + self.width * 0.25, self.y + self.height * 0.6, self.width * 0.15)
             width: 2
@@ -145,7 +145,7 @@
             width: 2
         # Center Crosses for sticks
         Color:
-            rgba: app.theme.disabled_fg
+            rgba: app.theme.disabled_fg if app else (0.5,0.5,0.5,1)
         Line:
             points: [self.x + self.width * 0.2, self.y + self.height * 0.6, self.x + self.width * 0.3, self.y + self.height * 0.6]
         Line:
@@ -157,28 +157,28 @@
 
         # Left Stick Nub
         Color:
-            rgba: app.theme.primary
+            rgba: app.theme.primary if app else (0.2,0.6,1,1)
         Ellipse:
             pos: (self.x + self.width * 0.25 + root.lx * self.width * 0.12 - dp(10), self.y + self.height * 0.6 + root.ly * self.width * 0.12 - dp(10))
             size: (dp(20), dp(20))
 
         # Right Stick Nub
         Color:
-            rgba: app.theme.primary
+            rgba: app.theme.primary if app else (0.2,0.6,1,1)
         Ellipse:
             pos: (self.x + self.width * 0.75 + root.rx * self.width * 0.12 - dp(10), self.y + self.height * 0.6 + root.ry * self.width * 0.12 - dp(10))
             size: (dp(20), dp(20))
 
         # D-Pad (Hat)
         Color:
-            rgba: app.theme.secondary
+            rgba: app.theme.secondary if app else (0.3,0.3,0.3,1)
         Rectangle:
             pos: (self.x + self.width * 0.5 - dp(40), self.y + self.height * 0.2 - dp(40))
             size: (dp(80), dp(80))
 
         # Hat indicator
         Color:
-            rgba: app.theme.primary if root.hx != 0 or root.hy != 0 else app.theme.disabled_fg
+            rgba: (app.theme.primary if root.hx != 0 or root.hy != 0 else app.theme.disabled_fg) if app else (0.2,0.6,1,1)
         Ellipse:
             pos: (self.x + self.width * 0.5 + root.hx * dp(25) - dp(10), self.y + self.height * 0.2 + root.hy * dp(25) - dp(10))
             size: (dp(20), dp(20))
@@ -187,17 +187,17 @@
         text: "Left Stick"
         center_x: root.x + root.width * 0.25
         center_y: root.y + root.height * 0.4
-        color: app.theme.text
+        color: app.theme.text if app else (1,1,1,1)
     Label:
         text: "Right Stick"
         center_x: root.x + root.width * 0.75
         center_y: root.y + root.height * 0.4
-        color: app.theme.text
+        color: app.theme.text if app else (1,1,1,1)
     Label:
         text: "D-Pad / Hat"
         center_x: root.x + root.width * 0.5
         center_y: root.y + root.height * 0.05
-        color: app.theme.text
+        color: app.theme.text if app else (1,1,1,1)
 
 <AxisIndicator>:
     orientation: 'horizontal'
@@ -206,7 +206,7 @@
     Label:
         text: root.axis_name
         size_hint_x: 0.3
-        color: app.theme.text
+        color: app.theme.text if app else (1,1,1,1)
         font_size: "12sp"
     ProgressBar:
         max: 2.0
@@ -215,7 +215,7 @@
     Label:
         text: f"{root.axis_value:.2f}"
         size_hint_x: 0.2
-        color: app.theme.text
+        color: app.theme.text if app else (1,1,1,1)
         font_size: "12sp"
 
 <ButtonIndicator>:
@@ -224,7 +224,7 @@
     size: ("36dp", "36dp")
     canvas.before:
         Color:
-            rgba: (app.theme.primary if self.is_down else app.theme.secondary)
+            rgba: (app.theme.primary if self.is_down else app.theme.secondary) if app else (0.3,0.3,0.3,1)
         Ellipse:
             pos: self.pos
             size: self.size
@@ -233,6 +233,6 @@
         Line:
             circle: (self.center_x, self.center_y, self.width/2)
             width: 1.5
-    color: [1, 1, 1, 1] if self.is_down else app.theme.text
+    color: [1, 1, 1, 1] if self.is_down else (app.theme.text if app else (1,1,1,1))
     bold: True
     font_size: "12sp"
