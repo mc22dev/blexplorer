@@ -1,4 +1,7 @@
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 import platform
 import os
 import subprocess
@@ -70,8 +73,12 @@ class SysInfoScreen(Screen):
 
         # CPU Info
         try:
-            cpu_count_logical = psutil.cpu_count(logical=True)
-            cpu_count_physical = psutil.cpu_count(logical=False)
+            if psutil:
+                cpu_count_logical = psutil.cpu_count(logical=True)
+                cpu_count_physical = psutil.cpu_count(logical=False)
+            else:
+                cpu_count_logical = os.cpu_count() or "Unknown"
+                cpu_count_physical = "Unknown"
 
             cpu_name = "Unknown"
             try:
@@ -94,13 +101,14 @@ class SysInfoScreen(Screen):
             except Exception:
                 cpu_name = platform.processor() or "Unknown"
 
-            freq = None
-            try:
-                freq = psutil.cpu_freq()
-            except Exception:
-                pass
-
-            freq_str = f"{freq.current:.2f}MHz" if freq and freq.current else "N/A"
+            freq_str = "N/A"
+            if psutil:
+                try:
+                    freq = psutil.cpu_freq()
+                    if freq and freq.current:
+                        freq_str = f"{freq.current:.2f}MHz"
+                except Exception:
+                    pass
 
             self.cpu_info = (
                 f"Model: {cpu_name}\n"
@@ -113,60 +121,85 @@ class SysInfoScreen(Screen):
 
         # Memory Info
         try:
-            mem = psutil.virtual_memory()
-            swap = psutil.swap_memory()
-            self.memory_info = (
-                f"RAM Total: {self._format_bytes(mem.total)}\n"
-                f"RAM Available: {self._format_bytes(mem.available)}\n"
-                f"RAM Used: {self._format_bytes(mem.used)} ({mem.percent}%)\n"
-                f"Swap Total: {self._format_bytes(swap.total)}\n"
-                f"Swap Used: {self._format_bytes(swap.used)} ({swap.percent}%)"
-            )
+            if psutil:
+                mem = psutil.virtual_memory()
+                swap = psutil.swap_memory()
+                self.memory_info = (
+                    f"RAM Total: {self._format_bytes(mem.total)}\n"
+                    f"RAM Available: {self._format_bytes(mem.available)}\n"
+                    f"RAM Used: {self._format_bytes(mem.used)} ({mem.percent}%)\n"
+                    f"Swap Total: {self._format_bytes(swap.total)}\n"
+                    f"Swap Used: {self._format_bytes(swap.used)} ({swap.percent}%)"
+                )
+            else:
+                self.memory_info = "Memory info unavailable (psutil not found)"
         except Exception as e:
             self.memory_info = f"Error getting memory info: {e}"
 
         # Disk Info
         try:
             disks = []
-            partitions = psutil.disk_partitions(all=False)
-            for part in partitions:
-                # Filter out some common non-physical disks on Linux/Android
-                if kivy_platform in ['linux', 'android']:
-                    if any(part.mountpoint.startswith(p) for p in ['/proc', '/sys', '/dev', '/run', '/var/lib']):
+            if psutil:
+                partitions = psutil.disk_partitions(all=False)
+                for part in partitions:
+                    # Filter out some common non-physical disks on Linux/Android
+                    if kivy_platform in ['linux', 'android']:
+                        if any(part.mountpoint.startswith(p) for p in ['/proc', '/sys', '/dev', '/run', '/var/lib']):
+                            continue
+
+                    if platform.system() == 'Windows' and 'cdrom' in part.opts:
                         continue
 
-                if platform.system() == 'Windows' and 'cdrom' in part.opts:
-                    continue
-
+                    try:
+                        usage = psutil.disk_usage(part.mountpoint)
+                        disks.append({
+                            'device': part.device,
+                            'mountpoint': part.mountpoint,
+                            'fstype': part.fstype,
+                            'total': self._format_bytes(usage.total),
+                            'used': self._format_bytes(usage.used),
+                            'free': self._format_bytes(usage.free),
+                            'percent': f"{usage.percent}%"
+                        })
+                    except (PermissionError, OSError):
+                        continue
+            else:
+                # Try os.statvfs as a basic fallback for Unix-like systems
+                if hasattr(os, 'statvfs'):
+                    try:
+                        st = os.statvfs('/')
+                        total = st.f_blocks * st.f_frsize
+                        free = st.f_bfree * st.f_frsize
+                        used = total - free
+                        percent = (used / total) * 100 if total > 0 else 0
+                        disks.append({
+                            'device': 'root',
+                            'mountpoint': '/',
+                            'fstype': 'N/A',
+                            'total': self._format_bytes(total),
+                            'used': self._format_bytes(used),
+                            'free': self._format_bytes(free),
+                            'percent': f"{percent:.1f}%"
+                        })
+                    except Exception:
+                        pass
+            self.disk_data = disks
+        except Exception as e:
+            # If we fail to get partitions, at least try to get root if psutil is available
+            if psutil:
                 try:
-                    usage = psutil.disk_usage(part.mountpoint)
-                    disks.append({
-                        'device': part.device,
-                        'mountpoint': part.mountpoint,
-                        'fstype': part.fstype,
+                    usage = psutil.disk_usage('/')
+                    self.disk_data = [{
+                        'device': 'root',
+                        'mountpoint': '/',
+                        'fstype': 'N/A',
                         'total': self._format_bytes(usage.total),
                         'used': self._format_bytes(usage.used),
                         'free': self._format_bytes(usage.free),
                         'percent': f"{usage.percent}%"
-                    })
-                except (PermissionError, OSError):
-                    continue
-            self.disk_data = disks
-        except Exception as e:
-            # If we fail to get partitions, at least try to get root
-            try:
-                usage = psutil.disk_usage('/')
-                self.disk_data = [{
-                    'device': 'root',
-                    'mountpoint': '/',
-                    'fstype': 'N/A',
-                    'total': self._format_bytes(usage.total),
-                    'used': self._format_bytes(usage.used),
-                    'free': self._format_bytes(usage.free),
-                    'percent': f"{usage.percent}%"
-                }]
-            except Exception:
-                pass
+                    }]
+                except Exception:
+                    pass
 
     def _format_bytes(self, n):
         for unit in ['', 'K', 'M', 'G', 'T', 'P']:

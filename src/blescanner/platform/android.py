@@ -149,22 +149,37 @@ class AndroidPlatformUtils(PlatformUtilsBase):
             if ip == "0.0.0.0":
                 # Try another way if WiFi dhcp info is not available
                 import socket
-                import psutil
-                for interface, addrs in psutil.net_if_addrs().items():
-                    for addr in addrs:
-                        if addr.family == socket.AF_INET and not addr.address.startswith("127."):
-                            return addr.address, addr.netmask
+                try:
+                    import psutil
+                    for interface, addrs in psutil.net_if_addrs().items():
+                        for addr in addrs:
+                            if addr.family == socket.AF_INET and not addr.address.startswith("127."):
+                                return addr.address, addr.netmask
+                except (ImportError, Exception):
+                    pass
 
             return ip, mask
         except Exception as e:
             logger.error(f"Error getting IP on Android: {e}")
             import socket
-            import psutil
-            for interface, addrs in psutil.net_if_addrs().items():
-                for addr in addrs:
-                    if addr.family == socket.AF_INET and not addr.address.startswith("127."):
-                        return addr.address, addr.netmask
-            return None, None
+            try:
+                import psutil
+                for interface, addrs in psutil.net_if_addrs().items():
+                    for addr in addrs:
+                        if addr.family == socket.AF_INET and not addr.address.startswith("127."):
+                            return addr.address, addr.netmask
+            except (ImportError, Exception):
+                pass
+
+            # Final fallback if even psutil is missing or fails
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.connect(("8.8.8.8", 80))
+                ip = s.getsockname()[0]
+                s.close()
+                return ip, "255.255.255.0"
+            except Exception:
+                return None, None
 
     def get_arp_table(self) -> dict:
         """
@@ -172,15 +187,16 @@ class AndroidPlatformUtils(PlatformUtilsBase):
         """
         arp_table = {}
         try:
-            with open("/proc/net/arp", "r") as f:
-                next(f)
-                for line in f:
-                    parts = line.split()
-                    if len(parts) >= 4:
-                        ip = parts[0]
-                        mac = parts[3]
-                        if mac != "00:00:00:00:00:00":
-                            arp_table[ip] = mac.lower()
+            if os.path.exists("/proc/net/arp"):
+                with open("/proc/net/arp", "r") as f:
+                    next(f)
+                    for line in f:
+                        parts = line.split()
+                        if len(parts) >= 4:
+                            ip = parts[0]
+                            mac = parts[3]
+                            if mac != "00:00:00:00:00:00":
+                                arp_table[ip] = mac.lower()
         except Exception as e:
             logger.error(f"Error reading ARP table on Android: {e}")
         return arp_table

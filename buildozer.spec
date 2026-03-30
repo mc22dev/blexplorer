@@ -37,7 +37,7 @@ version.filename = %(source.dir)s/blescanner/_version.py
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy,psutil,pyte,asyncssh,telnetlib3
-requirements = python3,kivy,bleak,setuptools,cython,pyjnius,typing-extensions,beacontools,construct,ahocorapy,able_recipe,pyserial,pyserial-asyncio,psutil,simpleeval,scapy,pyte,asyncssh,telnetlib3,numpy
+requirements = python3,kivy,bleak,setuptools,cython,pyjnius,typing-extensions,beacontools,construct,ahocorapy,able_recipe,pyserial,pyserial-asyncio,simpleeval,scapy,pyte,asyncssh,telnetlib3,numpy,wcwidth,cryptography,dbus-fast
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -201,7 +201,7 @@ android.extra_manifest_xml = manifest/extra_manifest.xml
 #android.add_resources =
 
 # (list) Gradle dependencies to add
-android.gradle_dependencies = "com.github.mik3y:usb-serial-for-android:3.9.0"
+android.gradle_dependencies = com.github.mik3y:usb-serial-for-android:3.9.0
 
 # (bool) Enable AndroidX support. Enable when 'android.gradle_dependencies'
 # contains an 'androidx' package, or any package from Kotlin source.
@@ -216,7 +216,7 @@ android.enable_androidx = True
 # (list) Gradle repositories to add {can be necessary for some android.gradle_dependencies}
 # please enclose in double quotes
 # e.g. android.gradle_repositories = "maven { url 'https://kotlin.bintray.com/ktor' }"
-android.add_gradle_repositories = "maven { url \"https://jitpack.io\" }"
+android.add_gradle_repositories = maven { url 'https://jitpack.io' }
 
 # (list) packaging options to add
 # see https://google.github.io/android-gradle-dsl/current/com.android.build.gradle.internal.dsl.PackagingOptions.html
