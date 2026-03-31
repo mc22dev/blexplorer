@@ -205,6 +205,10 @@ class BLEScannerApp(App):
         Clock.schedule_once(log_startup)
         Window.bind(on_keyboard=self._on_keyboard)
 
+        # Keep screen on for Android
+        if kivy_platform == 'android':
+            self.platform_utils.keep_screen_on(True)
+
         ble_scanner_screen = BLEScannerScreen(name='ble_scanner')
         self.root.ids.screen_manager.add_widget(ble_scanner_screen)
 
@@ -504,14 +508,14 @@ class BLEScannerApp(App):
     def discover_adapters(self):
         """Discovers available Bluetooth adapters and populates the dropdown."""
         adapters = ["Default"]
-        if platform.system() == "Linux":
+        if kivy_platform == 'linux':
             try:
                 result = subprocess.run(['hciconfig'], capture_output=True, text=True, check=True)
                 adapters.extend(re.findall(r'^(hci\d+)', result.stdout, re.MULTILINE))
-            except (FileNotFoundError, subprocess.CalledProcessError):
-                self.log_with_timestamp("hciconfig not found. Could not list Bluetooth adapters.", LogLevel.WARNING)
+            except (FileNotFoundError, subprocess.CalledProcessError, PermissionError):
+                self.log_with_timestamp("hciconfig not found or permission denied. Could not list Bluetooth adapters.", LogLevel.WARNING)
         else:
-            self.log_with_timestamp("Adapter discovery is currently only supported on Linux.", LogLevel.INFO)
+            self.log_with_timestamp("Adapter discovery is currently only supported on desktop Linux.", LogLevel.INFO)
         self.adapters = adapters
 
     def scan_for_devices(self, *args):

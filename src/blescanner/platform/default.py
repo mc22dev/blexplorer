@@ -118,6 +118,12 @@ class DefaultPlatformUtils(PlatformUtilsBase):
             pass
         return arp_table
 
+    def keep_screen_on(self, on: bool = True):
+        """
+        No-op on this platform.
+        """
+        pass
+
     async def scan_wifi(self) -> List[WifiAccessPoint]:
         """
         Scans for available Wi-Fi access points on Windows using netsh.

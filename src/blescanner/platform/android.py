@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Android-specific imports
 from android.permissions import request_permissions as android_request_permissions
+from android.runnable import run_on_ui_thread
 PythonActivity = autoclass('org.kivy.android.PythonActivity')
 Build = autoclass('android.os.Build$VERSION')
 PackageManager = autoclass('android.content.pm.PackageManager')
@@ -200,6 +201,24 @@ class AndroidPlatformUtils(PlatformUtilsBase):
         except Exception as e:
             logger.error(f"Error reading ARP table on Android: {e}")
         return arp_table
+
+    @run_on_ui_thread
+    def keep_screen_on(self, on: bool = True):
+        """
+        Keeps the screen on by setting the FLAG_KEEP_SCREEN_ON on the window.
+        """
+        try:
+            activity = PythonActivity.mActivity
+            window = activity.getWindow()
+            WindowManager = autoclass('android.view.WindowManager$LayoutParams')
+            if on:
+                window.addFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
+                logger.info("Screen always on enabled")
+            else:
+                window.clearFlags(WindowManager.FLAG_KEEP_SCREEN_ON)
+                logger.info("Screen always on disabled")
+        except Exception as e:
+            logger.error(f"Error setting keep_screen_on: {e}")
 
     async def scan_wifi(self) -> List[WifiAccessPoint]:
         """
