@@ -24,8 +24,8 @@ class NoiseMonitorSettings(BoxLayout):
         if hasattr(sys, '_MEIPASS'):
             base_path = os.path.join(sys._MEIPASS, 'blescanner')
         else:
-            # src/blescanner/ui -> src/blescanner/
-            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            # src/blescanner/tools/noise_monitor -> src/blescanner/
+            base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
         sounds_dir = os.path.join(base_path, "assets", "sounds")
         if os.path.exists(sounds_dir):

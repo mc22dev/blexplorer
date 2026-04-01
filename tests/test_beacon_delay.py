@@ -2,7 +2,7 @@ import pytest
 import time
 from unittest.mock import MagicMock, Mock
 from blescanner.models import DeviceScanStats
-from blescanner.core.device_manager import DeviceManager
+from blescanner.tools.ble_scanner.device_manager import DeviceManager
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 

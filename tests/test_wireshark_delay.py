@@ -74,7 +74,7 @@ def test_wireshark_delay_reset_on_clear(app):
     assert app.wireshark_data[0]['delay'] == ""
 
 def test_wireshark_log_entry_has_delay_property():
-    from blescanner.ui.wireshark_log_entry import WiresharkLogEntry
+    from blescanner.tools.ble_scanner.wireshark_log_entry import WiresharkLogEntry
     # Mocking app and theme to avoid BuilderException during widget init
     mock_app = MagicMock()
     mock_app.theme.secondary = [0, 0, 0, 1]

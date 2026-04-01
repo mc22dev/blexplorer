@@ -31,24 +31,25 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
 from ._version import __version__
-from blescanner.ble.ble_decoder import decode_advertisement
-from blescanner.ble.ble_manager import BLEManager
-from blescanner.core.device_cache import DeviceCache, service_to_dict
+from blescanner.tools.ble_scanner.ble_decoder import decode_advertisement
+from blescanner.tools.ble_scanner.ble_manager import BLEManager
+from blescanner.tools.ble_scanner.device_cache import DeviceCache, service_to_dict
 from blescanner.models import CachedService, LogLevel, DeviceScanStats
-from blescanner.ui.device_frame_kivy import DeviceFrameKivy
-from blescanner.ui.characteristic_frame_kivy import CharacteristicFrameKivy
-from blescanner.ui.descriptor_frame_kivy import DescriptorFrameKivy
-from blescanner.ui.collapsible_frame_kivy import CollapsibleFrameKivy
-from blescanner.ble.gatt import GATT_SERVICES
+from blescanner.tools.ble_scanner.ble_scanner import BLEScannerScreen, WiresharkScreen
+from blescanner.tools.ble_scanner.device_frame_kivy import DeviceFrameKivy
+from blescanner.tools.ble_scanner.characteristic_frame_kivy import CharacteristicFrameKivy
+from blescanner.tools.ble_scanner.descriptor_frame_kivy import DescriptorFrameKivy
+from blescanner.tools.ble_scanner.collapsible_frame_kivy import CollapsibleFrameKivy
+from blescanner.tools.ble_scanner.gatt import GATT_SERVICES
 from blescanner.ui.parameter_window import ParameterWindow
 from blescanner.utils.config_manager import ConfigManager
-from blescanner.ui.ota_window import OTAWindow
+from blescanner.tools.ble_scanner.ota_window import OTAWindow
 from blescanner.utils.theme import theme_manager
-from blescanner.ui.global_rssi_graph import GlobalRSSIGraph
-from blescanner.ui.wireshark_log_entry import WiresharkLogEntry
+from blescanner.tools.ble_scanner.global_rssi_graph import GlobalRSSIGraph
+from blescanner.tools.ble_scanner.wireshark_log_entry import WiresharkLogEntry
 from blescanner.platform import platform_utils
 from blescanner.ui.ui_manager import UIManager
-from blescanner.core.device_manager import DeviceManager
+from blescanner.tools.ble_scanner.device_manager import DeviceManager
 from blescanner.ui.tooltip import TooltipButton
 from blescanner.ui.file_chooser_dialog import FileChooserDialog
 from blescanner.tools.serial_monitor.serial_monitor import SerialMonitorScreen
@@ -63,8 +64,8 @@ from blescanner.tools.wifi_scanner.wifi_scanner import WifiScannerScreen
 from blescanner.tools.joystick_tester.joystick_tester import JoystickTesterScreen
 from blescanner.utils.audio_manager import AudioManager
 from blescanner.ui.settings_popup import SettingsPopup
-from blescanner.ui.serial_monitor_settings import SerialMonitorSettings
-from blescanner.ui.noise_monitor_settings import NoiseMonitorSettings
+from blescanner.tools.serial_monitor.serial_monitor_settings import SerialMonitorSettings
+from blescanner.tools.noise_monitor.noise_monitor_settings import NoiseMonitorSettings
 
 
 def resource_path(relative_path):
@@ -107,12 +108,6 @@ class MainLayout(FloatLayout):
         self.nav_drawer_open = not self.nav_drawer_open
 
 
-class BLEScannerScreen(Screen):
-    pass
-
-
-class WiresharkScreen(BoxLayout):
-    pass
 
 
 class BLEScannerApp(App):
@@ -145,9 +140,24 @@ class BLEScannerApp(App):
     def build(self):
         Builder.load_file(resource_path('ui/main.kv'))
         Builder.load_file(resource_path('ui/settings_popup.kv'))
-        Builder.load_file(resource_path('ui/serial_monitor_settings.kv'))
-        Builder.load_file(resource_path('ui/noise_monitor_settings.kv'))
+        Builder.load_file(resource_path('tools/serial_monitor/serial_monitor_settings.kv'))
+        Builder.load_file(resource_path('tools/noise_monitor/noise_monitor_settings.kv'))
         Builder.load_file(resource_path('tools/ble_scanner/ble_scanner.kv'))
+
+        # Load BLE Scanner sub-KV files from the tool folder
+        ble_scanner_folder = os.path.join('tools', 'ble_scanner')
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'deviceframekivy.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'characteristicframekivy.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'descriptorframekivy.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'collapsibleframekivy.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'otawindow.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'globalrssigraph.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'wiresharklogentry.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'device_screen.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'scanner_screen.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'log_screen.kv')))
+        Builder.load_file(resource_path(os.path.join(ble_scanner_folder, 'wireshark_screen.kv')))
+
         Builder.load_file(resource_path('tools/serial_monitor/serial_monitor.kv'))
         Builder.load_file(resource_path('tools/sys_info/sys_info.kv'))
         Builder.load_file(resource_path('tools/calculator/calculator.kv'))
